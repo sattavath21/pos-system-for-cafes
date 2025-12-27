@@ -24,6 +24,7 @@ type CartItem = {
   price: number
   quantity: number
   modifiers: string[]
+  category: string
 }
 
 type Customer = {

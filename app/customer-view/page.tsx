@@ -10,6 +10,7 @@ type CartItem = {
     price: number
     quantity: number
     modifiers: string[]
+    category: string
 }
 
 export default function CustomerViewPage() {
@@ -44,7 +45,7 @@ export default function CustomerViewPage() {
                     </p>
                     <div className="pt-12 grid grid-cols-3 gap-8 opacity-70">
                         <div className="text-center">
-                            <div className="text-4xl mb-2">🥐</div>
+                            <div className="text-4xl mb-2">🥐</div>s
                             <p className="font-medium text-amber-800">Fresh Pastries</p>
                         </div>
                         <div className="text-center">
