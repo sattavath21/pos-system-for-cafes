@@ -1,0 +1,72 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = "file:c:\\Users\\Sattavath.p\\Documents\\pos-system-for-cafes\\dev.db"
+}
+
+model Category {
+  id        String    @id @default(uuid())
+  name      String
+  products  Product[]
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+}
+
+model Product {
+  id          String   @id @default(uuid())
+  name        String
+  description String?
+  price       Float
+  isAvailable Boolean  @default(true)
+  image       String?  @default("/placeholder.svg")
+  categoryId  String
+  category    Category @relation(fields: [categoryId], references: [id])
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  orderItems  OrderItem[]
+}
+
+model Customer {
+  id            String   @id @default(uuid())
+  name          String
+  phone         String?
+  email         String?
+  loyaltyPoints Int      @default(0)
+  totalSpent    Float    @default(0)
+  visitCount    Int      @default(0)
+  lastVisit     DateTime @default(now())
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  orders        Order[]
+}
+
+model Order {
+  id            String      @id @default(uuid())
+  orderNumber   String      @unique // e.g. ORD-001
+  status        String      @default("COMPLETED") // PENDING, COMPLETED, HELD, CANCELLED
+  total         Float
+  subtotal      Float
+  tax           Float
+  discount      Float       @default(0)
+  paymentMethod String      @default("CASH") // CASH, CARD, QR, etc.
+  customerId    String?
+  customer      Customer?   @relation(fields: [customerId], references: [id])
+  items         OrderItem[]
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+}
+
+model OrderItem {
+  id        String  @id @default(uuid())
+  orderId   String
+  order     Order   @relation(fields: [orderId], references: [id])
+  productId String
+  product   Product @relation(fields: [productId], references: [id])
+  name      String  // Snapshot of product name
+  price     Float   // Snapshot of price
+  quantity  Int
+  total     Float
+}
