@@ -80,7 +80,7 @@ export default function ActiveOrdersPage() {
         <div className="min-h-screen bg-background">
             <header className="border-b bg-white sticky top-0 z-10">
                 <div className="flex items-center justify-between p-4">
-                    <h1 className="text-2xl font-bold text-amber-900">Active Orders</h1>
+                    <h1 className="text-2xl font-bold text-amber-900">All Orders</h1>
                     <div className="flex items-center gap-4">
                         <Link href="/dashboard">
                             <Button variant="outline" size="sm">
@@ -131,11 +131,11 @@ export default function ActiveOrdersPage() {
                                     {formatLAK(order.total)}
                                 </span>
 
-                                {order.status === "HOLD" && (
+                                {["HOLD", "PENDING", "PREPARING"].includes(order.status) && (
                                     <Button
                                         size="sm"
                                         className="bg-green-600 hover:bg-green-700"
-                                        onClick={() => handleResumeOrder(order.id)}
+                                        onClick={() => window.location.href = `/pos?resumeOrder=${order.id}`}
                                     >
                                         <Play className="w-4 h-4 mr-1" />
                                         Resume

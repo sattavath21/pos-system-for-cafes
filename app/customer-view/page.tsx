@@ -37,9 +37,16 @@ export default function CustomerViewPage() {
             if (event.data.type === "QR_PAYMENT") {
                 setQrPayment(event.data.data)
                 setIsIdle(false)
+            } else if (event.data.type === "PAYMENT_METHOD_CHANGE") {
+                if (event.data.method !== 'QR_CODE') {
+                    setQrPayment(null)
+                }
             } else if (event.data.type === "PAYMENT_COMPLETE") {
                 setQrPayment(null)
-                setIsIdle(true)
+                // Don't set isIdle true here if cart still has items,
+                // but usually PAYMENT_COMPLETE means order finished.
+                // If generic clear signal, just clear QR.
+                setQrPayment(null)
             }
         }
 

@@ -5,7 +5,8 @@ export async function PUT(request: Request, { params }: { params: { id: string }
     try {
         const { id } = await params
         const body = await request.json()
-        const { name, description, price, isAvailable, category } = body
+        const now = new Date().toISOString()
+        const { name, description, price, isAvailable, category, image } = body
 
         const db = await getDb()
 
@@ -18,19 +19,20 @@ export async function PUT(request: Request, { params }: { params: { id: string }
             } else {
                 const crypto = require('crypto')
                 categoryId = crypto.randomUUID()
-                await db.run('INSERT INTO Category (id, name) VALUES (?, ?)', categoryId, category)
+                await db.run('INSERT INTO Category (id, name, createdAt, updatedAt) VALUES (?, ?, ?, ?)',
+                    categoryId, category, now, now)
             }
         }
 
         if (categoryId) {
             await db.run(
-                'UPDATE Product SET name = ?, description = ?, price = ?, isAvailable = ?, categoryId = ? WHERE id = ?',
-                name, description, price, isAvailable ? 1 : 0, categoryId, id
+                'UPDATE Product SET name = ?, description = ?, price = ?, isAvailable = ?, categoryId = ?, image = ?, updatedAt = ? WHERE id = ?',
+                name, description, price, isAvailable ? 1 : 0, categoryId, image, now, id
             )
         } else {
             await db.run(
-                'UPDATE Product SET name = ?, description = ?, price = ?, isAvailable = ? WHERE id = ?',
-                name, description, price, isAvailable ? 1 : 0, id
+                'UPDATE Product SET name = ?, description = ?, price = ?, isAvailable = ?, image = ?, updatedAt = ? WHERE id = ?',
+                name, description, price, isAvailable ? 1 : 0, image, now, id
             )
         }
 

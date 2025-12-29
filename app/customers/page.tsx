@@ -19,21 +19,27 @@ type Customer = {
   totalOrders: number // Need to fetch from Orders or aggregate?
   totalSpent: number
   lastVisit: string // Date string
+  dateOfBirth?: string | null
   createdAt: string
 }
+
+import { formatLAK } from "@/lib/currency"
 
 export default function CustomersPage() {
   const [searchQuery, setSearchQuery] = useState("")
   const [isDialogOpen, setIsDialogOpen] = useState(false)
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null)
   const [customers, setCustomers] = useState<Customer[]>([])
+  const [orderHistory, setOrderHistory] = useState<any[]>([])
   const [isLoading, setIsLoading] = useState(false)
+  const [isLoadingHistory, setIsLoadingHistory] = useState(false)
 
   // Form State
   const [formData, setFormData] = useState({
     name: "",
     phone: "",
-    email: ""
+    email: "",
+    dateOfBirth: ""
   })
 
   useEffect(() => {
@@ -66,7 +72,9 @@ export default function CustomersPage() {
       })
       if (res.ok) {
         setIsDialogOpen(false)
-        setFormData({ name: "", phone: "", email: "" }) // Reset
+        setIsDialogOpen(false)
+        setFormData({ name: "", phone: "", email: "", dateOfBirth: "" }) // Reset
+        fetchCustomers()
         fetchCustomers()
       }
     } catch (e) { console.error(e) }
@@ -81,8 +89,19 @@ export default function CustomersPage() {
       customer.email?.toLowerCase().includes(searchQuery.toLowerCase()),
   )
 
-  const handleViewDetails = (customer: Customer) => {
+  const handleViewDetails = async (customer: Customer) => {
     setSelectedCustomer(customer)
+    setIsLoadingHistory(true)
+    try {
+      const res = await fetch(`/api/orders?customerId=${customer.id}`)
+      if (res.ok) {
+        setOrderHistory(await res.json())
+      }
+    } catch (e) {
+      console.error(e)
+    } finally {
+      setIsLoadingHistory(false)
+    }
   }
 
   return (
@@ -92,6 +111,16 @@ export default function CustomersPage() {
         <div className="flex items-center justify-between p-4">
           <h1 className="text-2xl font-bold text-amber-900">Customer Management</h1>
           <div className="flex items-center gap-4">
+            <Link href="/menu">
+              <Button variant="outline" size="sm">
+                Menu
+              </Button>
+            </Link>
+            <Link href="/inventory">
+              <Button variant="outline" size="sm">
+                Inventory
+              </Button>
+            </Link>
             <Link href="/dashboard">
               <Button variant="outline" size="sm">
                 Dashboard
@@ -124,7 +153,7 @@ export default function CustomersPage() {
           <Card className="p-6">
             <p className="text-sm text-muted-foreground mb-1">Total Revenue</p>
             <p className="text-3xl font-bold text-purple-600">
-              ${customers.reduce((sum, c) => sum + c.totalSpent, 0).toFixed(2)}
+              {formatLAK(customers.reduce((sum, c) => sum + c.totalSpent, 0))}
             </p>
           </Card>
         </div>
@@ -180,6 +209,15 @@ export default function CustomersPage() {
                     onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                   />
                 </div>
+                <div>
+                  <Label htmlFor="customerDob">Date of Birth (Optional)</Label>
+                  <Input
+                    id="customerDob"
+                    type="date"
+                    value={formData.dateOfBirth}
+                    onChange={(e) => setFormData({ ...formData, dateOfBirth: e.target.value })}
+                  />
+                </div>
               </div>
               <DialogFooter>
                 <Button variant="outline" onClick={() => setIsDialogOpen(false)}>
@@ -223,7 +261,7 @@ export default function CustomersPage() {
                     </div>
                     <div className="text-right">
                       <p className="text-sm text-muted-foreground">Total Spent</p>
-                      <p className="font-semibold text-green-600">${customer.totalSpent.toFixed(2)}</p>
+                      <p className="font-semibold text-green-600">{formatLAK(customer.totalSpent)}</p>
                     </div>
                     <div className="text-right">
                       <p className="text-sm text-muted-foreground">Last Visit</p>
@@ -263,12 +301,36 @@ export default function CustomersPage() {
                     <Label className="text-muted-foreground">Loyalty Points</Label>
                     <p className="font-semibold text-amber-600">{selectedCustomer.loyaltyPoints}</p>
                   </div>
+                  <div>
+                    <Label className="text-muted-foreground">Date of Birth</Label>
+                    <p className="font-semibold">{selectedCustomer.dateOfBirth ? new Date(selectedCustomer.dateOfBirth).toLocaleDateString() : 'N/A'}</p>
+                  </div>
                 </div>
 
                 <div className="border-t pt-4">
                   <h3 className="font-bold mb-4">Order History</h3>
-                  <p className="text-muted-foreground text-sm">Order history details to be implemented with Orders API.</p>
-                  {/* Placeholder for orders list */}
+                  {isLoadingHistory ? (
+                    <p className="text-muted-foreground text-sm">Loading history...</p>
+                  ) : orderHistory.length > 0 ? (
+                    <div className="space-y-3 max-h-[300px] overflow-y-auto pr-2">
+                      {orderHistory.map((order) => (
+                        <div key={order.id} className="p-3 border rounded bg-slate-50 flex justify-between items-center text-sm">
+                          <div>
+                            <p className="font-semibold">{order.orderNumber}</p>
+                            <p className="text-xs text-muted-foreground">{new Date(order.createdAt).toLocaleString()}</p>
+                          </div>
+                          <div className="text-right">
+                            <p className="font-medium text-amber-900">{formatLAK(order.total)}</p>
+                            <Badge variant="outline" className="text-[10px] h-4">
+                              {order.status}
+                            </Badge>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-muted-foreground text-sm">No past orders found for this customer.</p>
+                  )}
                 </div>
               </div>
             </DialogContent>

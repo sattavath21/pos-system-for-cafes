@@ -121,6 +121,11 @@ export default function InventoryPage() {
         <div className="flex items-center justify-between p-4">
           <h1 className="text-2xl font-bold text-amber-900">Inventory Management</h1>
           <div className="flex items-center gap-4">
+            <Link href="/inventory/recipes">
+              <Button variant="outline" size="sm" className="border-amber-600 text-amber-600 hover:bg-amber-50">
+                Manage Recipes
+              </Button>
+            </Link>
             <Link href="/dashboard">
               <Button variant="outline" size="sm">Dashboard</Button>
             </Link>

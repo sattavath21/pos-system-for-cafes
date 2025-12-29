@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogTrigger } from "@/components/ui/dialog"
+import { formatLAK } from "@/lib/currency"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Plus, Edit, Trash2, Search, ImageIcon } from "lucide-react"
@@ -26,15 +27,17 @@ export default function MenuPage() {
   const [isDialogOpen, setIsDialogOpen] = useState(false)
   const [editingItem, setEditingItem] = useState<MenuItem | null>(null)
   const [menuItems, setMenuItems] = useState<MenuItem[]>([])
+  const [categories, setCategories] = useState<{ id: string, name: string }[]>([])
   const [isLoading, setIsLoading] = useState(false)
+  const [isCategoryDialogOpen, setIsCategoryDialogOpen] = useState(false)
+  const [newCategoryName, setNewCategoryName] = useState("")
 
   // Form states
   const [formData, setFormData] = useState<Partial<MenuItem>>({})
 
-  const categories = ["Coffee", "Tea", "Pastries", "Sandwiches", "Desserts"]
-
   useEffect(() => {
     fetchMenuItems()
+    fetchCategories()
   }, [])
 
   const fetchMenuItems = async () => {
@@ -48,7 +51,7 @@ export default function MenuPage() {
           name: item.name,
           description: item.description,
           price: Number(item.price),
-          category: item.categoryId ? getCategoryName(item.categoryId) : "Uncategorized", // simplified mapping
+          category: item.categoryName || "Uncategorized",
           isAvailable: Boolean(item.isAvailable),
           image: item.image
         }))
@@ -59,46 +62,33 @@ export default function MenuPage() {
     }
   }
 
-  // Simplified category mapping since we don't have category table joined yet explicitly with names in the GET API
-  // In a real app we'd fetch categories too. For now we will map by ID if possible or just use what we have.
-  // Actually, let's just make the GET API return the joined category name or just trust the current "category" if it was passed.
-  // My POST API saves categoryId.
-  // My GET API returns raw product table.
-  // I need to map categoryId to Name.
-  // I'll fetch categories list to map.
+  const fetchCategories = async () => {
+    try {
+      const res = await fetch('/api/menu/categories')
+      if (res.ok) {
+        setCategories(await res.json())
+      }
+    } catch (e) {
+      console.error("Failed to fetch categories", e)
+    }
+  }
 
-  const [dbCategories, setDbCategories] = useState<{ id: string, name: string }[]>([])
-
-  useEffect(() => {
-    // Fetch categories logic would go here.
-    // For this iteration, let's just cheat and assume known IDs or show "Unknown"
-    // Or better, let's fetch them if we can. 
-    // I didn't create /api/categories yet. 
-    // I'll just use the "category" string from the form and hope the ID mapping in POST returns consistent data?
-
-    // Correct approach: Fetch categories. 
-    // Falling back to hardcoded map for the standard ones if ID matches, else "Other"
-  }, [])
-
-  // Helper to map known categories or match by ID if we could.
-  // Since I seeded them, I know them? No, they have UUIDs.
-  // I'll update the GET API to include categoryName in the future. 
-  // For now: all items will show as "Uncategorized" unless I fix this.
-  // FIX: I'll make the GET /api/menu include the category relation if I can, or just fetch all categories alongside.
-
-  // Let's create a quick function to fetch categories and products together?
-  // I'll implement a client-side fetch for categories too inside `fetchMenuItems` or separate effect.
-  // But wait, I don't have an API for categories listing yet.
-
-  // Temporary: I will assume the BE returns categoryId. I will display "Category" column with ID or "..."
-  // User asked for functionality. 
-
-  // Let's add a quick /api/categories route? Yes, I should have done that.
-
-  const getCategoryName = (id: string) => {
-    // In a real implementation this would look up from fetched categories.
-    // For now, return "General"
-    return "General"
+  const handleCreateCategory = async () => {
+    if (!newCategoryName) return
+    try {
+      const res = await fetch('/api/menu/categories', {
+        method: 'POST',
+        body: JSON.stringify({ name: newCategoryName }),
+        headers: { 'Content-Type': 'application/json' }
+      })
+      if (res.ok) {
+        setNewCategoryName("")
+        setIsCategoryDialogOpen(false)
+        fetchCategories()
+      }
+    } catch (e) {
+      console.error("Failed to create category", e)
+    }
   }
 
   const filteredItems = menuItems.filter((item) => item.name?.toLowerCase().includes(searchQuery.toLowerCase()))
@@ -194,6 +184,26 @@ export default function MenuPage() {
               className="pl-10"
             />
           </div>
+          <Dialog open={isCategoryDialogOpen} onOpenChange={setIsCategoryDialogOpen}>
+            <DialogTrigger asChild>
+              <Button variant="outline" className="border-amber-600 text-amber-600 hover:bg-amber-50">
+                <Plus className="w-4 h-4 mr-2" />
+                New Category
+              </Button>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader><DialogTitle>Add New Category</DialogTitle></DialogHeader>
+              <div className="space-y-4 py-4">
+                <Label htmlFor="catName">Category Name</Label>
+                <Input id="catName" value={newCategoryName} onChange={e => setNewCategoryName(e.target.value)} placeholder="e.g. Smoothies" />
+              </div>
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setIsCategoryDialogOpen(false)}>Cancel</Button>
+                <Button className="bg-amber-600" onClick={handleCreateCategory}>Save Category</Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+
           <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
             <DialogTrigger asChild>
               <Button className="bg-amber-600 hover:bg-amber-700" onClick={handleAddNew}>
@@ -207,7 +217,7 @@ export default function MenuPage() {
               </DialogHeader>
               <div className="space-y-4">
                 <div className="grid grid-cols-2 gap-4">
-                  <div>
+                  <div className="space-y-2">
                     <Label htmlFor="name">Item Name</Label>
                     <Input
                       id="name"
@@ -216,23 +226,24 @@ export default function MenuPage() {
                       onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                     />
                   </div>
-                  <div>
+                  <div className="space-y-2">
                     <Label htmlFor="category">Category</Label>
                     <select
                       id="category"
                       className="w-full h-10 px-3 rounded-md border border-input bg-background"
-                      value={formData.category || "Coffee"}
+                      value={formData.category || (categories[0]?.name || "")}
                       onChange={(e) => setFormData({ ...formData, category: e.target.value })}
                     >
                       {categories.map((cat) => (
-                        <option key={cat} value={cat}>
-                          {cat}
+                        <option key={cat.id} value={cat.name}>
+                          {cat.name}
                         </option>
                       ))}
+                      {categories.length === 0 && <option value="">No categories</option>}
                     </select>
                   </div>
                 </div>
-                <div>
+                <div className="space-y-2">
                   <Label htmlFor="description">Description</Label>
                   <Textarea
                     id="description"
@@ -242,18 +253,22 @@ export default function MenuPage() {
                   />
                 </div>
                 <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <Label htmlFor="price">Price ($)</Label>
+                  <div className="space-y-2">
+                    <Label htmlFor="price">Price (LAK)</Label>
                     <Input
                       id="price"
-                      type="number"
-                      step="0.01"
-                      placeholder="0.00"
-                      value={formData.price || 0}
-                      onChange={(e) => setFormData({ ...formData, price: parseFloat(e.target.value) })}
+                      type="text"
+                      placeholder="0"
+                      value={formData.price ? formData.price.toLocaleString() : ""}
+                      onChange={(e) => {
+                        const value = e.target.value.replace(/,/g, "");
+                        if (value === "" || !isNaN(Number(value))) {
+                          setFormData({ ...formData, price: value === "" ? 0 : parseFloat(value) });
+                        }
+                      }}
                     />
                   </div>
-                  <div>
+                  <div className="space-y-2">
                     <Label htmlFor="availability">Availability</Label>
                     <select
                       id="availability"
@@ -266,7 +281,7 @@ export default function MenuPage() {
                     </select>
                   </div>
                 </div>
-                <div>
+                <div className="space-y-2">
                   <Label>Item Image</Label>
                   {/* Simplified Image Input for now - just text URL or placeholder */}
                   <Input
@@ -314,7 +329,7 @@ export default function MenuPage() {
                 </div>
               </div>
               <div className="flex items-center gap-4">
-                <p className="text-lg font-bold text-amber-600">${item.price.toFixed(2)}</p>
+                <p className="text-lg font-bold text-amber-600">{formatLAK(item.price)}</p>
                 <div className="flex gap-2">
                   <Button variant="outline" size="icon" onClick={() => handleEdit(item)}>
                     <Edit className="w-4 h-4" />

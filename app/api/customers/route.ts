@@ -27,17 +27,18 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
     try {
         const body = await request.json()
-        const { name, phone, email } = body
+        const { name, phone, email, dateOfBirth } = body
 
         if (!name) return NextResponse.json({ error: 'Name is required' }, { status: 400 })
 
         const db = await getDb()
         const crypto = require('crypto'); // Ensure crypto is available
         const id = crypto.randomUUID()
+        const now = new Date().toISOString()
 
         await db.run(
-            'INSERT INTO Customer (id, name, phone, email) VALUES (?, ?, ?, ?)',
-            id, name, phone, email
+            'INSERT INTO Customer (id, name, phone, email, dateOfBirth, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?, ?, ?)',
+            id, name, phone, email, dateOfBirth || null, now, now
         )
 
         return NextResponse.json({ id, name, phone, email }, { status: 201 })

@@ -18,7 +18,7 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
     try {
         const body = await request.json()
-        const { name, description, price, category, imageUrl, isAvailable } = body
+        const { name, description, price, category, image, isAvailable } = body
 
         if (!name || !price) {
             return NextResponse.json({ error: 'Name and price are required' }, { status: 400 })
@@ -28,6 +28,7 @@ export async function POST(request: Request) {
         const crypto = require('crypto') // Ensure crypto is available
 
         // Find or Create Category
+        const now = new Date().toISOString()
         let categoryId
         if (category) {
             const cat = await db.get('SELECT id FROM Category WHERE name = ?', category)
@@ -35,15 +36,16 @@ export async function POST(request: Request) {
                 categoryId = cat.id
             } else {
                 categoryId = crypto.randomUUID()
-                await db.run('INSERT INTO Category (id, name) VALUES (?, ?)', categoryId, category)
+                await db.run('INSERT INTO Category (id, name, createdAt, updatedAt) VALUES (?, ?, ?, ?)',
+                    categoryId, category, now, now)
             }
         }
 
         const id = crypto.randomUUID()
 
         await db.run(
-            'INSERT INTO Product (id, name, description, price, categoryId, imageUrl, isAvailable) VALUES (?, ?, ?, ?, ?, ?, ?)',
-            id, name, description, price, categoryId, imageUrl, isAvailable ? 1 : 0
+            'INSERT INTO Product (id, name, description, price, categoryId, image, isAvailable, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+            id, name, description, price, categoryId, image || '/placeholder.svg', isAvailable ? 1 : 0, now, now
         )
 
         return NextResponse.json({ id, name, price, categoryId }, { status: 201 })

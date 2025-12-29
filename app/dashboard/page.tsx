@@ -1,8 +1,9 @@
 "use client"
 
+import { useState, useEffect } from "react"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { DollarSign, ShoppingCart, TrendingUp, AlertTriangle, Coffee, Users, Package, Receipt } from "lucide-react"
+import { DollarSign, ShoppingCart, TrendingUp, AlertTriangle, Coffee, Users, Package, Receipt, List, Tag, Play } from "lucide-react"
 import Link from "next/link"
 import { formatLAK } from "@/lib/currency"
 
@@ -12,66 +13,68 @@ export default function DashboardPage() {
     window.location.href = '/role-select'
   }
 
-  const stats = [
-    {
-      title: "Today's Sales",
-      value: formatLAK(2847500),
-      change: "+12.5%",
-      icon: DollarSign,
-      color: "text-green-600",
-      bgColor: "bg-green-50",
-    },
-    {
-      title: "Orders",
-      value: "156",
-      change: "+8.2%",
-      icon: ShoppingCart,
-      color: "text-blue-600",
-      bgColor: "bg-blue-50",
-    },
-    {
-      title: "Avg Order Value",
-      value: formatLAK(18250),
-      change: "+3.1%",
-      icon: TrendingUp,
-      color: "text-purple-600",
-      bgColor: "bg-purple-50",
-    },
-    {
-      title: "Low Stock Items",
-      value: "8",
-      change: "Alert",
-      icon: AlertTriangle,
-      color: "text-orange-600",
-      bgColor: "bg-orange-50",
-    },
-  ]
+  const [data, setData] = useState<any>(null)
+  const [isLoading, setIsLoading] = useState(true)
+  const [hasActiveSession, setHasActiveSession] = useState(false)
 
-  const activeOrders = [
-    { id: "ORD-001", table: "T3", items: 3, total: 24500, status: "preparing" },
-    { id: "ORD-002", table: "T1", items: 2, total: 18000, status: "ready" },
-    { id: "ORD-003", table: "T5", items: 5, total: 42750, status: "pending" },
-  ]
+  useEffect(() => {
+    const fetchStats = async () => {
+      try {
+        const res = await fetch('/api/dashboard/stats')
+        if (res.ok) {
+          setData(await res.json())
+        }
+      } catch (e) {
+        console.error(e)
+      } finally {
+        setIsLoading(false)
+      }
+    }
 
-  const topItems = [
-    { name: "Latte", sold: 45, revenue: 213750 },
-    { name: "Cappuccino", sold: 38, revenue: 171000 },
-    { name: "Croissant", sold: 32, revenue: 112000 },
-    { name: "Mocha", sold: 28, revenue: 147000 },
-  ]
+    const cart = localStorage.getItem("pos_cart")
+    if (cart && JSON.parse(cart).length > 0) {
+      setHasActiveSession(true)
+    }
 
-  const lowStock = [
-    { name: "Coffee Beans", current: 2.5, unit: "kg", min: 5 },
-    { name: "Milk", current: 8, unit: "L", min: 15 },
-    { name: "Croissants", current: 12, unit: "pcs", min: 20 },
-  ]
+    fetchStats()
+  }, [])
 
   const quickActions = [
-    { title: "New Order", icon: Coffee, href: "/pos", color: "bg-amber-600 hover:bg-amber-700" },
-    { title: "Menu", icon: Package, href: "/menu", color: "bg-blue-600 hover:bg-blue-700" },
+    {
+      title: hasActiveSession ? "Resume Order" : "New Order",
+      icon: Coffee,
+      href: "/pos",
+      color: hasActiveSession ? "bg-orange-600 hover:bg-orange-700" : "bg-amber-600 hover:bg-amber-700"
+    },
+    { title: "Menu", icon: List, href: "/menu", color: "bg-blue-600 hover:bg-blue-700" },
+    { title: "Inventory", icon: Package, href: "/inventory", color: "bg-orange-600 hover:bg-orange-700" },
     { title: "Customers", icon: Users, href: "/customers", color: "bg-green-600 hover:bg-green-700" },
+    { title: "Promotions", icon: Tag, href: "/promotions", color: "bg-rose-600 hover:bg-rose-700" },
     { title: "Reports", icon: Receipt, href: "/reports", color: "bg-purple-600 hover:bg-purple-700" },
   ]
+
+  const statIcons: Record<string, any> = {
+    "Today's Sales": DollarSign,
+    "Orders": ShoppingCart,
+    "Avg Order Value": TrendingUp,
+    "Low Stock Items": AlertTriangle
+  }
+
+  const statColors: Record<string, string> = {
+    "Today's Sales": "text-green-600",
+    "Orders": "text-blue-600",
+    "Avg Order Value": "text-purple-600",
+    "Low Stock Items": "text-orange-600"
+  }
+
+  const statBgs: Record<string, string> = {
+    "Today's Sales": "bg-green-50",
+    "Orders": "bg-blue-50",
+    "Avg Order Value": "bg-purple-50",
+    "Low Stock Items": "bg-orange-50"
+  }
+
+  if (isLoading) return <div className="p-10 text-center">Loading Dashboard...</div>
 
   return (
     <div className="min-h-screen bg-background">
@@ -80,7 +83,7 @@ export default function DashboardPage() {
         <div className="flex items-center justify-between p-4">
           <h1 className="text-2xl font-bold text-amber-900">Dashboard</h1>
           <div className="flex items-center gap-4">
-            <span className="text-sm text-muted-foreground">Admin User</span>
+            <span className="text-sm text-muted-foreground">Staff Member</span>
             <Button variant="outline" size="sm" onClick={handleLogout}>
               Logout
             </Button>
@@ -91,18 +94,20 @@ export default function DashboardPage() {
       <div className="p-6 space-y-6">
         {/* Stats Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          {stats.map((stat) => {
-            const Icon = stat.icon
+          {data?.summary.map((stat: any) => {
+            const Icon = statIcons[stat.title] || DollarSign
             return (
               <Card key={stat.title} className="p-6">
                 <div className="flex items-start justify-between">
                   <div>
                     <p className="text-sm text-muted-foreground mb-1">{stat.title}</p>
-                    <p className="text-3xl font-bold mb-2">{stat.value}</p>
-                    <p className="text-sm text-green-600">{stat.change}</p>
+                    <p className="text-3xl font-bold mb-2">
+                      {stat.type === "currency" ? formatLAK(stat.value) : stat.value}
+                    </p>
+                    <p className={`text-sm ${stat.change.startsWith('-') ? 'text-red-600' : 'text-green-600'}`}>{stat.change}</p>
                   </div>
-                  <div className={`${stat.bgColor} p-3 rounded-lg`}>
-                    <Icon className={`w-6 h-6 ${stat.color}`} />
+                  <div className={`${statBgs[stat.title]} p-3 rounded-lg`}>
+                    <Icon className={`w-6 h-6 ${statColors[stat.title]}`} />
                   </div>
                 </div>
               </Card>
@@ -113,7 +118,7 @@ export default function DashboardPage() {
         {/* Quick Actions */}
         <Card className="p-6">
           <h2 className="text-lg font-bold mb-4">Quick Actions</h2>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
             {quickActions.map((action) => {
               const Icon = action.icon
               return (
@@ -140,34 +145,47 @@ export default function DashboardPage() {
               </Link>
             </div>
             <div className="space-y-3">
-              {activeOrders.map((order) => (
+              {data?.activeOrders.map((order: any) => (
                 <div
                   key={order.id}
                   className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/50 transition-colors"
                 >
                   <div className="flex items-center gap-4">
                     <div>
-                      <p className="font-semibold">{order.id}</p>
+                      <p className="font-semibold">{order.orderNumber}</p>
                       <p className="text-sm text-muted-foreground">
-                        Table {order.table} • {order.items} items
+                        {new Date(order.createdAt).toLocaleTimeString()}
                       </p>
                     </div>
                   </div>
                   <div className="flex items-center gap-4">
                     <p className="font-semibold">{formatLAK(order.total)}</p>
-                    <span
-                      className={`px-3 py-1 rounded-full text-xs font-medium ${order.status === "ready"
+                    <div className="flex items-center gap-2">
+                      <span
+                        className={`px-3 py-1 rounded-full text-xs font-medium ${order.status === "READY"
                           ? "bg-green-100 text-green-700"
-                          : order.status === "preparing"
+                          : order.status === "PREPARING"
                             ? "bg-blue-100 text-blue-700"
                             : "bg-orange-100 text-orange-700"
-                        }`}
-                    >
-                      {order.status}
-                    </span>
+                          }`}
+                      >
+                        {order.status}
+                      </span>
+                      {["HOLD", "PENDING", "PREPARING"].includes(order.status) && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-8 w-8 p-0 text-green-600 hover:text-green-700 hover:bg-green-50"
+                          onClick={() => window.location.href = `/pos?resumeOrder=${order.id}`}
+                        >
+                          <Play className="w-4 h-4" />
+                        </Button>
+                      )}
+                    </div>
                   </div>
                 </div>
               ))}
+              {data?.activeOrders.length === 0 && <p className="text-sm text-muted-foreground py-4 text-center">No active orders</p>}
             </div>
           </Card>
 
@@ -175,7 +193,7 @@ export default function DashboardPage() {
           <Card className="p-6">
             <h2 className="text-lg font-bold mb-4">Top Selling Items</h2>
             <div className="space-y-3">
-              {topItems.map((item, index) => (
+              {data?.topItems.map((item: any, index: number) => (
                 <div key={item.name} className="flex items-center justify-between p-3 border rounded-lg">
                   <div className="flex items-center gap-3">
                     <div className="w-8 h-8 rounded-full bg-amber-100 flex items-center justify-center font-bold text-amber-700">
@@ -189,6 +207,7 @@ export default function DashboardPage() {
                   <p className="font-semibold text-green-600">{formatLAK(item.revenue)}</p>
                 </div>
               ))}
+              {data?.topItems.length === 0 && <p className="text-sm text-muted-foreground py-4 text-center">No sales data yet</p>}
             </div>
           </Card>
         </div>
@@ -200,7 +219,7 @@ export default function DashboardPage() {
             <h2 className="text-lg font-bold">Low Stock Alerts</h2>
           </div>
           <div className="grid md:grid-cols-3 gap-4">
-            {lowStock.map((item) => (
+            {data?.lowStockAlerts.map((item: any) => (
               <div key={item.name} className="p-4 border border-orange-200 bg-orange-50 rounded-lg">
                 <p className="font-semibold mb-1">{item.name}</p>
                 <p className="text-sm text-muted-foreground">
@@ -208,6 +227,7 @@ export default function DashboardPage() {
                 </p>
               </div>
             ))}
+            {data?.lowStockAlerts.length === 0 && <p className="col-span-full text-sm text-muted-foreground py-4 text-center">All stock levels are healthy</p>}
           </div>
         </Card>
       </div>

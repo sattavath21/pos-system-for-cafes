@@ -20,7 +20,7 @@ export function formatLAK(amount: number): string {
     return `${formatNumber(amount)} ₭`
 }
 
-export const LAK_DENOMINATIONS = [1000, 2000, 5000, 10000, 20000, 50000, 100000, 200000, 500000];
+export const LAK_DENOMINATIONS = [500, 1000, 2000, 5000, 10000, 20000, 50000, 100000];
 
 export function calculateChange(total: number, cashReceived: number) {
     let change = cashReceived - total;

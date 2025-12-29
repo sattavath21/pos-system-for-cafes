@@ -4,6 +4,7 @@ generator client {
 
 datasource db {
   provider = "sqlite"
+  url      = "file:../dev.db"
 }
 
 model User {
@@ -33,6 +34,8 @@ model Product {
   image       String?     @default("/placeholder.svg")
   categoryId  String
   category    Category    @relation(fields: [categoryId], references: [id])
+  type        String?     @default("HOT") // HOT, ICED, NONE
+  size        String?     @default("REGULAR") // S, M, L, REGULAR
   createdAt   DateTime    @default(now())
   updatedAt   DateTime    @updatedAt
   orderItems  OrderItem[]
@@ -80,6 +83,21 @@ model Customer {
   orders        Order[]
 }
 
+model Promotion {
+  id            String   @id @default(uuid())
+  name          String
+  description   String?
+  code          String   @unique
+  discountType  String   // percentage, fixed
+  discountValue Float
+  startDate     DateTime
+  endDate       DateTime
+  isActive      Boolean  @default(true)
+  orders        Order[]
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
 model Order {
   id            String      @id @default(uuid())
   orderNumber   String      @unique // e.g. ORD-001
@@ -88,6 +106,8 @@ model Order {
   subtotal      Float
   tax           Float
   discount      Float       @default(0)
+  promoId       String?
+  promotion     Promotion?  @relation(fields: [promoId], references: [id])
   paymentMethod String      @default("CASH") // BANK_NOTE, QR_CODE
   customerId    String?
   customer      Customer?   @relation(fields: [customerId], references: [id])
