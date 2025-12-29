@@ -3,15 +3,15 @@ const { open } = require('sqlite');
 const path = require('path');
 
 async function initDb() {
-    const db = await open({
-        filename: path.join(__dirname, '..', 'dev.db'),
-        driver: sqlite3.Database
-    });
+  const db = await open({
+    filename: path.join(__dirname, '..', 'dev.db'),
+    driver: sqlite3.Database
+  });
 
-    console.log('Database connected.');
+  console.log('Database connected.');
 
-    // Create Tables
-    await db.exec(`
+  // Create Tables
+  await db.exec(`
     CREATE TABLE IF NOT EXISTS Category (
       id TEXT PRIMARY KEY,
       name TEXT NOT NULL,
@@ -73,46 +73,46 @@ async function initDb() {
     );
   `);
 
-    console.log('Tables created.');
+  console.log('Tables created.');
 
-    // Seed Data
-    const categories = await db.all('SELECT * FROM Category');
-    if (categories.length === 0) {
-        console.log('Seeding data...');
+  // Seed Data
+  const categories = await db.all('SELECT * FROM Category');
+  if (categories.length === 0) {
+    console.log('Seeding data...');
 
-        const crypto = require('crypto');
-        const uuid = () => crypto.randomUUID();
+    const crypto = require('crypto');
+    const uuid = () => crypto.randomUUID();
 
-        const coffeeId = uuid();
-        await db.run('INSERT INTO Category (id, name) VALUES (?, ?)', coffeeId, 'Coffee');
+    const coffeeId = uuid();
+    await db.run('INSERT INTO Category (id, name, createdAt, updatedAt) VALUES (?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)', coffeeId, 'Coffee');
 
-        const teaId = uuid();
-        await db.run('INSERT INTO Category (id, name) VALUES (?, ?)', teaId, 'Tea');
+    const teaId = uuid();
+    await db.run('INSERT INTO Category (id, name, createdAt, updatedAt) VALUES (?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)', teaId, 'Tea');
 
-        const pastriesId = uuid();
-        await db.run('INSERT INTO Category (id, name) VALUES (?, ?)', pastriesId, 'Pastries');
+    const pastriesId = uuid();
+    await db.run('INSERT INTO Category (id, name, createdAt, updatedAt) VALUES (?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)', pastriesId, 'Pastries');
 
-        await db.run('INSERT INTO Product (id, name, price, categoryId, description) VALUES (?, ?, ?, ?, ?)',
-            uuid(), 'Espresso', 3.5, coffeeId, 'Strong and bold');
+    await db.run('INSERT INTO Product (id, name, price, categoryId, description, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)',
+      uuid(), 'Espresso', 3.5, coffeeId, 'Strong and bold');
 
-        await db.run('INSERT INTO Product (id, name, price, categoryId, description) VALUES (?, ?, ?, ?, ?)',
-            uuid(), 'Latte', 4.5, coffeeId, 'Milky delight');
+    await db.run('INSERT INTO Product (id, name, price, categoryId, description, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)',
+      uuid(), 'Latte', 4.5, coffeeId, 'Milky delight');
 
-        await db.run('INSERT INTO Product (id, name, price, categoryId, description) VALUES (?, ?, ?, ?, ?)',
-            uuid(), 'Croissant', 3.5, pastriesId, 'Buttery goodness');
+    await db.run('INSERT INTO Product (id, name, price, categoryId, description, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)',
+      uuid(), 'Croissant', 3.5, pastriesId, 'Buttery goodness');
 
-        await db.run('INSERT INTO Customer (id, name, phone, email, loyaltyPoints) VALUES (?, ?, ?, ?, ?)',
-            uuid(), 'John Doe', '555-0123', 'john@example.com', 100);
+    await db.run('INSERT INTO Customer (id, name, phone, email, loyaltyPoints, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)',
+      uuid(), 'John Doe', '555-0123', 'john@example.com', 100);
 
-        console.log('Seeding completed.');
-    } else {
-        console.log('Data already exists, skipping seed.');
-    }
+    console.log('Seeding completed.');
+  } else {
+    console.log('Data already exists, skipping seed.');
+  }
 
-    await db.close();
+  await db.close();
 }
 
 initDb().catch(err => {
-    console.error(err);
-    process.exit(1);
+  console.error(err);
+  process.exit(1);
 });

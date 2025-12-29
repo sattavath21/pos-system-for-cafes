@@ -462,7 +462,7 @@ export default function POSPage() {
                           <p className="text-2xl font-bold text-green-600">{formatLAK(Number(cashReceived) - total)}</p>
                           <div className="mt-2 text-xs text-muted-foreground">
                             {calculateChange(total, Number(cashReceived)).denominations.map((d, i) => (
-                              <div key={i}>{d.count}x {formatLAK(d.value)}</div>
+                              <div key={i}>{d.count} x {formatLAK(d.denom)}</div>
                             ))}
                           </div>
                         </div>
