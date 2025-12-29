@@ -4,12 +4,18 @@ import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { DollarSign, ShoppingCart, TrendingUp, AlertTriangle, Coffee, Users, Package, Receipt } from "lucide-react"
 import Link from "next/link"
+import { formatLAK } from "@/lib/currency"
 
 export default function DashboardPage() {
+  const handleLogout = async () => {
+    await fetch('/api/auth/logout', { method: 'POST' })
+    window.location.href = '/role-select'
+  }
+
   const stats = [
     {
       title: "Today's Sales",
-      value: "$2,847.50",
+      value: formatLAK(2847500),
       change: "+12.5%",
       icon: DollarSign,
       color: "text-green-600",
@@ -25,7 +31,7 @@ export default function DashboardPage() {
     },
     {
       title: "Avg Order Value",
-      value: "$18.25",
+      value: formatLAK(18250),
       change: "+3.1%",
       icon: TrendingUp,
       color: "text-purple-600",
@@ -42,16 +48,16 @@ export default function DashboardPage() {
   ]
 
   const activeOrders = [
-    { id: "ORD-001", table: "T3", items: 3, total: "$24.50", status: "preparing" },
-    { id: "ORD-002", table: "T1", items: 2, total: "$18.00", status: "ready" },
-    { id: "ORD-003", table: "T5", items: 5, total: "$42.75", status: "pending" },
+    { id: "ORD-001", table: "T3", items: 3, total: 24500, status: "preparing" },
+    { id: "ORD-002", table: "T1", items: 2, total: 18000, status: "ready" },
+    { id: "ORD-003", table: "T5", items: 5, total: 42750, status: "pending" },
   ]
 
   const topItems = [
-    { name: "Latte", sold: 45, revenue: "$213.75" },
-    { name: "Cappuccino", sold: 38, revenue: "$171.00" },
-    { name: "Croissant", sold: 32, revenue: "$112.00" },
-    { name: "Mocha", sold: 28, revenue: "$147.00" },
+    { name: "Latte", sold: 45, revenue: 213750 },
+    { name: "Cappuccino", sold: 38, revenue: 171000 },
+    { name: "Croissant", sold: 32, revenue: 112000 },
+    { name: "Mocha", sold: 28, revenue: 147000 },
   ]
 
   const lowStock = [
@@ -75,7 +81,7 @@ export default function DashboardPage() {
           <h1 className="text-2xl font-bold text-amber-900">Dashboard</h1>
           <div className="flex items-center gap-4">
             <span className="text-sm text-muted-foreground">Admin User</span>
-            <Button variant="outline" size="sm">
+            <Button variant="outline" size="sm" onClick={handleLogout}>
               Logout
             </Button>
           </div>
@@ -127,7 +133,7 @@ export default function DashboardPage() {
           <Card className="p-6">
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-lg font-bold">Active Orders</h2>
-              <Link href="/pos">
+              <Link href="/orders">
                 <Button variant="outline" size="sm">
                   View All
                 </Button>
@@ -148,15 +154,14 @@ export default function DashboardPage() {
                     </div>
                   </div>
                   <div className="flex items-center gap-4">
-                    <p className="font-semibold">{order.total}</p>
+                    <p className="font-semibold">{formatLAK(order.total)}</p>
                     <span
-                      className={`px-3 py-1 rounded-full text-xs font-medium ${
-                        order.status === "ready"
+                      className={`px-3 py-1 rounded-full text-xs font-medium ${order.status === "ready"
                           ? "bg-green-100 text-green-700"
                           : order.status === "preparing"
                             ? "bg-blue-100 text-blue-700"
                             : "bg-orange-100 text-orange-700"
-                      }`}
+                        }`}
                     >
                       {order.status}
                     </span>
@@ -181,7 +186,7 @@ export default function DashboardPage() {
                       <p className="text-sm text-muted-foreground">{item.sold} sold</p>
                     </div>
                   </div>
-                  <p className="font-semibold text-green-600">{item.revenue}</p>
+                  <p className="font-semibold text-green-600">{formatLAK(item.revenue)}</p>
                 </div>
               ))}
             </div>

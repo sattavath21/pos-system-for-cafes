@@ -6,9 +6,12 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogTrigger } from "@/components/ui/dialog"
 import { Label } from "@/components/ui/label"
-import { Minus, Plus, X, Search, Clock, CreditCard, User, RotateCcw } from "lucide-react"
+import { Minus, Plus, X, Search, Clock, User, List, Pause } from "lucide-react"
 import Link from "next/link"
 import { Badge } from "@/components/ui/badge"
+import { formatLAK, calculateChange, LAK_DENOMINATIONS, calculateTax } from "@/lib/currency"
+import { PaymentQR } from "@/components/payment-qr"
+import Image from "next/image"
 
 type MenuItem = {
   id: string
@@ -16,6 +19,7 @@ type MenuItem = {
   price: number
   category: string
   isAvailable: boolean
+  image?: string
 }
 
 type CartItem = {
@@ -38,7 +42,7 @@ export default function POSPage() {
 
   const handleLogout = async () => {
     await fetch('/api/auth/logout', { method: 'POST' })
-    window.location.href = '/login'
+    window.location.href = '/role-select'
   }
 
   const [cart, setCart] = useState<CartItem[]>([])
@@ -51,8 +55,9 @@ export default function POSPage() {
   // Payment Dialog state
   const [isPaymentOpen, setIsPaymentOpen] = useState(false)
   const [isProcessing, setIsProcessing] = useState(false)
-  const [paymentMethod, setPaymentMethod] = useState("CASH")
+  const [paymentMethod, setPaymentMethod] = useState("BANK_NOTE")
   const [cashReceived, setCashReceived] = useState("")
+  const [orderNumber, setOrderNumber] = useState("")
 
   // Customer Search Dialog
   const [isCustomerSearchOpen, setIsCustomerSearchOpen] = useState(false)
@@ -73,7 +78,8 @@ export default function POSPage() {
           name: d.name,
           price: Number(d.price),
           category: d.categoryName || "Uncategorized",
-          isAvailable: Boolean(d.isAvailable)
+          isAvailable: Boolean(d.isAvailable),
+          image: d.image
         }))
 
         setMenuItems(items)
@@ -133,8 +139,8 @@ export default function POSPage() {
   }
 
   const calculateTotal = () => {
-    const subtotal = cart.reduce((sum, item) => sum + item.price * item.quantity, 0)
-    const tax = subtotal * 0.08
+    const subtotal = Math.round(cart.reduce((sum, item) => sum + item.price * item.quantity, 0))
+    const tax = calculateTax(subtotal)
     const total = subtotal + tax
     return { subtotal, tax, total }
   }
@@ -159,6 +165,12 @@ export default function POSPage() {
       })
 
       if (res.ok) {
+        const data = await res.json()
+        // Broadcast payment complete
+        const channel = new BroadcastChannel("payment_channel")
+        channel.postMessage({ type: "PAYMENT_COMPLETE" })
+        channel.close()
+
         // Success
         setCart([])
         setTableNumber("")
@@ -171,6 +183,39 @@ export default function POSPage() {
     } catch (e) {
       console.error(e)
       alert("Error processing order")
+    } finally {
+      setIsProcessing(false)
+    }
+  }
+
+  const handleHoldOrder = async () => {
+    setIsProcessing(true)
+    try {
+      const res = await fetch('/api/orders', {
+        method: 'POST',
+        body: JSON.stringify({
+          items: cart.map(i => ({ id: i.id, name: i.name, price: i.price, quantity: i.quantity })),
+          total,
+          subtotal,
+          tax,
+          customerId: selectedCustomer?.id,
+          paymentMethod: 'BANK_NOTE',
+          status: 'HOLD'
+        }),
+        headers: { 'Content-Type': 'application/json' }
+      })
+
+      if (res.ok) {
+        setCart([])
+        setTableNumber("")
+        setSelectedCustomer(null)
+        alert("Order placed on hold!")
+      } else {
+        alert("Failed to hold order")
+      }
+    } catch (e) {
+      console.error(e)
+      alert("Error holding order")
     } finally {
       setIsProcessing(false)
     }
@@ -196,6 +241,12 @@ export default function POSPage() {
                 <User className="w-4 h-4 mr-2" /> Add Customer
               </Button>
             )}
+            <Link href="/orders">
+              <Button variant="outline" size="sm">
+                <List className="w-4 h-4 mr-2" />
+                View All Orders
+              </Button>
+            </Link>
             <Link href="/dashboard">
               <Button variant="outline" size="sm">
                 Dashboard
@@ -249,11 +300,15 @@ export default function POSPage() {
                   className={`p-4 cursor-pointer hover:shadow-lg transition-shadow ${!item.isAvailable ? 'opacity-50 pointer-events-none' : ''}`}
                   onClick={() => addToCart(item)}
                 >
-                  <div className="aspect-square bg-gradient-to-br from-amber-100 to-orange-100 rounded-lg mb-3 flex items-center justify-center">
-                    <span className="text-4xl">☕</span>
+                  <div className="aspect-square bg-gradient-to-br from-amber-100 to-orange-100 rounded-lg mb-3 flex items-center justify-center overflow-hidden">
+                    {item.image && item.image !== '/placeholder.svg' ? (
+                      <img src={item.image} alt={item.name} className="w-full h-full object-cover" />
+                    ) : (
+                      <span className="text-4xl">☕</span>
+                    )}
                   </div>
                   <h3 className="font-semibold mb-1 text-balance">{item.name}</h3>
-                  <p className="text-lg font-bold text-amber-600">${item.price.toFixed(2)}</p>
+                  <p className="text-lg font-bold text-amber-600">{formatLAK(item.price)}</p>
                 </Card>
               ))}
             </div>
@@ -286,7 +341,7 @@ export default function POSPage() {
                     <div className="flex items-start justify-between mb-2">
                       <div className="flex-1">
                         <h4 className="font-semibold">{item.name}</h4>
-                        <p className="text-sm text-muted-foreground">${item.price.toFixed(2)} each</p>
+                        <p className="text-sm text-muted-foreground">{formatLAK(item.price)} each</p>
                       </div>
                       <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => removeItem(item.id)}>
                         <X className="w-4 h-4" />
@@ -313,7 +368,7 @@ export default function POSPage() {
                           <Plus className="w-4 h-4" />
                         </Button>
                       </div>
-                      <p className="font-bold">${(item.price * item.quantity).toFixed(2)}</p>
+                      <p className="font-bold">{formatLAK(item.price * item.quantity)}</p>
                     </div>
                   </Card>
                 ))}
@@ -326,30 +381,32 @@ export default function POSPage() {
             {selectedCustomer && (
               <div className="flex justify-between text-sm text-amber-600 font-medium">
                 <span>Loyalty Points Earning</span>
-                <span>+{Math.floor(total)} pts</span>
+                <span>+{Math.floor(total / 1000)} pts</span>
               </div>
             )}
             <div className="flex justify-between text-sm">
               <span className="text-muted-foreground">Subtotal</span>
-              <span className="font-semibold">${subtotal.toFixed(2)}</span>
+              <span className="font-semibold">{formatLAK(subtotal)}</span>
             </div>
             <div className="flex justify-between text-sm">
-              <span className="text-muted-foreground">Tax (8%)</span>
-              <span className="font-semibold">${tax.toFixed(2)}</span>
+              <span className="text-muted-foreground">Tax (10%)</span>
+              <span className="font-semibold">{formatLAK(tax)}</span>
             </div>
             <div className="flex justify-between text-lg font-bold pt-2 border-t">
               <span>Total</span>
-              <span className="text-amber-600">${total.toFixed(2)}</span>
+              <span className="text-amber-600">{formatLAK(total)}</span>
             </div>
           </div>
 
           {/* Actions */}
           <div className="p-4 border-t space-y-2">
-            <Button className="w-full bg-red-600 hover:bg-red-700" variant="destructive" disabled={cart.length === 0}>
+            <Button
+              className="w-full bg-orange-600 hover:bg-orange-700"
+              disabled={cart.length === 0}
+              onClick={handleHoldOrder}
+            >
+              <Pause className="w-4 h-4 mr-2" />
               Hold Order
-            </Button>
-            <Button className="w-full bg-transparent" variant="outline" disabled={cart.length === 0}>
-              Split Bill
             </Button>
             <Dialog open={isPaymentOpen} onOpenChange={setIsPaymentOpen}>
               <DialogTrigger asChild>
@@ -358,51 +415,95 @@ export default function POSPage() {
                   size="lg"
                   disabled={cart.length === 0}
                 >
-                  <CreditCard className="w-5 h-5 mr-2" />
                   Proceed to Payment
                 </Button>
               </DialogTrigger>
-              <DialogContent>
+              <DialogContent className="max-w-md">
                 <DialogHeader>
                   <DialogTitle>Payment</DialogTitle>
                 </DialogHeader>
                 <div className="space-y-4">
                   <div className="text-center py-4 border-b">
                     <p className="text-muted-foreground">Total to Pay</p>
-                    <p className="text-4xl font-bold text-green-600">${total.toFixed(2)}</p>
+                    <p className="text-4xl font-bold text-green-600">{formatLAK(total)}</p>
                   </div>
-                  <div className="grid grid-cols-2 gap-2">
-                    {['CASH', 'CARD', 'QR', 'ONLINE'].map(m => (
-                      <Button
-                        key={m}
-                        variant={paymentMethod === m ? "default" : "outline"}
-                        onClick={() => setPaymentMethod(m)}
-                      >
-                        {m}
-                      </Button>
-                    ))}
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <Button
+                      variant={paymentMethod === 'BANK_NOTE' ? "default" : "outline"}
+                      onClick={() => setPaymentMethod('BANK_NOTE')}
+                      className={paymentMethod === 'BANK_NOTE' ? 'bg-amber-600 hover:bg-amber-700' : ''}
+                    >
+                      💵 Bank Note
+                    </Button>
+                    <Button
+                      variant={paymentMethod === 'QR_CODE' ? "default" : "outline"}
+                      onClick={() => setPaymentMethod('QR_CODE')}
+                      className={paymentMethod === 'QR_CODE' ? 'bg-blue-600 hover:bg-blue-700' : ''}
+                    >
+                      📱 QR Code
+                    </Button>
                   </div>
-                  {paymentMethod === 'CASH' && (
-                    <div>
-                      <Label>Cash Received</Label>
-                      <Input
-                        type="number"
-                        value={cashReceived}
-                        onChange={e => setCashReceived(e.target.value)}
-                        placeholder="Enter amount"
-                      />
+
+                  {paymentMethod === 'BANK_NOTE' && (
+                    <div className="space-y-3">
+                      <div>
+                        <Label>Cash Received</Label>
+                        <Input
+                          type="number"
+                          value={cashReceived}
+                          onChange={e => setCashReceived(e.target.value)}
+                          placeholder="Enter amount in kips"
+                        />
+                      </div>
                       {Number(cashReceived) > total && (
-                        <p className="mt-2 font-semibold">Change: ${(Number(cashReceived) - total).toFixed(2)}</p>
+                        <div className="bg-green-50 p-3 rounded-lg">
+                          <p className="text-sm text-muted-foreground">Change</p>
+                          <p className="text-2xl font-bold text-green-600">{formatLAK(Number(cashReceived) - total)}</p>
+                          <div className="mt-2 text-xs text-muted-foreground">
+                            {calculateChange(total, Number(cashReceived)).denominations.map((d, i) => (
+                              <div key={i}>{d.count}x {formatLAK(d.value)}</div>
+                            ))}
+                          </div>
+                        </div>
                       )}
+                      <div className="grid grid-cols-4 gap-2">
+                        {LAK_DENOMINATIONS.map(denom => (
+                          <Button
+                            key={denom}
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setCashReceived(String(denom))}
+                            className="text-xs"
+                          >
+                            {formatLAK(denom)}
+                          </Button>
+                        ))}
+                      </div>
                     </div>
                   )}
+
+                  {paymentMethod === 'QR_CODE' && (
+                    <PaymentQR
+                      amount={total}
+                      orderNumber={`ORD-${Date.now().toString().slice(-6)}`}
+                      onComplete={handleCheckout}
+                    />
+                  )}
                 </div>
-                <DialogFooter>
-                  <Button variant="outline" onClick={() => setIsPaymentOpen(false)}>Cancel</Button>
-                  <Button className="bg-green-600 hover:bg-green-700" onClick={handleCheckout} disabled={isProcessing}>
-                    {isProcessing ? "Processing..." : "Complete Order"}
-                  </Button>
-                </DialogFooter>
+
+                {paymentMethod === 'BANK_NOTE' && (
+                  <DialogFooter>
+                    <Button variant="outline" onClick={() => setIsPaymentOpen(false)}>Cancel</Button>
+                    <Button
+                      className="bg-green-600 hover:bg-green-700"
+                      onClick={handleCheckout}
+                      disabled={isProcessing || !cashReceived || Number(cashReceived) < total}
+                    >
+                      {isProcessing ? "Processing..." : "Complete Order"}
+                    </Button>
+                  </DialogFooter>
+                )}
               </DialogContent>
             </Dialog>
 

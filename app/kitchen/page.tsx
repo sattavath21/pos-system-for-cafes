@@ -15,6 +15,11 @@ type Order = {
 }
 
 export default function KitchenPage() {
+  const handleLogout = async () => {
+    await fetch('/api/auth/logout', { method: 'POST' })
+    window.location.href = '/role-select'
+  }
+
   const orders: Order[] = [
     {
       id: "ORD-125",
@@ -81,7 +86,7 @@ export default function KitchenPage() {
                 Dashboard
               </Button>
             </Link>
-            <Button variant="outline" size="sm">
+            <Button variant="outline" size="sm" onClick={handleLogout}>
               Logout
             </Button>
           </div>
@@ -110,13 +115,12 @@ export default function KitchenPage() {
           {orders.map((order) => (
             <Card
               key={order.id}
-              className={`p-6 ${
-                order.status === "pending"
+              className={`p-6 ${order.status === "pending"
                   ? "border-orange-200 bg-orange-50"
                   : order.status === "preparing"
                     ? "border-blue-200 bg-blue-50"
                     : "border-green-200 bg-green-50"
-              }`}
+                }`}
             >
               <div className="flex items-start justify-between mb-4">
                 <div>

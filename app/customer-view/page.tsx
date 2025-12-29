@@ -3,6 +3,8 @@
 import { useState, useEffect } from "react"
 import { Card } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
+import { QRCodeSVG } from "qrcode.react"
+import { formatLAK, calculateTax } from "@/lib/currency"
 
 type CartItem = {
     id: string
@@ -17,11 +19,13 @@ export default function CustomerViewPage() {
     const [cart, setCart] = useState<CartItem[]>([])
     const [total, setTotal] = useState(0)
     const [isIdle, setIsIdle] = useState(true)
+    const [qrPayment, setQrPayment] = useState<any>(null)
 
     useEffect(() => {
-        const channel = new BroadcastChannel("pos_channel")
+        const posChannel = new BroadcastChannel("pos_channel")
+        const paymentChannel = new BroadcastChannel("payment_channel")
 
-        channel.onmessage = (event) => {
+        posChannel.onmessage = (event) => {
             if (event.data.type === "CART_UPDATE") {
                 setCart(event.data.cart)
                 setTotal(event.data.total)
@@ -29,7 +33,20 @@ export default function CustomerViewPage() {
             }
         }
 
-        return () => channel.close()
+        paymentChannel.onmessage = (event) => {
+            if (event.data.type === "QR_PAYMENT") {
+                setQrPayment(event.data.data)
+                setIsIdle(false)
+            } else if (event.data.type === "PAYMENT_COMPLETE") {
+                setQrPayment(null)
+                setIsIdle(true)
+            }
+        }
+
+        return () => {
+            posChannel.close()
+            paymentChannel.close()
+        }
     }, [])
 
     if (isIdle) {
@@ -45,7 +62,7 @@ export default function CustomerViewPage() {
                     </p>
                     <div className="pt-12 grid grid-cols-3 gap-8 opacity-70">
                         <div className="text-center">
-                            <div className="text-4xl mb-2">🥐</div>s
+                            <div className="text-4xl mb-2">🥐</div>
                             <p className="font-medium text-amber-800">Fresh Pastries</p>
                         </div>
                         <div className="text-center">
@@ -82,38 +99,56 @@ export default function CustomerViewPage() {
                                     <h3 className="text-xl font-semibold text-slate-800">{item.name}</h3>
                                     <div className="flex items-center gap-2 mt-1">
                                         <Badge variant="secondary" className="bg-slate-100 text-slate-600">x{item.quantity}</Badge>
-                                        <span className="text-slate-400">@ ${item.price.toFixed(2)}</span>
+                                        <span className="text-slate-400">@ {formatLAK(item.price)}</span>
                                     </div>
                                 </div>
                             </div>
-                            <p className="text-xl font-bold text-slate-700">${(item.price * item.quantity).toFixed(2)}</p>
+                            <p className="text-xl font-bold text-slate-700">{formatLAK(item.price * item.quantity)}</p>
                         </Card>
                     ))}
                 </div>
             </div>
 
-            {/* Right Panel: Totals */}
+            {/* Right Panel: Totals or QR Payment */}
             <div className="w-[400px] bg-white border-l p-8 flex flex-col justify-center shadow-2xl z-10">
-                <div className="space-y-6">
-                    <div className="space-y-2">
-                        <div className="flex justify-between text-lg text-slate-500">
-                            <span>Subtotal</span>
-                            <span>${(total / 1.08).toFixed(2)}</span>
+                {qrPayment ? (
+                    <div className="space-y-6">
+                        <div className="text-center">
+                            <h2 className="text-2xl font-bold text-slate-800 mb-2">Scan to Pay</h2>
+                            <p className="text-lg font-semibold text-green-600">{formatLAK(qrPayment.amount)}</p>
                         </div>
-                        <div className="flex justify-between text-lg text-slate-500">
-                            <span>Tax (8%)</span>
-                            <span>${(total - (total / 1.08)).toFixed(2)}</span>
+                        <Card className="p-6 bg-slate-50">
+                            <div className="flex justify-center">
+                                <QRCodeSVG value={qrPayment.qrData} size={250} level="H" />
+                            </div>
+                        </Card>
+                        <div className="text-center space-y-2">
+                            <p className="text-sm text-slate-600">Order #{qrPayment.orderNumber}</p>
+                            <p className="text-sm text-blue-600 font-medium">Waiting for payment confirmation...</p>
                         </div>
                     </div>
+                ) : (
+                    <div className="space-y-6">
+                        <div className="space-y-2">
+                            <div className="flex justify-between text-lg text-slate-500">
+                                <span>Subtotal</span>
+                                <span>{formatLAK(total / 1.1)}</span>
+                            </div>
+                            <div className="flex justify-between text-lg text-slate-500">
+                                <span>Tax (10%)</span>
+                                <span>{formatLAK(calculateTax(total / 1.1))}</span>
+                            </div>
+                        </div>
 
-                    <div className="border-t pt-6">
-                        <div className="flex justify-between items-baseline">
-                            <span className="text-2xl font-bold text-slate-800">Total</span>
-                            <span className="text-5xl font-extrabold text-amber-600">${total.toFixed(2)}</span>
+                        <div className="border-t pt-6">
+                            <div className="flex justify-between items-baseline">
+                                <span className="text-2xl font-bold text-slate-800">Total</span>
+                                <span className="text-5xl font-extrabold text-amber-600">{formatLAK(total)}</span>
+                            </div>
+                            <p className="text-right text-sm text-slate-400 mt-2">Thank you for visiting!</p>
                         </div>
-                        <p className="text-right text-sm text-slate-400 mt-2">Thank you for visiting!</p>
                     </div>
-                </div>
+                )}
             </div>
         </div>
     )

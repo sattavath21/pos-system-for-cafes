@@ -46,12 +46,19 @@ export async function POST(request: Request) {
 }
 
 export async function GET(request: Request) {
-    // For reports or history
     try {
         const db = await getDb()
         const orders = await db.all('SELECT * FROM "Order" ORDER BY createdAt DESC LIMIT 100')
+
+        // Fetch items for each order
+        for (const order of orders) {
+            const items = await db.all('SELECT * FROM OrderItem WHERE orderId = ?', order.id)
+            order.items = items
+        }
+
         return NextResponse.json(orders)
     } catch (e) {
+        console.error(e)
         return NextResponse.json({ error: 'Failed' }, { status: 500 })
     }
 }

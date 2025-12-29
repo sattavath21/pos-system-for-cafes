@@ -4,7 +4,16 @@ generator client {
 
 datasource db {
   provider = "sqlite"
-  url      = "file:c:\\Users\\Sattavath.p\\Documents\\pos-system-for-cafes\\dev.db"
+}
+
+model User {
+  id        String   @id @default(uuid())
+  name      String
+  role      String   // ADMIN, CASHIER, KITCHEN, WAITER
+  pin       String   // 4-digit PIN (hashed)
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 model Category {
@@ -16,42 +25,70 @@ model Category {
 }
 
 model Product {
-  id          String   @id @default(uuid())
+  id          String      @id @default(uuid())
   name        String
   description String?
   price       Float
-  isAvailable Boolean  @default(true)
-  image       String?  @default("/placeholder.svg")
+  isAvailable Boolean     @default(true)
+  image       String?     @default("/placeholder.svg")
   categoryId  String
-  category    Category @relation(fields: [categoryId], references: [id])
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  category    Category    @relation(fields: [categoryId], references: [id])
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
   orderItems  OrderItem[]
+  recipes     Recipe[]
+}
+
+model Ingredient {
+  id           String   @id @default(uuid())
+  name         String
+  unit         String   // kg, L, pcs, etc.
+  currentStock Float
+  minStock     Float
+  maxStock     Float
+  cost         Float
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  recipes      Recipe[]
+}
+
+model Recipe {
+  id           String     @id @default(uuid())
+  productId    String
+  product      Product    @relation(fields: [productId], references: [id])
+  ingredientId String
+  ingredient   Ingredient @relation(fields: [ingredientId], references: [id])
+  quantity     Float      // Amount of ingredient used per product
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+
+  @@unique([productId, ingredientId])
 }
 
 model Customer {
-  id            String   @id @default(uuid())
+  id            String    @id @default(uuid())
   name          String
   phone         String?
   email         String?
-  loyaltyPoints Int      @default(0)
-  totalSpent    Float    @default(0)
-  visitCount    Int      @default(0)
-  lastVisit     DateTime @default(now())
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  dateOfBirth   DateTime?
+  loyaltyPoints Int       @default(0)
+  totalSpent    Float     @default(0)
+  visitCount    Int       @default(0)
+  lastVisit     DateTime  @default(now())
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
   orders        Order[]
 }
 
 model Order {
   id            String      @id @default(uuid())
   orderNumber   String      @unique // e.g. ORD-001
-  status        String      @default("COMPLETED") // PENDING, COMPLETED, HELD, CANCELLED
+  status        String      @default("COMPLETED") // PENDING, COMPLETED, HOLD, CANCELLED
   total         Float
   subtotal      Float
   tax           Float
   discount      Float       @default(0)
-  paymentMethod String      @default("CASH") // CASH, CARD, QR, etc.
+  paymentMethod String      @default("CASH") // BANK_NOTE, QR_CODE
   customerId    String?
   customer      Customer?   @relation(fields: [customerId], references: [id])
   items         OrderItem[]
