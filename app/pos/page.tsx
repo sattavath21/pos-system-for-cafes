@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogTrigger } from "@/components/ui/dialog"
 import { Label } from "@/components/ui/label"
-import { Minus, Plus, X, Search, Clock, User, List, Pause, Package, Check, AlertCircle, Tag } from "lucide-react"
+import { Minus, Plus, X, Search, Clock, User, List, Pause, Package, Check, AlertCircle, Tag, Printer } from "lucide-react"
 import Link from "next/link"
 import { Badge } from "@/components/ui/badge"
 import { formatLAK, calculateChange, LAK_DENOMINATIONS, calculateTax } from "@/lib/currency"
@@ -384,8 +384,18 @@ export default function POSPage() {
         channel.postMessage({ type: "PAYMENT_COMPLETE" })
         channel.close()
 
-        // Success
-        setLastOrderInfo({ orderNumber, total })
+        // Success - Store full details for receipt
+        setLastOrderInfo({
+          orderNumber,
+          total,
+          subtotal,
+          tax,
+          discount,
+          items: cart,
+          customer: selectedCustomer,
+          promo: appliedPromo,
+          date: new Date().toLocaleString()
+        })
         setCart([])
         setTableNumber("")
         setSelectedCustomer(null)
@@ -916,30 +926,149 @@ export default function POSPage() {
         </AlertDialogContent>
       </AlertDialog>
 
-      {/* Success Dialog */}
+      {/* Success Dialog with Receipt */}
       <Dialog open={isSuccessOpen} onOpenChange={setIsSuccessOpen}>
-        <DialogContent className="sm:max-w-md text-center">
-          <div className="flex flex-col items-center justify-center pt-6">
-            <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mb-4">
-              <Check className="w-10 h-10 text-green-600" />
+        <DialogContent className="sm:max-w-md max-h-[90vh] overflow-y-auto">
+          <div className="flex flex-col items-center pt-4">
+            <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mb-4">
+              <Check className="w-8 h-8 text-green-600" />
             </div>
-            <h2 className="text-2xl font-bold text-amber-900 mb-2">Order Success!</h2>
-            <p className="text-muted-foreground mb-6">
-              Order <span className="font-mono font-bold">{lastOrderInfo?.orderNumber}</span> has been completed.
-            </p>
-            <div className="w-full space-y-3">
+            <h2 className="text-xl font-bold text-amber-900 mb-6">Payment Successful</h2>
+
+            {/* Receipt Visual */}
+            <Card id="printable-receipt" className="w-full p-6 bg-slate-50 border-dashed border-2 shadow-none font-mono text-sm mb-6">
+              <div className="text-center border-b border-dashed pb-4 mb-4">
+                <h3 className="font-bold text-lg uppercase">Cafe POS</h3>
+                <p className="text-xs text-muted-foreground">Vientiane, Laos</p>
+                <p className="text-xs mt-1">{lastOrderInfo?.date}</p>
+              </div>
+
+              <div className="flex justify-between font-bold mb-4">
+                <span>Receipt {lastOrderInfo?.orderNumber}</span>
+              </div>
+
+              <div className="space-y-2 mb-4">
+                {lastOrderInfo?.items?.map((item: any, i: number) => (
+                  <div key={i} className="flex justify-between">
+                    <span className="flex-1">{item.name} x{item.quantity}</span>
+                    <span>{formatLAK(item.price * item.quantity)}</span>
+                  </div>
+                ))}
+              </div>
+
+              <div className="border-t border-dashed pt-4 space-y-1">
+                <div className="flex justify-between text-xs text-muted-foreground">
+                  <span>Subtotal</span>
+                  <span>{formatLAK(lastOrderInfo?.subtotal)}</span>
+                </div>
+                {lastOrderInfo?.discount > 0 && (
+                  <div className="flex justify-between text-xs text-rose-600">
+                    <span>Discount ({lastOrderInfo?.promo?.name})</span>
+                    <span>-{formatLAK(lastOrderInfo?.discount)}</span>
+                  </div>
+                )}
+                <div className="flex justify-between text-xs text-muted-foreground">
+                  <span>Tax (10%)</span>
+                  <span>{formatLAK(lastOrderInfo?.tax)}</span>
+                </div>
+                <div className="flex justify-between font-bold text-base mt-2 pt-2 border-t border-dashed">
+                  <span>TOTAL</span>
+                  <span>{formatLAK(lastOrderInfo?.total)}</span>
+                </div>
+              </div>
+
+              {lastOrderInfo?.customer && (
+                <div className="mt-4 pt-4 border-t border-dashed text-[10px] text-muted-foreground">
+                  <p>Customer: {lastOrderInfo.customer.name}</p>
+                  <p>Points Earned: +{Math.floor(lastOrderInfo.total / 1000)}</p>
+                </div>
+              )}
+
+              <div className="text-center mt-6 pt-4 border-t border-dashed opacity-50 text-[10px]">
+                <p>THANK YOU FOR YOUR VISIT!</p>
+              </div>
+            </Card>
+
+            <div className="w-full space-y-3 print:hidden">
+              <Button
+                className="w-full bg-blue-600 hover:bg-blue-700"
+                onClick={() => {
+                  window.print();
+                }}
+              >
+                <Printer className="w-4 h-4 mr-2" />
+                Print Receipt
+              </Button>
               <Button className="w-full bg-amber-600 hover:bg-amber-700" onClick={() => setIsSuccessOpen(false)}>
-                Continue
+                New Order
               </Button>
               <Link href="/orders" className="block w-full">
                 <Button variant="outline" className="w-full">
-                  View All Orders
+                  View Orders
                 </Button>
               </Link>
             </div>
           </div>
         </DialogContent>
       </Dialog>
+
+      <style dangerouslySetInnerHTML={{
+        __html: `
+        @media print {
+          /* Root level isolation */
+          html, body {
+            background: white !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            height: auto !important;
+            overflow: visible !important;
+          }
+          
+          /* Hide all app content */
+          body * {
+            visibility: hidden !important;
+          }
+
+          /* Whitelist ONLY the receipt and its hierarchy */
+          #printable-receipt, #printable-receipt * {
+            visibility: visible !important;
+            opacity: 1 !important;
+            color: black !important;
+          }
+
+          /* Reset receipt container to be top-left and take full width */
+          #printable-receipt {
+            position: absolute !important;
+            left: 0 !important;
+            top: 0 !important;
+            width: 80mm !important; 
+            padding: 10mm !important;
+            margin: 0 !important;
+            background: white !important;
+            border: none !important;
+            box-shadow: none !important;
+            display: block !important;
+            height: auto !important;
+            overflow: visible !important;
+          }
+
+          /* Remove borders that might be light */
+          #printable-receipt div, #printable-receipt span {
+            border-color: black !important;
+          }
+
+          /* Force hide dialog accessories */
+          [role="dialog"], [data-state="open"], .fixed {
+              background: none !important;
+              border: none !important;
+              box-shadow: none !important;
+          }
+          
+          .print-hidden {
+            display: none !important;
+          }
+        }
+      ` }} />
 
       {/* Custom Hold Success Dialog */}
       <Dialog open={isHoldSuccessOpen} onOpenChange={setIsHoldSuccessOpen}>
