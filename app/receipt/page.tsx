@@ -6,15 +6,8 @@ import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Printer, ArrowLeft } from "lucide-react"
 import Link from "next/link"
+import { formatLAK } from "@/lib/currency"
 
-const formatLAK = (amount: number) => {
-  return new Intl.NumberFormat('lo-LA', {
-    style: 'currency',
-    currency: 'LAK',
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 0
-  }).format(amount).replace('LAK', '').trim() + ' ₭'
-}
 
 function ReceiptContent() {
   const searchParams = useSearchParams()
@@ -72,8 +65,15 @@ function ReceiptContent() {
           <p className="text-[10px] mt-1">{new Date(order.createdAt).toLocaleString()}</p>
         </div>
 
-        <div className="flex justify-between font-bold mb-4">
-          <span>{order.status === 'COMPLETED' ? 'RECEIPT' : 'ORDER'} {order.orderNumber}</span>
+        <div className="flex flex-col mb-4">
+          <div className="flex justify-between font-bold">
+            <span>{order.status === 'COMPLETED' ? 'RECEIPT' : 'ORDER'} {order.orderNumber}</span>
+          </div>
+          {order.beeperNumber && (
+            <div className="mt-2 p-2 border-2 border-dashed border-black text-center">
+              <span className="font-bold text-lg">BEEPER: {order.beeperNumber}</span>
+            </div>
+          )}
         </div>
 
         <div className="space-y-2 mb-4">

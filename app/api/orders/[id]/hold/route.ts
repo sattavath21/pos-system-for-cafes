@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { getDb } from '@/lib/db'
 
-export async function PUT(request: Request, { params }: { params: { id: string } }) {
+export async function PUT(request: Request, { params }: { params: Promise<{ id: string }> }) {
     try {
         const { id } = await params
         const db = await getDb()

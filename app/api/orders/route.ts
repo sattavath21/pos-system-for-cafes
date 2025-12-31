@@ -4,7 +4,7 @@ import { getDb } from '@/lib/db'
 export async function POST(request: Request) {
     try {
         const body = await request.json()
-        const { id, items, total, subtotal, tax, discount, promoId, customerId, paymentMethod, status } = body
+        const { id, items, total, subtotal, tax, discount, promoId, customerId, paymentMethod, status, beeperNumber } = body
 
         const db = await getDb()
         const now = new Date().toISOString()
@@ -18,8 +18,6 @@ export async function POST(request: Request) {
             const existing = await db.get('SELECT orderNumber, status FROM "Order" WHERE id = ?', orderId)
             if (existing) {
                 orderNumber = existing.orderNumber
-                // If it was already COMPLETED, maybe we shouldn't allow updates? 
-                // But for now, let's allow it or assume status transition.
             } else {
                 isNewOrder = true
             }
@@ -42,14 +40,14 @@ export async function POST(request: Request) {
             orderNumber = `No. ${String(nextNumber).padStart(2, '0')}`;
 
             await db.run(
-                'INSERT INTO "Order" (id, orderNumber, status, total, subtotal, tax, discount, promoId, customerId, paymentMethod, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
-                orderId, orderNumber, status || 'COMPLETED', total, subtotal, tax, discount || 0, promoId || null, customerId || null, paymentMethod || 'CASH', now, now
+                'INSERT INTO "Order" (id, orderNumber, status, total, subtotal, tax, discount, promoId, customerId, paymentMethod, beeperNumber, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)',
+                orderId, orderNumber, status || 'COMPLETED', total, subtotal, tax, discount || 0, promoId || null, customerId || null, paymentMethod || 'CASH', beeperNumber || null
             )
         } else {
             // Update existing order
             await db.run(
-                'UPDATE "Order" SET status = ?, total = ?, subtotal = ?, tax = ?, discount = ?, promoId = ?, customerId = ?, paymentMethod = ?, updatedAt = ? WHERE id = ?',
-                status || 'COMPLETED', total, subtotal, tax, discount || 0, promoId || null, customerId || null, paymentMethod || 'CASH', now, orderId
+                'UPDATE "Order" SET status = ?, total = ?, subtotal = ?, tax = ?, discount = ?, promoId = ?, customerId = ?, paymentMethod = ?, beeperNumber = ?, updatedAt = ? WHERE id = ?',
+                status || 'COMPLETED', total, subtotal, tax, discount || 0, promoId || null, customerId || null, paymentMethod || 'CASH', beeperNumber || null, now, orderId
             )
             // Delete old items
             await db.run('DELETE FROM OrderItem WHERE orderId = ?', orderId)

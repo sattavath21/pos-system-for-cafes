@@ -16,6 +16,7 @@ type Order = {
     total: number
     customerId?: string
     customerName?: string
+    beeperNumber?: string
     createdAt: string
     items?: any[]
 }
@@ -126,6 +127,14 @@ export default function ActiveOrdersPage() {
                                 <p className="text-sm mb-2">
                                     <span className="font-medium">Customer:</span> {order.customerName}
                                 </p>
+                            )}
+
+                            {order.beeperNumber && (
+                                <div className="mb-2">
+                                    <Badge variant="outline" className="border-orange-500 text-orange-700 bg-orange-50 font-bold">
+                                        BEEPER: {order.beeperNumber}
+                                    </Badge>
+                                </div>
                             )}
 
                             <div className="flex justify-between items-center pt-3 border-t">

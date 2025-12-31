@@ -46,40 +46,30 @@ export default function POSPage() {
     window.location.href = '/role-select'
   }
 
-  const [cart, setCart] = useState<CartItem[]>(() => {
-    if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem("pos_cart")
-      return saved ? JSON.parse(saved) : []
-    }
-    return []
-  })
+  const [cart, setCart] = useState<CartItem[]>([])
   const [searchQuery, setSearchQuery] = useState("")
-  const [tableNumber, setTableNumber] = useState(() => (typeof window !== 'undefined' ? localStorage.getItem("pos_table") || "" : ""))
+  const [tableNumber, setTableNumber] = useState("")
   const [menuItems, setMenuItems] = useState<MenuItem[]>([])
   const [categories, setCategories] = useState<string[]>(["All"])
-  const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(() => {
-    if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem("pos_customer")
-      return saved ? JSON.parse(saved) : null
-    }
-    return null
-  })
+  const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null)
   // Payment Dialog state
   const [isPaymentOpen, setIsPaymentOpen] = useState(false)
   const [isProcessing, setIsProcessing] = useState(false)
   const [paymentMethod, setPaymentMethod] = useState("BANK_NOTE")
   const [cashReceived, setCashReceived] = useState("")
-  const [orderNumber, setOrderNumber] = useState(() => (typeof window !== 'undefined' ? localStorage.getItem("pos_orderNumber") || "" : ""))
+  const [orderNumber, setOrderNumber] = useState("")
   const [appliedPromo, setAppliedPromo] = useState<any>(null)
   const [promoCodeInput, setPromoCodeInput] = useState("")
   const [isPromoOpen, setIsPromoOpen] = useState(false)
   const [isHoldConfirmOpen, setIsHoldConfirmOpen] = useState(false)
+  const [beeperNumber, setBeeperNumber] = useState("")
+  const [showBeeperError, setShowBeeperError] = useState(false)
 
   // UI state for custom confirmations
   const [isNewOrderConfirmOpen, setIsNewOrderConfirmOpen] = useState(false)
   const [isSuccessOpen, setIsSuccessOpen] = useState(false)
   const [lastOrderInfo, setLastOrderInfo] = useState<any>(null)
-  const [resumedOrderId, setResumedOrderId] = useState<string | null>(() => (typeof window !== 'undefined' ? localStorage.getItem("pos_resumedOrderId") || null : null))
+  const [resumedOrderId, setResumedOrderId] = useState<string | null>(null)
   const [isInitialLoad, setIsInitialLoad] = useState(true)
   const [isHoldSuccessOpen, setIsHoldSuccessOpen] = useState(false)
 
@@ -135,6 +125,21 @@ export default function POSPage() {
 
   // Load persisted state
   useEffect(() => {
+    const savedCart = localStorage.getItem("pos_cart")
+    if (savedCart) setCart(JSON.parse(savedCart))
+
+    const savedTable = localStorage.getItem("pos_table")
+    if (savedTable) setTableNumber(savedTable)
+
+    const savedCustomer = localStorage.getItem("pos_customer")
+    if (savedCustomer) setSelectedCustomer(JSON.parse(savedCustomer))
+
+    const savedOrderNum = localStorage.getItem("pos_orderNumber")
+    if (savedOrderNum) setOrderNumber(savedOrderNum)
+
+    const savedResumedId = localStorage.getItem("pos_resumedOrderId")
+    if (savedResumedId) setResumedOrderId(savedResumedId)
+
     setIsInitialLoad(false)
   }, [])
 
@@ -147,6 +152,7 @@ export default function POSPage() {
     localStorage.setItem("pos_customer", JSON.stringify(selectedCustomer))
     localStorage.setItem("pos_table", tableNumber)
     localStorage.setItem("pos_orderNumber", orderNumber)
+    localStorage.setItem("pos_beeperNumber", beeperNumber)
     if (resumedOrderId) {
       localStorage.setItem("pos_resumedOrderId", resumedOrderId)
     } else {
@@ -329,6 +335,10 @@ export default function POSPage() {
     localStorage.removeItem("pos_customer")
     localStorage.removeItem("pos_table")
     localStorage.removeItem("pos_orderNumber")
+    localStorage.removeItem("pos_beeperNumber")
+    setBeeperNumber("")
+    setShowBeeperError(false)
+    setCashReceived("")
     setIsNewOrderConfirmOpen(false)
   }
 
@@ -358,6 +368,10 @@ export default function POSPage() {
 
 
   const handleCheckout = async () => {
+    if (!beeperNumber) {
+      setShowBeeperError(true)
+      return
+    }
     setIsProcessing(true)
     try {
       const res = await fetch('/api/orders', {
@@ -372,7 +386,8 @@ export default function POSPage() {
           promoId: appliedPromo?.id,
           customerId: selectedCustomer?.id,
           paymentMethod,
-          status: 'COMPLETED'
+          status: 'COMPLETED',
+          beeperNumber: beeperNumber || null
         }),
         headers: { 'Content-Type': 'application/json' }
       })
@@ -386,7 +401,9 @@ export default function POSPage() {
 
         // Success - Store full details for receipt
         setLastOrderInfo({
+          id: data.id,
           orderNumber,
+          beeperNumber,
           total,
           subtotal,
           tax,
@@ -401,12 +418,15 @@ export default function POSPage() {
         setSelectedCustomer(null)
         setAppliedPromo(null)
         setResumedOrderId(null)
+        setBeeperNumber("")
+        setCashReceived("")
         setOrderNumber("")
         setIsPaymentOpen(false)
         localStorage.removeItem("pos_cart")
         localStorage.removeItem("pos_customer")
         localStorage.removeItem("pos_table")
         localStorage.removeItem("pos_orderNumber")
+        localStorage.removeItem("pos_beeperNumber")
         fetchNextOrderNumber()
         setIsSuccessOpen(true)
       } else {
@@ -435,7 +455,8 @@ export default function POSPage() {
           promoId: appliedPromo?.id,
           customerId: selectedCustomer?.id,
           paymentMethod: 'BANK_NOTE',
-          status: 'HOLD'
+          status: 'HOLD',
+          beeperNumber: beeperNumber || null
         }),
         headers: { 'Content-Type': 'application/json' }
       })
@@ -444,12 +465,14 @@ export default function POSPage() {
         setCart([])
         setTableNumber("")
         setSelectedCustomer(null)
-        setResumedOrderId(null)
+        setBeeperNumber("")
+        setCashReceived("")
         setOrderNumber("")
         localStorage.removeItem("pos_cart")
         localStorage.removeItem("pos_customer")
         localStorage.removeItem("pos_table")
         localStorage.removeItem("pos_orderNumber")
+        localStorage.removeItem("pos_beeperNumber")
         fetchNextOrderNumber()
         setIsHoldSuccessOpen(true)
       } else {
@@ -772,25 +795,61 @@ export default function POSPage() {
                   </div>
 
                   {paymentMethod === 'BANK_NOTE' && (
-                    <div className="space-y-3">
+                    <div className="space-y-4">
+
                       <div>
+                        <Label
+                          className={`flex justify-between ${showBeeperError && !beeperNumber ? "text-rose-500" : ""
+                            }`}
+                        >
+                          <span>Beeper Number</span>
+                          <span className="text-xs font-bold">
+                            {showBeeperError && !beeperNumber ? "REQUIRED" : "(Required)"}
+                          </span>
+                        </Label>
+
+                        <Input
+                          placeholder="e.g. 05"
+                          value={beeperNumber}
+                          onChange={e => {
+                            setBeeperNumber(e.target.value)
+                            if (showBeeperError) setShowBeeperError(false)
+                          }}
+                          className={`text-lg font-bold ${showBeeperError && !beeperNumber
+                            ? "border-rose-500 bg-rose-50 focus-visible:ring-rose-500"
+                            : ""
+                            }`}
+                        />
+
+                        {showBeeperError && !beeperNumber && (
+                          <p className="text-[10px] text-rose-500 mt-1 font-bold animate-pulse">
+                            Please enter a beeper number
+                          </p>
+                        )}
+                      </div>
+
+                      <div className="bg-muted p-4 rounded-lg">
                         <Label>Cash Received</Label>
                         <Input
-                          type="number"
-                          value={cashReceived}
-                          onChange={e => setCashReceived(e.target.value)}
+                          type="text"
+                          value={cashReceived ? Number(cashReceived).toLocaleString() : ""}
+                          onChange={e => {
+                            const val = e.target.value.replace(/\D/g, "")
+                            setCashReceived(val)
+                          }}
                           placeholder="Enter amount in kips"
+                          className="text-2xl font-bold h-14"
                         />
                       </div>
                       {Number(cashReceived) > total && (
                         <div className="bg-green-50 p-3 rounded-lg">
                           <p className="text-sm text-muted-foreground">Change</p>
                           <p className="text-2xl font-bold text-green-600">{formatLAK(Number(cashReceived) - total)}</p>
-                          <div className="mt-2 text-xs text-muted-foreground">
+                          {/* <div className="mt-2 text-xs text-muted-foreground">
                             {calculateChange(total, Number(cashReceived)).denominations.map((d, i) => (
                               <div key={i}>{d.count} x {formatLAK(d.denom)}</div>
                             ))}
-                          </div>
+                          </div> */}
                         </div>
                       )}
                       <div className="grid grid-cols-4 gap-2">
@@ -819,6 +878,24 @@ export default function POSPage() {
 
                   {paymentMethod === 'QR_CODE' && (
                     <div className="space-y-4">
+                      <div>
+                        <Label className={`flex justify-between ${showBeeperError && !beeperNumber ? 'text-rose-500' : ''}`}>
+                          <span>Beeper Number</span>
+                          <span className="text-xs font-bold">{showBeeperError && !beeperNumber ? 'REQUIRED' : '(Required)'}</span>
+                        </Label>
+                        <Input
+                          placeholder="e.g. 05"
+                          value={beeperNumber}
+                          onChange={e => {
+                            setBeeperNumber(e.target.value)
+                            if (showBeeperError) setShowBeeperError(false)
+                          }}
+                          className={`text-lg font-bold ${showBeeperError && !beeperNumber ? 'border-rose-500 bg-rose-50 focus-visible:ring-rose-500' : ''}`}
+                        />
+                        {showBeeperError && !beeperNumber && (
+                          <p className="text-[10px] text-rose-500 mt-1 font-bold animate-pulse">Please enter a beeper number</p>
+                        )}
+                      </div>
                       <PaymentQR
                         amount={total}
                         orderNumber={orderNumber || `ORD-${Date.now().toString().slice(-6)}`}
@@ -944,9 +1021,14 @@ export default function POSPage() {
                 <p className="text-xs mt-1">{lastOrderInfo?.date}</p>
               </div>
 
-              <div className="flex justify-between font-bold mb-4">
+              <div className="flex justify-between font-bold mb-1">
                 <span>Receipt {lastOrderInfo?.orderNumber}</span>
               </div>
+              {lastOrderInfo?.beeperNumber && (
+                <div className="flex justify-between font-bold mb-4 text-orange-600 border-2 border-orange-600 p-1 text-center">
+                  <span>BEEPER: {lastOrderInfo.beeperNumber}</span>
+                </div>
+              )}
 
               <div className="space-y-2 mb-4">
                 {lastOrderInfo?.items?.map((item: any, i: number) => (
@@ -992,7 +1074,7 @@ export default function POSPage() {
 
             <div className="w-full space-y-3 print:hidden">
               <Button
-                className="w-full bg-blue-600 hover:bg-blue-700 font-bold py-6 text-lg"
+                className="w-full bg-blue-600 hover:bg-blue-700 font-bold py-6 text-md"
                 onClick={() => {
                   if (lastOrderInfo?.id) {
                     window.open(`/receipt?id=${lastOrderInfo.id}`, '_blank', 'width=450,height=600');

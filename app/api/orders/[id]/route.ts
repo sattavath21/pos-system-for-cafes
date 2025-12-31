@@ -3,10 +3,10 @@ import { getDb } from '@/lib/db'
 
 export async function GET(
     request: Request,
-    { params }: { params: { id: string } }
+    { params }: { params: Promise<{ id: string }> }
 ) {
     try {
-        const id = params.id
+        const { id } = await params
         const db = await getDb()
 
         const order = await db.get('SELECT * FROM "Order" WHERE id = ?', id)
