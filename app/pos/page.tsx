@@ -929,6 +929,7 @@ export default function POSPage() {
       {/* Success Dialog with Receipt */}
       <Dialog open={isSuccessOpen} onOpenChange={setIsSuccessOpen}>
         <DialogContent className="sm:max-w-md max-h-[90vh] overflow-y-auto">
+          <DialogTitle className="sr-only">Payment Successful Receipt</DialogTitle>
           <div className="flex flex-col items-center pt-4">
             <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mb-4">
               <Check className="w-8 h-8 text-green-600" />
@@ -936,7 +937,7 @@ export default function POSPage() {
             <h2 className="text-xl font-bold text-amber-900 mb-6">Payment Successful</h2>
 
             {/* Receipt Visual */}
-            <Card id="printable-receipt" className="w-full p-6 bg-slate-50 border-dashed border-2 shadow-none font-mono text-sm mb-6">
+            <Card id="printable-receipt" className="w-full p-6 bg-white border-dashed border-2 shadow-none font-mono text-sm mb-6">
               <div className="text-center border-b border-dashed pb-4 mb-4">
                 <h3 className="font-bold text-lg uppercase">Cafe POS</h3>
                 <p className="text-xs text-muted-foreground">Vientiane, Laos</p>
@@ -991,12 +992,14 @@ export default function POSPage() {
 
             <div className="w-full space-y-3 print:hidden">
               <Button
-                className="w-full bg-blue-600 hover:bg-blue-700"
+                className="w-full bg-blue-600 hover:bg-blue-700 font-bold py-6 text-lg"
                 onClick={() => {
-                  window.print();
+                  if (lastOrderInfo?.id) {
+                    window.open(`/receipt?id=${lastOrderInfo.id}`, '_blank', 'width=450,height=600');
+                  }
                 }}
               >
-                <Printer className="w-4 h-4 mr-2" />
+                <Printer className="w-6 h-6 mr-2" />
                 Print Receipt
               </Button>
               <Button className="w-full bg-amber-600 hover:bg-amber-700" onClick={() => setIsSuccessOpen(false)}>
@@ -1012,67 +1015,11 @@ export default function POSPage() {
         </DialogContent>
       </Dialog>
 
-      <style dangerouslySetInnerHTML={{
-        __html: `
-        @media print {
-          /* Root level isolation */
-          html, body {
-            background: white !important;
-            margin: 0 !important;
-            padding: 0 !important;
-            height: auto !important;
-            overflow: visible !important;
-          }
-          
-          /* Hide all app content */
-          body * {
-            visibility: hidden !important;
-          }
-
-          /* Whitelist ONLY the receipt and its hierarchy */
-          #printable-receipt, #printable-receipt * {
-            visibility: visible !important;
-            opacity: 1 !important;
-            color: black !important;
-          }
-
-          /* Reset receipt container to be top-left and take full width */
-          #printable-receipt {
-            position: absolute !important;
-            left: 0 !important;
-            top: 0 !important;
-            width: 80mm !important; 
-            padding: 10mm !important;
-            margin: 0 !important;
-            background: white !important;
-            border: none !important;
-            box-shadow: none !important;
-            display: block !important;
-            height: auto !important;
-            overflow: visible !important;
-          }
-
-          /* Remove borders that might be light */
-          #printable-receipt div, #printable-receipt span {
-            border-color: black !important;
-          }
-
-          /* Force hide dialog accessories */
-          [role="dialog"], [data-state="open"], .fixed {
-              background: none !important;
-              border: none !important;
-              box-shadow: none !important;
-          }
-          
-          .print-hidden {
-            display: none !important;
-          }
-        }
-      ` }} />
 
       {/* Custom Hold Success Dialog */}
       <Dialog open={isHoldSuccessOpen} onOpenChange={setIsHoldSuccessOpen}>
         <DialogContent className="sm:max-w-md text-center">
+          <DialogTitle className="sr-only">Order Put on Hold</DialogTitle>
           <div className="flex flex-col items-center justify-center pt-6">
             <div className="w-16 h-16 bg-orange-100 rounded-full flex items-center justify-center mb-4">
               <Pause className="w-8 h-8 text-orange-600" />

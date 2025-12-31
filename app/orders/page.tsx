@@ -149,7 +149,9 @@ export default function ActiveOrdersPage() {
                                         size="sm"
                                         variant="outline"
                                         className="border-blue-200 text-blue-600 hover:bg-blue-50"
-                                        onClick={() => setPrintingOrder(order)}
+                                        onClick={() => {
+                                            window.open(`/receipt?id=${order.id}`, '_blank', 'width=450,height=600');
+                                        }}
                                     >
                                         <Printer className="w-4 h-4 mr-1" />
                                         Print
@@ -168,120 +170,6 @@ export default function ActiveOrdersPage() {
                 )}
             </div>
 
-            {/* Receipt Modal for Re-printing */}
-            <Dialog open={!!printingOrder} onOpenChange={(open) => !open && setPrintingOrder(null)}>
-                <DialogContent className="sm:max-w-md max-h-[90vh] overflow-y-auto">
-                    <div className="flex flex-col items-center pt-4">
-                        <Card id="reprint-receipt" className="w-full p-6 bg-slate-50 border-dashed border-2 shadow-none font-mono text-sm mb-6">
-                            <div className="text-center border-b border-dashed pb-4 mb-4">
-                                <h3 className="font-bold text-lg uppercase">Cafe POS</h3>
-                                <p className="text-xs text-muted-foreground">Vientiane, Laos</p>
-                                <p className="text-xs mt-1">{printingOrder && new Date(printingOrder.createdAt).toLocaleString()}</p>
-                            </div>
-
-                            <div className="flex justify-between font-bold mb-4">
-                                <span>Receipt {printingOrder?.orderNumber}</span>
-                            </div>
-
-                            <div className="space-y-2 mb-4">
-                                {printingOrder?.items?.map((item: any, i: number) => (
-                                    <div key={i} className="flex justify-between">
-                                        <span className="flex-1 text-[11px] leading-tight">{item.name || "Product"} x{item.quantity}</span>
-                                        <span className="text-[11px]">{formatLAK(item.price * item.quantity)}</span>
-                                    </div>
-                                ))}
-                            </div>
-
-                            <div className="border-t border-dashed pt-4 space-y-1">
-                                <div className="flex justify-between text-[11px] text-muted-foreground">
-                                    <span>Subtotal</span>
-                                    <span>{printingOrder && formatLAK(printingOrder.total / 1.1)}</span>
-                                </div>
-                                <div className="flex justify-between text-[11px] text-muted-foreground">
-                                    <span>Tax (10%)</span>
-                                    <span>{printingOrder && formatLAK(printingOrder.total - (printingOrder.total / 1.1))}</span>
-                                </div>
-                                <div className="flex justify-between font-bold text-sm mt-2 pt-2 border-t border-dashed">
-                                    <span>TOTAL</span>
-                                    <span>{printingOrder && formatLAK(printingOrder.total)}</span>
-                                </div>
-                            </div>
-
-                            <div className="text-center mt-6 pt-4 border-t border-dashed opacity-50 text-[10px]">
-                                <p>DUPLICATE RECEIPT</p>
-                            </div>
-                        </Card>
-
-                        <div className="w-full grid grid-cols-2 gap-3 print:hidden">
-                            <Button
-                                variant="outline"
-                                onClick={() => setPrintingOrder(null)}
-                            >
-                                Close
-                            </Button>
-                            <Button
-                                className="bg-blue-600 hover:bg-blue-700"
-                                onClick={() => window.print()}
-                            >
-                                <Printer className="w-4 h-4 mr-2" />
-                                Print
-                            </Button>
-                        </div>
-                    </div>
-                </DialogContent>
-            </Dialog>
-
-            <style dangerouslySetInnerHTML={{
-                __html: `
-                @media print {
-                  /* Root level isolation */
-                  html, body {
-                    background: white !important;
-                    margin: 0 !important;
-                    padding: 0 !important;
-                    height: auto !important;
-                    overflow: visible !important;
-                  }
-
-                  body * {
-                    visibility: hidden !important;
-                  }
-
-                  #reprint-receipt, #reprint-receipt * {
-                    visibility: visible !important;
-                    opacity: 1 !important;
-                    color: black !important;
-                  }
-
-                  #reprint-receipt {
-                    position: absolute !important;
-                    left: 0 !important;
-                    top: 0 !important;
-                    width: 80mm !important;
-                    padding: 10mm !important;
-                    margin: 0 !important;
-                    background: white !important;
-                    border: none !important;
-                    box-shadow: none !important;
-                    display: block !important;
-                    font-family: monospace !important;
-                    height: auto !important;
-                    overflow: visible !important;
-                  }
-
-                  /* Force hide dialog accessories */
-                  [role="dialog"], [data-state="open"], .fixed {
-                      background: none !important;
-                      border: none !important;
-                      box-shadow: none !important;
-                  }
-
-                  #reprint-receipt * {
-                    color: black !important;
-                    border-color: black !important;
-                  }
-                }
-            ` }} />
         </div>
     )
 }

@@ -100,7 +100,7 @@ model Promotion {
 
 model Order {
   id            String      @id @default(uuid())
-  orderNumber   String      @unique // e.g. ORD-001
+  orderNumber   String      // e.g. No. 01
   status        String      @default("COMPLETED") // PENDING, COMPLETED, HOLD, CANCELLED
   total         Float
   subtotal      Float

@@ -4,136 +4,172 @@ import { useEffect, useState, Suspense } from "react"
 import { useSearchParams } from "next/navigation"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { Separator } from "@/components/ui/separator"
-import { Printer, Mail, Download, ArrowLeft } from "lucide-react"
+import { Printer, ArrowLeft } from "lucide-react"
 import Link from "next/link"
+
+const formatLAK = (amount: number) => {
+  return new Intl.NumberFormat('lo-LA', {
+    style: 'currency',
+    currency: 'LAK',
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0
+  }).format(amount).replace('LAK', '').trim() + ' ₭'
+}
 
 function ReceiptContent() {
   const searchParams = useSearchParams()
   const orderId = searchParams.get("id")
   const [order, setOrder] = useState<any>(null)
+  const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
     if (orderId) {
-      // Fetch order details.
-      // I didn't make a specific GET /api/orders/[id] yet, but I can use GET /api/orders and filter or make a new one.
-      // Actually faster to make a specific route /api/orders/[id] or just filter on client for now if list is short?
-      // No, list limits 100.
-      // I should create GET /api/orders/[id].
-      // Or I can just fetch /api/reports? No.
-
-      // Let's implement fetch logic here assuming I add the API route or use a query param on main route.
-      // Let's add the API route quickly in the next tool call.
-
       fetch(`/api/orders/${orderId}`)
         .then(res => {
           if (res.ok) return res.json()
           throw new Error("Order not found")
         })
-        .then(data => setOrder(data))
-        .catch(e => console.error(e))
+        .then(data => {
+          setOrder(data)
+          // Auto-trigger print once loaded
+          setTimeout(() => {
+            window.print()
+          }, 500)
+        })
+        .catch(e => {
+          console.error(e)
+          setError(e.message)
+        })
     }
   }, [orderId])
+
+  if (error) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center p-4">
+        <p className="text-rose-600 mb-4">Error: {error}</p>
+        <Link href="/pos">
+          <Button variant="outline">Back to POS</Button>
+        </Link>
+      </div>
+    )
+  }
 
   if (!order) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <p>Loading receipt...</p>
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-amber-900"></div>
+        <p className="ml-3">Generating Receipt...</p>
       </div>
     )
   }
 
   return (
-    <Card className="max-w-md mx-auto my-8 p-8 bg-white shadow-lg print:shadow-none print:my-0 print:max-w-none">
-      <div className="text-center mb-6">
-        <h1 className="text-2xl font-bold text-amber-900">Cafe POS</h1>
-        <p className="text-muted-foreground">123 Coffee Street, Brewtown</p>
-        <p className="text-muted-foreground">Tel: (555) 123-4567</p>
-      </div>
-
-      <div className="mb-6 text-sm">
-        <div className="flex justify-between mb-1">
-          <span className="text-muted-foreground">Date:</span>
-          <span>{new Date(order.createdAt).toLocaleString()}</span>
+    <div className="flex flex-col items-center min-h-screen bg-gray-100 p-0 sm:p-8 print:bg-white print:p-0">
+      <Card id="printable-receipt" className="w-[80mm] p-6 bg-white shadow-none border-none font-mono text-sm">
+        <div className="text-center border-b border-dashed border-black pb-4 mb-4">
+          <h1 className="text-lg font-bold uppercase tracking-tight">Cafe POS</h1>
+          <p className="text-xs">Vientiane, Laos</p>
+          <p className="text-[10px] mt-1">{new Date(order.createdAt).toLocaleString()}</p>
         </div>
-        <div className="flex justify-between mb-1">
-          <span className="text-muted-foreground">Order #:</span>
-          <span>{order.orderNumber}</span>
-        </div>
-        <div className="flex justify-between">
-          <span className="text-muted-foreground">Cashier:</span>
-          <span>Admin</span>
-        </div>
-      </div>
 
-      <Separator className="my-4" />
+        <div className="flex justify-between font-bold mb-4">
+          <span>{order.status === 'COMPLETED' ? 'RECEIPT' : 'ORDER'} {order.orderNumber}</span>
+        </div>
 
-      <div className="space-y-3 mb-6">
-        {order.items?.map((item: any, i: number) => (
-          <div key={i} className="flex justify-between text-sm">
-            <div className="flex-1">
-              <span className="font-medium">{item.name}</span>
-              <div className="text-muted-foreground text-xs">
-                {item.quantity} x ${item.price.toFixed(2)}
-              </div>
+        <div className="space-y-2 mb-4">
+          {order.items?.map((item: any, i: number) => (
+            <div key={i} className="flex justify-between">
+              <span className="flex-1 text-[11px] leading-tight">{item.name} x{item.quantity}</span>
+              <span className="text-[11px]">{formatLAK(item.price * item.quantity)}</span>
             </div>
-            <span className="font-medium">${(item.quantity * item.price).toFixed(2)}</span>
+          ))}
+        </div>
+
+        <div className="border-t border-dashed border-black pt-4 space-y-1">
+          <div className="flex justify-between text-[11px]">
+            <span>Subtotal</span>
+            <span>{formatLAK(order.subtotal)}</span>
           </div>
-        ))}
-      </div>
-
-      <Separator className="my-4" />
-
-      <div className="space-y-2 mb-6 text-sm">
-        <div className="flex justify-between">
-          <span className="text-muted-foreground">Subtotal</span>
-          <span>${order.subtotal?.toFixed(2)}</span>
+          {order.discount > 0 && (
+            <div className="flex justify-between text-[11px]">
+              <span>Discount</span>
+              <span>-{formatLAK(order.discount)}</span>
+            </div>
+          )}
+          <div className="flex justify-between text-[11px]">
+            <span>Tax (10%)</span>
+            <span>{formatLAK(order.tax)}</span>
+          </div>
+          <div className="flex justify-between font-bold text-base mt-2 pt-2 border-t border-dashed border-black">
+            <span>TOTAL</span>
+            <span>{formatLAK(order.total)}</span>
+          </div>
         </div>
-        <div className="flex justify-between">
-          <span className="text-muted-foreground">Tax</span>
-          <span>${order.tax?.toFixed(2)}</span>
+
+        <div className="mt-4 pt-4 border-t border-dashed border-black text-[10px]">
+          <p>Payment: {order.paymentMethod}</p>
+          {order.customer && (
+            <>
+              <p>Customer: {order.customer.name}</p>
+              <p>Points Earned: +{Math.floor(order.total / 1000)}</p>
+            </>
+          )}
         </div>
-        <div className="flex justify-between text-lg font-bold pt-2 border-t mt-2">
-          <span>Total</span>
-          <span>${order.total?.toFixed(2)}</span>
+
+        <div className="text-center mt-6 pt-4 border-t border-dashed border-black text-[10px] uppercase">
+          <p>Thank you for your visit!</p>
+          <p className="mt-1">Please come again</p>
         </div>
-      </div>
+      </Card>
 
-      <div className="mb-6 text-center text-sm">
-        <p className="font-medium">Payment Method: {order.paymentMethod}</p>
-      </div>
-
-      <div className="text-center space-y-2 text-sm text-muted-foreground print:hidden">
-        <p>Thank you for your business!</p>
-        <p>Please visit again</p>
-      </div>
-
-      {/* Actions */}
-      <div className="flex gap-2 mt-8 print:hidden">
-        <Button className="flex-1" variant="outline" onClick={() => window.print()}>
+      {/* Action Buttons - Hidden in Print */}
+      <div className="mt-8 flex gap-3 print:hidden">
+        <Button variant="outline" onClick={() => window.print()}>
           <Printer className="w-4 h-4 mr-2" />
-          Print
+          Re-Print
         </Button>
-        <Button className="flex-1" variant="outline">
-          <Mail className="w-4 h-4 mr-2" />
-          Email
-        </Button>
-        <Link href="/pos" className="flex-1">
-          <Button className="w-full" variant="ghost">
-            Close
+        <Link href="/pos">
+          <Button className="bg-amber-600 hover:bg-amber-700">
+            <ArrowLeft className="w-4 h-4 mr-2" />
+            Back to POS
           </Button>
         </Link>
       </div>
-    </Card>
+
+      <style dangerouslySetInnerHTML={{
+        __html: `
+        @media print {
+          @page {
+            margin: 0;
+            size: 80mm auto;
+          }
+          body {
+            background: white !important;
+            margin: 0 !important;
+            padding: 0 !important;
+          }
+          #printable-receipt {
+            box-shadow: none !important;
+            border: none !important;
+            width: 80mm !important;
+            padding: 8mm !important; /* Enough margin for thermal head */
+            position: absolute;
+            left: 0;
+            top: 0;
+          }
+          .print-hidden, button, a {
+            display: none !important;
+          }
+        }
+      ` }} />
+    </div>
   )
 }
 
 export default function ReceiptPage() {
   return (
-    <div className="min-h-screen bg-gray-50 py-8 print:bg-white print:py-0">
-      <Suspense>
-        <ReceiptContent />
-      </Suspense>
-    </div>
+    <Suspense fallback={<div>Loading...</div>}>
+      <ReceiptContent />
+    </Suspense>
   )
 }

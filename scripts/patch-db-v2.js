@@ -29,15 +29,15 @@ async function main() {
     await db.exec(`CREATE UNIQUE INDEX IF NOT EXISTS "Promotion_code_key" ON "Promotion"("code")`);
 
     console.log("Checking columns...");
-    const orderInfo = await db.all(\`PRAGMA table_info("Order")\`);
+    const orderInfo = await db.all(`PRAGMA table_info("Order")`);
     const oCols = orderInfo.map(r => r.name);
-    if (!oCols.includes('discount')) await db.exec(\`ALTER TABLE "Order" ADD COLUMN "discount" REAL DEFAULT 0\`);
-    if (!oCols.includes('promoId')) await db.exec(\`ALTER TABLE "Order" ADD COLUMN "promoId" TEXT\`);
+    if (!oCols.includes('discount')) await db.exec(`ALTER TABLE "Order" ADD COLUMN "discount" REAL DEFAULT 0`);
+    if (!oCols.includes('promoId')) await db.exec(`ALTER TABLE "Order" ADD COLUMN "promoId" TEXT`);
 
-    const productInfo = await db.all(\`PRAGMA table_info("Product")\`);
+    const productInfo = await db.all(`PRAGMA table_info("Product")`);
     const pCols = productInfo.map(r => r.name);
-    if (!pCols.includes('type')) await db.exec(\`ALTER TABLE "Product" ADD COLUMN "type" TEXT DEFAULT 'HOT'\`);
-    if (!pCols.includes('size')) await db.exec(\`ALTER TABLE "Product" ADD COLUMN "size" TEXT DEFAULT 'REGULAR'\`);
+    if (!pCols.includes('type')) await db.exec(`ALTER TABLE "Product" ADD COLUMN "type" TEXT DEFAULT 'HOT'`);
+    if (!pCols.includes('size')) await db.exec(`ALTER TABLE "Product" ADD COLUMN "size" TEXT DEFAULT 'REGULAR'`);
 
     await db.close();
     console.log("Success! Database patched.");

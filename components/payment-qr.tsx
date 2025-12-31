@@ -60,7 +60,7 @@ export function PaymentQR({ amount, orderNumber, onComplete }: PaymentQRProps) {
             </div>
 
             <Card className="p-6 bg-white">
-                <div className="flex flex-col items-center gap-4">
+                <div className="flex flex-col items-center gap-2">
                     {status === "pending" ? (
                         <>
                             <QRCodeSVG value={qrData} size={200} level="H" />
@@ -84,19 +84,11 @@ export function PaymentQR({ amount, orderNumber, onComplete }: PaymentQRProps) {
 
             <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
                 <p className="text-sm text-blue-800 text-center">
-                    ✓ QR Code is displaying on customer screen
+                    QR Code is displaying on customer screen
                 </p>
             </div>
 
-            {/* Manual completion for testing - remove in production */}
-            {status === "pending" && (
-                <button
-                    onClick={handleManualComplete}
-                    className="w-full text-xs text-muted-foreground hover:text-foreground"
-                >
-                    (Dev: Mark as Paid)
-                </button>
-            )}
+
         </div>
     )
 }
