@@ -23,6 +23,18 @@ export default function ReportsPage() {
   const [dateRange, setDateRange] = useState("30") // 7, 30, 90
 
   useEffect(() => {
+    const checkRole = async () => {
+      try {
+        const res = await fetch('/api/auth/me')
+        if (res.ok) {
+          const d = await res.json()
+          if (d.user.role === 'CASHIER') {
+            window.location.href = '/dashboard'
+          }
+        }
+      } catch (e) { }
+    }
+    checkRole()
     fetchReports()
   }, [dateRange])
 

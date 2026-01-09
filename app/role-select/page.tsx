@@ -21,13 +21,13 @@ export default function RoleSelectPage() {
       color: "bg-blue-500 hover:bg-blue-600",
       role: "CASHIER",
     },
-    {
-      title: "Barista",
-      description: "View and prepare orders",
-      icon: Coffee,
-      color: "bg-amber-500 hover:bg-amber-600",
-      role: "KITCHEN",
-    },
+    // {
+    //   title: "Barista",
+    //   description: "View and prepare orders",
+    //   icon: Coffee,
+    //   color: "bg-amber-500 hover:bg-amber-600",
+    //   role: "KITCHEN",
+    // },
   ]
 
   return (
@@ -38,7 +38,7 @@ export default function RoleSelectPage() {
           <p className="text-muted-foreground">Choose how you want to access the system</p>
         </div>
 
-        <div className="grid md:grid-cols-3 gap-6">
+        <div className="grid md:grid-cols-2 gap-6">
           {roles.map((role) => {
             const Icon = role.icon
             return (

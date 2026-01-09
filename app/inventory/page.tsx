@@ -172,36 +172,30 @@ export default function InventoryPage() {
                   <div className="grid grid-cols-2 gap-4">
                     <div>
                       <Label>Unit</Label>
-                      <select
-                        className="w-full p-2 border rounded"
+                      <Input
+                        placeholder="e.g. kg, L, pcs"
                         value={formData.unit}
                         onChange={e => setFormData({ ...formData, unit: e.target.value })}
-                      >
-                        <option value="kg">kg</option>
-                        <option value="L">L</option>
-                        <option value="pcs">pcs</option>
-                        <option value="g">g</option>
-                        <option value="ml">ml</option>
-                      </select>
+                      />
                     </div>
                     <div>
                       <Label>Current Stock</Label>
-                      <Input type="number" value={formData.currentStock} onChange={e => setFormData({ ...formData, currentStock: Number(e.target.value) })} />
+                      <Input type="text" value={formData.currentStock} onChange={e => setFormData({ ...formData, currentStock: Number(e.target.value) })} />
                     </div>
                   </div>
                   <div className="grid grid-cols-2 gap-4">
                     <div>
                       <Label>Min Stock</Label>
-                      <Input type="number" value={formData.minStock} onChange={e => setFormData({ ...formData, minStock: Number(e.target.value) })} />
+                      <Input type="text" value={formData.minStock} onChange={e => setFormData({ ...formData, minStock: Number(e.target.value) })} />
                     </div>
                     <div>
                       <Label>Max Stock</Label>
-                      <Input type="number" value={formData.maxStock} onChange={e => setFormData({ ...formData, maxStock: Number(e.target.value) })} />
+                      <Input type="text" value={formData.maxStock} onChange={e => setFormData({ ...formData, maxStock: Number(e.target.value) })} />
                     </div>
                   </div>
                   <div>
                     <Label>Cost per Unit (LAK)</Label>
-                    <Input type="number" value={formData.cost} onChange={e => setFormData({ ...formData, cost: Number(e.target.value) })} />
+                    <Input type="text" value={formData.cost} onChange={e => setFormData({ ...formData, cost: Number(e.target.value) })} />
                   </div>
                 </div>
                 <DialogFooter>

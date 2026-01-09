@@ -135,7 +135,15 @@ export default function POSPage() {
     if (savedCustomer) setSelectedCustomer(JSON.parse(savedCustomer))
 
     const savedOrderNum = localStorage.getItem("pos_orderNumber")
-    if (savedOrderNum) setOrderNumber(savedOrderNum)
+    const savedOrderDate = localStorage.getItem("pos_orderDate")
+    const today = new Date().toDateString()
+
+    if (savedOrderNum && savedOrderDate === today) {
+      setOrderNumber(savedOrderNum)
+    } else {
+      localStorage.removeItem("pos_orderNumber")
+      localStorage.removeItem("pos_orderDate")
+    }
 
     const savedResumedId = localStorage.getItem("pos_resumedOrderId")
     if (savedResumedId) setResumedOrderId(savedResumedId)
@@ -152,6 +160,7 @@ export default function POSPage() {
     localStorage.setItem("pos_customer", JSON.stringify(selectedCustomer))
     localStorage.setItem("pos_table", tableNumber)
     localStorage.setItem("pos_orderNumber", orderNumber)
+    localStorage.setItem("pos_orderDate", new Date().toDateString())
     localStorage.setItem("pos_beeperNumber", beeperNumber)
     if (resumedOrderId) {
       localStorage.setItem("pos_resumedOrderId", resumedOrderId)
@@ -195,16 +204,17 @@ export default function POSPage() {
   // Search Customers
   useEffect(() => {
     if (!isCustomerSearchOpen) return
-    const handler = setTimeout(async () => {
-      if (customerQuery.length < 2) {
-        setCustomerResults([])
-        return
-      }
+    const fetchCustomers = async () => {
       try {
-        const res = await fetch(`/api/customers?q=${customerQuery}`)
+        const url = customerQuery.length >= 2
+          ? `/api/customers?q=${customerQuery}`
+          : '/api/customers'
+        const res = await fetch(url)
         if (res.ok) setCustomerResults(await res.json())
       } catch (e) { }
-    }, 300)
+    }
+
+    const handler = setTimeout(fetchCustomers, 300)
     return () => clearTimeout(handler)
   }, [customerQuery, isCustomerSearchOpen])
 
@@ -524,6 +534,11 @@ export default function POSPage() {
       <header className="border-b bg-white sticky top-0 z-10">
         <div className="flex items-center justify-between p-4">
           <div className="flex items-center gap-4">
+            <Link href="/dashboard">
+              <Button variant="outline" size="sm" className="bg-amber-50 border-amber-200 text-amber-900">
+                Dashboard
+              </Button>
+            </Link>
             <h1 className="text-2xl font-bold text-amber-900">POS</h1>
             <Badge variant="secondary" className="px-3 py-1 text-lg font-mono bg-amber-50 text-amber-900 border-amber-200">
               {orderNumber || "No. --"}
@@ -533,15 +548,7 @@ export default function POSPage() {
             <Button variant="outline" size="sm" className="text-amber-700 border-amber-200 hover:bg-amber-50" onClick={handleNewOrderClick}>
               <Plus className="w-4 h-4 mr-1" /> New Order
             </Button>
-            {selectedCustomer ? (
-              <Badge variant="outline" className="px-3 py-1 flex items-center gap-2" onClick={() => setSelectedCustomer(null)}>
-                <User className="w-3 h-3" /> {selectedCustomer.name} (x)
-              </Badge>
-            ) : (
-              <Button variant="ghost" size="sm" onClick={() => setIsCustomerSearchOpen(true)}>
-                <User className="w-4 h-4 mr-2" /> Add Customer
-              </Button>
-            )}
+
             <Link href="/orders">
               <Button variant="outline" size="sm">
                 <List className="w-4 h-4 mr-2" />
@@ -566,11 +573,7 @@ export default function POSPage() {
                 Promotions
               </Button>
             </Link>
-            <Link href="/dashboard">
-              <Button variant="outline" size="sm">
-                Dashboard
-              </Button>
-            </Link>
+
             <Button variant="outline" size="sm" onClick={handleLogout}>
               Logout
             </Button>
@@ -727,6 +730,26 @@ export default function POSPage() {
 
           {/* Actions */}
           <div className="p-4 border-t space-y-2">
+            {selectedCustomer ? (
+              <div className="flex items-center gap-2 w-full">
+                <Badge variant="outline" className="flex-1 py-3 text-sm flex items-center gap-2">
+                  <User className="w-4 h-4" /> {selectedCustomer.name}
+                </Badge>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-10 w-10 text-red-500 hover:bg-red-50 hover:text-red-600"
+                  onClick={() => setSelectedCustomer(null)}
+                >
+                  <X className="w-5 h-5" />
+                </Button>
+              </div>
+            ) : (
+              <Button variant="outline" className="w-full" onClick={() => setIsCustomerSearchOpen(true)}>
+                <User className="w-4 h-4 mr-2" /> Add Customer
+              </Button>
+            )}
+
             {!appliedPromo ? (
               <Button variant="outline" className="w-full border-dashed" onClick={() => setIsPromoOpen(true)}>
                 <Tag className="w-4 h-4 mr-2" />
@@ -737,6 +760,9 @@ export default function POSPage() {
                 Remove Promo ({appliedPromo.code})
               </Button>
             )}
+
+
+
             <div className="grid grid-cols-2 gap-2">
               <Button
                 variant="outline"
@@ -1016,16 +1042,15 @@ export default function POSPage() {
             {/* Receipt Visual */}
             <Card id="printable-receipt" className="w-full p-6 bg-white border-dashed border-2 shadow-none font-mono text-sm mb-6">
               <div className="text-center border-b border-dashed pb-4 mb-4">
+                <p className="text-xs text-muted-foreground mb-1">Receipt Number</p>
+                <h2 className="text-4xl font-bold mb-2">{lastOrderInfo?.orderNumber}</h2>
                 <h3 className="font-bold text-lg uppercase">Cafe POS</h3>
                 <p className="text-xs text-muted-foreground">Vientiane, Laos</p>
                 <p className="text-xs mt-1">{lastOrderInfo?.date}</p>
               </div>
 
-              <div className="flex justify-between font-bold mb-1">
-                <span>Receipt {lastOrderInfo?.orderNumber}</span>
-              </div>
               {lastOrderInfo?.beeperNumber && (
-                <div className="flex justify-between font-bold mb-4 text-orange-600 border-2 border-orange-600 p-1 text-center">
+                <div className="flex justify-center font-bold mb-4 text-orange-600 border-2 border-orange-600 p-2 text-center text-xl">
                   <span>BEEPER: {lastOrderInfo.beeperNumber}</span>
                 </div>
               )}
@@ -1064,10 +1089,12 @@ export default function POSPage() {
                 <div className="mt-4 pt-4 border-t border-dashed text-[10px] text-muted-foreground">
                   <p>Customer: {lastOrderInfo.customer.name}</p>
                   <p>Points Earned: +{Math.floor(lastOrderInfo.total / 1000)}</p>
+                  <p>Payment: {lastOrderInfo?.paymentMethod === 'BANK_NOTE' ? 'Cash' : 'Bank Transfer'}</p>
                 </div>
               )}
 
               <div className="text-center mt-6 pt-4 border-t border-dashed opacity-50 text-[10px]">
+                {!lastOrderInfo?.customer && <p className="mb-2">Payment: {lastOrderInfo?.paymentMethod === 'BANK_NOTE' ? 'Cash' : 'Bank Transfer'}</p>}
                 <p>THANK YOU FOR YOUR VISIT!</p>
               </div>
             </Card>

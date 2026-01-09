@@ -22,12 +22,12 @@ export async function POST(request: Request) {
 
       // Set session cookie
       response.cookies.set(
-        "cafe_session",
+        "session",
         JSON.stringify({
           id: "demo-admin-id",
           email: "admin@cafe.com",
           full_name: "Demo Admin",
-          role: "admin",
+          role: "ADMIN",
         }),
         {
           httpOnly: true,
@@ -82,12 +82,12 @@ export async function POST(request: Request) {
 
     // Set session cookie
     response.cookies.set(
-      "cafe_session",
+      "session",
       JSON.stringify({
         id: staff.id,
         email: staff.email,
         full_name: staff.full_name,
-        role: staff.role,
+        role: staff.role.toUpperCase(), // Ensure uppercase for consistency
       }),
       {
         httpOnly: true,

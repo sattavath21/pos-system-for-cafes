@@ -16,8 +16,19 @@ export default function DashboardPage() {
   const [data, setData] = useState<any>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [hasActiveSession, setHasActiveSession] = useState(false)
+  const [user, setUser] = useState<any>(null)
 
   useEffect(() => {
+    const fetchUser = async () => {
+      try {
+        const res = await fetch('/api/auth/me')
+        if (res.ok) {
+          const d = await res.json()
+          setUser(d.user)
+        }
+      } catch (e) { }
+    }
+    fetchUser()
     const fetchStats = async () => {
       try {
         const res = await fetch('/api/dashboard/stats')
@@ -93,43 +104,47 @@ export default function DashboardPage() {
 
       <div className="p-6 space-y-6">
         {/* Stats Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          {data?.summary.map((stat: any) => {
-            const Icon = statIcons[stat.title] || DollarSign
-            return (
-              <Card key={stat.title} className="p-6">
-                <div className="flex items-start justify-between">
-                  <div>
-                    <p className="text-sm text-muted-foreground mb-1">{stat.title}</p>
-                    <p className="text-3xl font-bold mb-2">
-                      {stat.type === "currency" ? formatLAK(stat.value) : stat.value}
-                    </p>
-                    <p className={`text-sm ${stat.change.startsWith('-') ? 'text-red-600' : 'text-green-600'}`}>{stat.change}</p>
+        {user?.role === 'ADMIN' && (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            {data?.summary.map((stat: any) => {
+              const Icon = statIcons[stat.title] || DollarSign
+              return (
+                <Card key={stat.title} className="p-6">
+                  <div className="flex items-start justify-between">
+                    <div>
+                      <p className="text-sm text-muted-foreground mb-1">{stat.title}</p>
+                      <p className="text-3xl font-bold mb-2">
+                        {stat.type === "currency" ? formatLAK(stat.value) : stat.value}
+                      </p>
+                      <p className={`text-sm ${stat.change.startsWith('-') ? 'text-red-600' : 'text-green-600'}`}>{stat.change}</p>
+                    </div>
+                    <div className={`${statBgs[stat.title]} p-3 rounded-lg`}>
+                      <Icon className={`w-6 h-6 ${statColors[stat.title]}`} />
+                    </div>
                   </div>
-                  <div className={`${statBgs[stat.title]} p-3 rounded-lg`}>
-                    <Icon className={`w-6 h-6 ${statColors[stat.title]}`} />
-                  </div>
-                </div>
-              </Card>
-            )
-          })}
-        </div>
+                </Card>
+              )
+            })}
+          </div>
+        )}
 
         {/* Quick Actions */}
         <Card className="p-6">
           <h2 className="text-lg font-bold mb-4">Quick Actions</h2>
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
-            {quickActions.map((action) => {
-              const Icon = action.icon
-              return (
-                <Link key={action.title} href={action.href}>
-                  <Button className={`w-full h-24 flex flex-col gap-2 ${action.color} text-white`}>
-                    <Icon className="w-8 h-8" />
-                    <span>{action.title}</span>
-                  </Button>
-                </Link>
-              )
-            })}
+            {quickActions
+              .filter(action => action.href !== '/reports' || user?.role === 'ADMIN')
+              .map((action) => {
+                const Icon = action.icon
+                return (
+                  <Link key={action.title} href={action.href}>
+                    <Button className={`w-full h-24 flex flex-col gap-2 ${action.color} text-white`}>
+                      <Icon className="w-8 h-8" />
+                      <span>{action.title}</span>
+                    </Button>
+                  </Link>
+                )
+              })}
           </div>
         </Card>
 
@@ -190,46 +205,50 @@ export default function DashboardPage() {
           </Card>
 
           {/* Top Selling Items */}
-          <Card className="p-6">
-            <h2 className="text-lg font-bold mb-4">Top Selling Items</h2>
-            <div className="space-y-3">
-              {data?.topItems.map((item: any, index: number) => (
-                <div key={item.name} className="flex items-center justify-between p-3 border rounded-lg">
-                  <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-full bg-amber-100 flex items-center justify-center font-bold text-amber-700">
-                      {index + 1}
+          {user?.role === 'ADMIN' && (
+            <Card className="p-6">
+              <h2 className="text-lg font-bold mb-4">Top Selling Items</h2>
+              <div className="space-y-3">
+                {data?.topItems.map((item: any, index: number) => (
+                  <div key={item.name} className="flex items-center justify-between p-3 border rounded-lg">
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 rounded-full bg-amber-100 flex items-center justify-center font-bold text-amber-700">
+                        {index + 1}
+                      </div>
+                      <div>
+                        <p className="font-medium">{item.name}</p>
+                        <p className="text-sm text-muted-foreground">{item.sold} sold</p>
+                      </div>
                     </div>
-                    <div>
-                      <p className="font-medium">{item.name}</p>
-                      <p className="text-sm text-muted-foreground">{item.sold} sold</p>
-                    </div>
+                    <p className="font-semibold text-green-600">{formatLAK(item.revenue)}</p>
                   </div>
-                  <p className="font-semibold text-green-600">{formatLAK(item.revenue)}</p>
-                </div>
-              ))}
-              {data?.topItems.length === 0 && <p className="text-sm text-muted-foreground py-4 text-center">No sales data yet</p>}
-            </div>
-          </Card>
+                ))}
+                {data?.topItems.length === 0 && <p className="text-sm text-muted-foreground py-4 text-center">No sales data yet</p>}
+              </div>
+            </Card>
+          )}
         </div>
 
         {/* Low Stock Alerts */}
-        <Card className="p-6">
-          <div className="flex items-center gap-2 mb-4">
-            <AlertTriangle className="w-5 h-5 text-orange-600" />
-            <h2 className="text-lg font-bold">Low Stock Alerts</h2>
-          </div>
-          <div className="grid md:grid-cols-3 gap-4">
-            {data?.lowStockAlerts.map((item: any) => (
-              <div key={item.name} className="p-4 border border-orange-200 bg-orange-50 rounded-lg">
-                <p className="font-semibold mb-1">{item.name}</p>
-                <p className="text-sm text-muted-foreground">
-                  Current: {item.current} {item.unit} (Min: {item.min} {item.unit})
-                </p>
-              </div>
-            ))}
-            {data?.lowStockAlerts.length === 0 && <p className="col-span-full text-sm text-muted-foreground py-4 text-center">All stock levels are healthy</p>}
-          </div>
-        </Card>
+        {user?.role === 'ADMIN' && (
+          <Card className="p-6">
+            <div className="flex items-center gap-2 mb-4">
+              <AlertTriangle className="w-5 h-5 text-orange-600" />
+              <h2 className="text-lg font-bold">Low Stock Alerts</h2>
+            </div>
+            <div className="grid md:grid-cols-3 gap-4">
+              {data?.lowStockAlerts.map((item: any) => (
+                <div key={item.name} className="p-4 border border-orange-200 bg-orange-50 rounded-lg">
+                  <p className="font-semibold mb-1">{item.name}</p>
+                  <p className="text-sm text-muted-foreground">
+                    Current: {item.current} {item.unit} (Min: {item.min} {item.unit})
+                  </p>
+                </div>
+              ))}
+              {data?.lowStockAlerts.length === 0 && <p className="col-span-full text-sm text-muted-foreground py-4 text-center">All stock levels are healthy</p>}
+            </div>
+          </Card>
+        )}
       </div>
     </div>
   )

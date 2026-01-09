@@ -60,21 +60,18 @@ function ReceiptContent() {
     <div className="flex flex-col items-center min-h-screen bg-gray-100 p-0 sm:p-8 print:bg-white print:p-0">
       <Card id="printable-receipt" className="w-[80mm] p-6 bg-white shadow-none border-none font-mono text-sm">
         <div className="text-center border-b border-dashed border-black pb-4 mb-4">
+          <p className="text-xs uppercase text-gray-500 mb-1">Receipt Number</p>
+          <h2 className="text-4xl font-bold mb-2">{order.orderNumber}</h2>
           <h1 className="text-lg font-bold uppercase tracking-tight">Cafe POS</h1>
           <p className="text-xs">Vientiane, Laos</p>
           <p className="text-[10px] mt-1">{new Date(order.createdAt).toLocaleString()}</p>
         </div>
 
-        <div className="flex flex-col mb-4">
-          <div className="flex justify-between font-bold">
-            <span>{order.status === 'COMPLETED' ? 'RECEIPT' : 'ORDER'} {order.orderNumber}</span>
+        {order.beeperNumber && (
+          <div className="mb-4 p-2 border-2 border-dashed border-black text-center">
+            <span className="font-bold text-2xl">BEEPER: {order.beeperNumber}</span>
           </div>
-          {order.beeperNumber && (
-            <div className="mt-2 p-2 border-2 border-dashed border-black text-center">
-              <span className="font-bold text-lg">BEEPER: {order.beeperNumber}</span>
-            </div>
-          )}
-        </div>
+        )}
 
         <div className="space-y-2 mb-4">
           {order.items?.map((item: any, i: number) => (
@@ -107,7 +104,7 @@ function ReceiptContent() {
         </div>
 
         <div className="mt-4 pt-4 border-t border-dashed border-black text-[10px]">
-          <p>Payment: {order.paymentMethod}</p>
+          <p className="font-bold">Payment: {order.paymentMethod === 'BANK_NOTE' ? 'Cash' : 'Bank Transfer'}</p>
           {order.customer && (
             <>
               <p>Customer: {order.customer.name}</p>
