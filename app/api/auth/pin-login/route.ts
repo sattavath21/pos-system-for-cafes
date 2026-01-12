@@ -41,7 +41,7 @@ export async function POST(request: Request) {
             role: matchedUser.role
         }
 
-        cookieStore.set('session', JSON.stringify(sessionData), {
+        cookieStore.set('pos_session', JSON.stringify(sessionData), {
             httpOnly: true,
             secure: process.env.NODE_ENV === 'production',
             sameSite: 'lax',

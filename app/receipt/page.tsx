@@ -58,7 +58,7 @@ function ReceiptContent() {
 
   return (
     <div className="flex flex-col items-center min-h-screen bg-gray-100 p-0 sm:p-8 print:bg-white print:p-0">
-      <Card id="printable-receipt" className="w-[80mm] p-6 bg-white shadow-none border-none font-mono text-sm">
+      <Card id="printable-receipt" className="w-[58mm] p-2 bg-white shadow-none border-none font-mono text-sm">
         <div className="text-center border-b border-dashed border-black pb-4 mb-4">
           <p className="text-xs uppercase text-gray-500 mb-1">Receipt Number</p>
           <h2 className="text-4xl font-bold mb-2">{order.orderNumber}</h2>
@@ -138,21 +138,24 @@ function ReceiptContent() {
         @media print {
           @page {
             margin: 0;
-            size: 80mm auto;
+            size: 58mm auto; /* Fixed for 58mm thermal */
           }
           body {
             background: white !important;
             margin: 0 !important;
             padding: 0 !important;
+            min-height: auto !important;
           }
           #printable-receipt {
             box-shadow: none !important;
             border: none !important;
-            width: 80mm !important;
-            padding: 8mm !important; /* Enough margin for thermal head */
-            position: absolute;
-            left: 0;
-            top: 0;
+            width: 100% !important; /* Full width of page */
+            max-width: 58mm !important;
+            padding: 2mm !important; /* Minimal padding */
+            margin: 0 auto !important;
+            position: relative !important;
+            left: auto !important;
+            top: auto !important;
           }
           .print-hidden, button, a {
             display: none !important;

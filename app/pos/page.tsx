@@ -78,6 +78,16 @@ export default function POSPage() {
   const [isInitialLoad, setIsInitialLoad] = useState(true)
   const [isHoldSuccessOpen, setIsHoldSuccessOpen] = useState(false)
 
+  // Shift & Cash Management
+  const [isShiftOpen, setIsShiftOpen] = useState(true) // Assume true initially, check later
+  const [activeShiftId, setActiveShiftId] = useState<string | null>(null)
+  const [isShiftModalOpen, setIsShiftModalOpen] = useState(false)
+  const [startCash, setStartCash] = useState("")
+
+  // Cancel Reason
+  const [cancelReason, setCancelReason] = useState("")
+  const [isCancelConfirmOpen, setIsCancelConfirmOpen] = useState(false)
+
   const calculateTotal = () => {
     const subtotal = Math.round(cart.reduce((sum, item) => sum + item.price * item.quantity, 0))
     let promoDiscount = 0
@@ -162,8 +172,45 @@ export default function POSPage() {
     if (savedResumedId) setResumedOrderId(savedResumedId)
 
     fetchSettings()
+    checkShiftStatus()
     setIsInitialLoad(false)
   }, [])
+
+  const checkShiftStatus = async () => {
+    try {
+      const res = await fetch('/api/shifts?status=OPEN')
+      if (res.ok) {
+        const shifts = await res.json()
+        if (shifts.length > 0) {
+          setIsShiftOpen(true)
+          setActiveShiftId(shifts[0].id)
+        } else {
+          setIsShiftOpen(false)
+          setIsShiftModalOpen(true)
+        }
+      }
+    } catch (e) { console.error(e) }
+  }
+
+  const handleOpenShift = async () => {
+    if (!startCash) return alert("Please enter opening cash amount")
+    try {
+      const res = await fetch('/api/shifts', {
+        method: 'POST',
+        body: JSON.stringify({
+          startCash: Number(startCash)
+        })
+      })
+      if (res.ok) {
+        const shift = await res.json()
+        setActiveShiftId(shift.id)
+        setIsShiftOpen(true)
+        setIsShiftModalOpen(false)
+      } else {
+        alert("Failed to open shift")
+      }
+    } catch (e) { alert("Error opening shift") }
+  }
 
   const fetchSettings = async () => {
     try {
@@ -545,12 +592,16 @@ export default function POSPage() {
     }
   }
 
-  const handleCancelOrder = async () => {
+  const handleCancelOrderClick = () => {
     if (!resumedOrderId) {
       handleNewOrder()
       return
     }
-    if (!confirm("Are you sure you want to cancel this order? It will be recorded as CANCELLED.")) return
+    setIsCancelConfirmOpen(true)
+  }
+
+  const handleCancelOrderConfirm = async () => {
+    if (!cancelReason) return alert("Reason is required")
 
     setIsProcessing(true)
     try {
@@ -562,12 +613,15 @@ export default function POSPage() {
           total, subtotal, tax, discount,
           promoId: appliedPromo?.id,
           customerId: selectedCustomer?.id,
-          status: 'CANCELLED'
+          status: 'CANCELLED',
+          cancellationReason: cancelReason
         }),
         headers: { 'Content-Type': 'application/json' }
       })
       if (res.ok) {
         handleNewOrder()
+        setCancelReason("")
+        setIsCancelConfirmOpen(false)
       }
     } catch (e) { console.error(e) }
     finally {
@@ -856,7 +910,7 @@ export default function POSPage() {
                 variant="outline"
                 className="w-full border-red-200 text-red-600 hover:bg-red-50"
                 disabled={cart.length === 0 || isProcessing}
-                onClick={handleCancelOrder}
+                onClick={handleCancelOrderClick}
               >
                 <AlertCircle className="w-4 h-4 mr-2" />
                 {t.cancel}
@@ -1128,7 +1182,7 @@ export default function POSPage() {
             <h2 className="text-xl font-bold text-amber-900 mb-6">Payment Successful</h2>
 
             {/* Receipt Visual */}
-            <Card id="printable-receipt" className="w-full p-6 bg-white border-dashed border-2 shadow-none font-mono text-sm mb-6">
+            <Card id="printable-receipt" className="w-full p-6 bg-white border-dashed border-2 shadow-none font-mono text-sm mb-20">
               <div className="text-center border-b border-dashed pb-4 mb-4">
                 <p className="text-xs text-muted-foreground mb-1">Receipt Number</p>
                 <h2 className="text-4xl font-bold mb-2">{lastOrderInfo?.orderNumber}</h2>
@@ -1227,6 +1281,58 @@ export default function POSPage() {
             </p>
             <Button className="w-full bg-orange-600 hover:bg-orange-700" onClick={() => setIsHoldSuccessOpen(false)}>
               Back to POS
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Cancel Order Reason Dialog */}
+      <Dialog open={isCancelConfirmOpen} onOpenChange={setIsCancelConfirmOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Cancel Order</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <p>Please provide a reason for cancelling this order.</p>
+            <Input
+              placeholder="Reason (e.g. Customer changed mind, Out of stock)"
+              value={cancelReason}
+              onChange={e => setCancelReason(e.target.value)}
+              autoFocus
+            />
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" onClick={() => setIsCancelConfirmOpen(false)}>Back</Button>
+              <Button variant="destructive" onClick={handleCancelOrderConfirm} disabled={!cancelReason}>
+                Confirm Cancel
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Open Shift Dialog */}
+      <Dialog open={isShiftModalOpen} onOpenChange={(open) => { if (!open && isShiftOpen) setIsShiftModalOpen(false) }}>
+        <DialogContent className="sm:max-w-md pointer-events-auto" onPointerDownOutside={(e) => e.preventDefault()} onEscapeKeyDown={(e) => e.preventDefault()}>
+          <DialogHeader>
+            <DialogTitle>Open New Shift</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="p-4 bg-amber-50 rounded-lg text-amber-900 text-sm">
+              <p className="font-bold">👋 Good Morning!</p>
+              <p>You must open a shift and count the cash drawer before taking orders.</p>
+            </div>
+            <div>
+              <Label>Starting Cash Amount</Label>
+              <Input
+                type="number"
+                placeholder="0"
+                value={startCash}
+                onChange={e => setStartCash(e.target.value)}
+                className="text-lg font-bold"
+              />
+            </div>
+            <Button className="w-full bg-amber-600 hover:bg-amber-700" onClick={handleOpenShift}>
+              Open Shift
             </Button>
           </div>
         </DialogContent>

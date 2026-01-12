@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { DollarSign, ShoppingCart, TrendingUp, AlertTriangle, Coffee, Users, Package, Receipt, List, Tag, Play, Store, Settings } from "lucide-react"
+import { DollarSign, ShoppingCart, TrendingUp, AlertTriangle, Coffee, Users, Package, Receipt, List, Tag, Play, Store, Settings, ChartLine } from "lucide-react"
 import { useTranslation } from "@/hooks/use-translation"
 import Link from "next/link"
 import { formatLAK } from "@/lib/currency"
@@ -59,11 +59,12 @@ export default function DashboardPage() {
       href: "/pos",
       color: hasActiveSession ? "bg-orange-600 hover:bg-orange-700" : "bg-amber-600 hover:bg-amber-700"
     },
+    { title: t.orders, icon: Receipt, href: "/orders", color: "bg-green-600 hover:bg-green-700" },
     { title: t.menu, icon: List, href: "/menu", color: "bg-blue-600 hover:bg-blue-700" },
     { title: t.inventory, icon: Package, href: "/inventory", color: "bg-orange-600 hover:bg-orange-700" },
-    { title: t.customers, icon: Users, href: "/customers", color: "bg-green-600 hover:bg-green-700" },
+    { title: t.customers, icon: Users, href: "/customers", color: "bg-yellow-600 hover:bg-yellow-700" },
     { title: t.promotions, icon: Tag, href: "/promotions", color: "bg-rose-600 hover:bg-rose-700" },
-    { title: t.reports, icon: Receipt, href: "/reports", color: "bg-purple-600 hover:bg-purple-700" },
+    { title: t.reports, icon: ChartLine, href: "/reports", color: "bg-purple-600 hover:bg-purple-700" },
   ]
 
   const statIcons: Record<string, any> = {
@@ -146,24 +147,43 @@ export default function DashboardPage() {
         )}
 
         {/* Quick Actions */}
+        {/* Page Navigation – Touch Screen Friendly */}
         <Card className="p-6">
           <h2 className="text-lg font-bold mb-4">{t.quick_actions}</h2>
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-3 gap-4">
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {quickActions
               .filter(action => action.href !== '/reports' || user?.role === 'ADMIN')
               .map((action) => {
                 const Icon = action.icon
                 return (
                   <Link key={action.title} href={action.href}>
-                    <Button className={`w-full h-24 flex flex-col gap-2 ${action.color} text-white`}>
-                      <Icon />
-                      <span className="text-lg">{action.title}</span>
-                    </Button>
+                    <div
+                      className={`
+                h-24 px-6
+                flex items-center gap-5
+                rounded-2xl
+                ${action.color}
+                text-white
+                active:opacity-80
+                hover:opacity-90
+                transition-opacity
+                select-none
+                cursor-pointer
+              `}
+                    >
+                      <Icon className="w-9 h-9 shrink-0" />
+                      <span className="text-xl font-bold">
+                        {action.title}
+                      </span>
+                    </div>
                   </Link>
                 )
               })}
           </div>
         </Card>
+
+
 
         <div className="grid lg:grid-cols-2 gap-6">
           {/* Active Orders */}
@@ -247,26 +267,28 @@ export default function DashboardPage() {
         </div>
 
         {/* Low Stock Alerts */}
-        {user?.role === 'ADMIN' && (
-          <Card className="p-6">
-            <div className="flex items-center gap-2 mb-4">
-              <AlertTriangle className="w-5 h-5 text-orange-600" />
-              <h2 className="text-lg font-bold">{t.low_stock_alerts}</h2>
-            </div>
-            <div className="grid md:grid-cols-3 gap-4">
-              {data?.lowStockAlerts.map((item: any) => (
-                <div key={item.name} className="p-4 border border-orange-200 bg-orange-50 rounded-lg">
-                  <p className="font-semibold mb-1">{item.name}</p>
-                  <p className="text-sm text-muted-foreground">
-                    Current: {item.current} {item.unit} (Min: {item.min} {item.unit})
-                  </p>
-                </div>
-              ))}
-              {data?.lowStockAlerts.length === 0 && <p className="col-span-full text-sm text-muted-foreground py-4 text-center">All stock levels are healthy</p>}
-            </div>
-          </Card>
-        )}
-      </div>
-    </div>
+        {
+          user?.role === 'ADMIN' && (
+            <Card className="p-6">
+              <div className="flex items-center gap-2 mb-4">
+                <AlertTriangle className="w-5 h-5 text-orange-600" />
+                <h2 className="text-lg font-bold">{t.low_stock_alerts}</h2>
+              </div>
+              <div className="grid md:grid-cols-3 gap-4">
+                {data?.lowStockAlerts.map((item: any) => (
+                  <div key={item.name} className="p-4 border border-orange-200 bg-orange-50 rounded-lg">
+                    <p className="font-semibold mb-1">{item.name}</p>
+                    <p className="text-sm text-muted-foreground">
+                      Current: {item.current} {item.unit} (Min: {item.min} {item.unit})
+                    </p>
+                  </div>
+                ))}
+                {data?.lowStockAlerts.length === 0 && <p className="col-span-full text-sm text-muted-foreground py-4 text-center">All stock levels are healthy</p>}
+              </div>
+            </Card>
+          )
+        }
+      </div >
+    </div >
   )
 }

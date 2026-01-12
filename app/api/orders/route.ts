@@ -1,141 +1,207 @@
 import { NextResponse } from 'next/server'
-import { getDb } from '@/lib/db'
+import { prisma } from '@/lib/prisma'
+import { startOfDay } from 'date-fns'
 
 export async function POST(request: Request) {
     try {
         const body = await request.json()
-        const { id, items, total, subtotal, tax, discount, promoId, customerId, paymentMethod, status, beeperNumber } = body
+        const {
+            id, items, total, subtotal, tax, discount,
+            promoId, customerId, paymentMethod, status,
+            beeperNumber, cancellationReason
+        } = body
 
-        const db = await getDb()
-        const now = new Date().toISOString()
+        // Validate status
+        const validStatuses = ['COMPLETED', 'HOLD', 'CANCELLED']
+        const orderStatus = validStatuses.includes(status) ? status : 'COMPLETED'
 
-        let orderId = id
-        let orderNumber = ""
-        let isNewOrder = false
+        let order
 
-        // 1. Check if it's an existing order
-        if (orderId) {
-            const existing = await db.get('SELECT orderNumber, status FROM "Order" WHERE id = ?', orderId)
-            if (existing) {
-                orderNumber = existing.orderNumber
+        // Transaction to ensure data integrity
+        await prisma.$transaction(async (tx: any) => {
+            // 1. Handle Order Number
+            let orderNumber = ""
+            let isNew = false
+
+            if (id) {
+                const existing = await tx.order.findUnique({ where: { id } })
+                if (existing) {
+                    orderNumber = existing.orderNumber
+                } else {
+                    isNew = true
+                }
             } else {
-                isNewOrder = true
+                isNew = true
             }
-        } else {
-            orderId = crypto.randomUUID()
-            isNewOrder = true
-        }
 
-        if (isNewOrder) {
-            // Generate Sequential Daily Order Number
-            const startOfDay = new Date();
-            startOfDay.setHours(0, 0, 0, 0);
-            const isoStartOfDay = startOfDay.toISOString();
+            if (isNew) {
+                const today = startOfDay(new Date())
+                const count = await tx.order.count({
+                    where: { createdAt: { gte: today } }
+                })
+                orderNumber = `No. ${String(count + 1).padStart(2, '0')}`
+            }
 
-            const countResult = await db.get(
-                `SELECT COUNT(*) as count FROM "Order" WHERE createdAt >= ?`,
-                isoStartOfDay
-            );
-            const nextNumber = (countResult?.count || 0) + 1;
-            orderNumber = `No. ${String(nextNumber).padStart(2, '0')}`;
+            // 2. Upsert Order
+            const orderId = id || crypto.randomUUID()
 
-            await db.run(
-                'INSERT INTO "Order" (id, orderNumber, status, total, subtotal, tax, discount, promoId, customerId, paymentMethod, beeperNumber, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)',
-                orderId, orderNumber, status || 'COMPLETED', total, subtotal, tax, discount || 0, promoId || null, customerId || null, paymentMethod || 'CASH', beeperNumber || null
-            )
-        } else {
-            // Update existing order
-            await db.run(
-                'UPDATE "Order" SET status = ?, total = ?, subtotal = ?, tax = ?, discount = ?, promoId = ?, customerId = ?, paymentMethod = ?, beeperNumber = ?, updatedAt = ? WHERE id = ?',
-                status || 'COMPLETED', total, subtotal, tax, discount || 0, promoId || null, customerId || null, paymentMethod || 'CASH', beeperNumber || null, now, orderId
-            )
-            // Delete old items
-            await db.run('DELETE FROM OrderItem WHERE orderId = ?', orderId)
-        }
+            // Prepare order data (without relation IDs)
+            const orderData = {
+                orderNumber,
+                status: orderStatus,
+                total, subtotal, tax, discount: discount || 0,
+                paymentMethod: paymentMethod || 'CASH',
+                beeperNumber: beeperNumber || null,
+                cancellationReason: status === 'CANCELLED' ? cancellationReason : null
+            }
 
-        // 3. Insert Order Items & Handle Stock Deduction
-        for (const item of items) {
-            const orderItemId = crypto.randomUUID()
-            await db.run(
-                'INSERT INTO OrderItem (id, orderId, productId, name, price, quantity, total) VALUES (?, ?, ?, ?, ?, ?, ?)',
-                orderItemId, orderId, item.id, item.name, item.price, item.quantity, item.price * item.quantity
-            )
+            // Prepare relation connects
+            const relationData: any = {}
+            if (promoId) {
+                relationData.promotion = { connect: { id: promoId } }
+            }
+            if (customerId) {
+                relationData.customer = { connect: { id: customerId } }
+            }
 
-            // Stock Deduction (only if transitioning to COMPLETED and not previously completed)
-            // For simplicity, we just deduct when status is COMPLETED. 
-            // Better would be to check if it was already COMPLETED before.
-            if (status === 'COMPLETED') {
-                const recipes = await db.all('SELECT ingredientId, quantity FROM Recipe WHERE productId = ?', item.id)
-                for (const recipe of recipes) {
-                    await db.run(
-                        'UPDATE Ingredient SET currentStock = currentStock - ?, updatedAt = ? WHERE id = ?',
-                        recipe.quantity * item.quantity, now, recipe.ingredientId
-                    )
+            if (isNew) {
+                order = await tx.order.create({
+                    data: {
+                        id: orderId,
+                        ...orderData,
+                        ...relationData,
+                        items: {
+                            create: items.map((item: any) => ({
+                                productId: item.id,
+                                name: item.name,
+                                price: item.price,
+                                quantity: item.quantity,
+                                total: item.price * item.quantity
+                            }))
+                        }
+                    }
+                })
+            } else {
+                // Update: Delete old items and re-create (simplest strategy)
+                await tx.orderItem.deleteMany({ where: { orderId } })
+
+                // For update, handle disconnect if IDs are null
+                const updateRelations: any = {}
+                if (promoId) {
+                    updateRelations.promotion = { connect: { id: promoId } }
+                } else {
+                    updateRelations.promotion = { disconnect: true }
+                }
+                if (customerId) {
+                    updateRelations.customer = { connect: { id: customerId } }
+                } else {
+                    updateRelations.customer = { disconnect: true }
+                }
+
+                order = await tx.order.update({
+                    where: { id: orderId },
+                    data: {
+                        ...orderData,
+                        ...updateRelations,
+                        items: {
+                            create: items.map((item: any) => ({
+                                productId: item.id,
+                                name: item.name,
+                                price: item.price,
+                                quantity: item.quantity,
+                                total: item.price * item.quantity
+                            }))
+                        }
+                    }
+                })
+            }
+
+            // 3. Stock Deduction (Only if COMPLETED)
+            if (orderStatus === 'COMPLETED') {
+                for (const item of items) {
+                    const recipes = await tx.recipe.findMany({
+                        where: { productId: item.id }
+                    })
+
+                    for (const recipe of recipes) {
+                        await tx.ingredient.update({
+                            where: { id: recipe.ingredientId },
+                            data: {
+                                currentStock: { decrement: recipe.quantity * item.quantity }
+                            }
+                        })
+                    }
+                }
+
+                // 4. Loyalty Points
+                if (customerId) {
+                    const points = Math.floor(total / 1000)
+                    await tx.customer.update({
+                        where: { id: customerId },
+                        data: {
+                            loyaltyPoints: { increment: points },
+                            totalSpent: { increment: total },
+                            visitCount: { increment: 1 },
+                            lastVisit: new Date()
+                        }
+                    })
+                }
+
+                // 5. Update Cash Drawer (Shift) if Cash Payment
+                if (paymentMethod === 'BANK_NOTE') { // Map generic generic 'CASH' to 'BANK_NOTE' if needed, or use 'CASH' if that's the enum
+                    // NOTE: The frontend sends 'BANK_NOTE' for cash usually
+                    const openShift = await tx.shift.findFirst({
+                        where: { status: 'OPEN' }
+                    })
+
+                    if (openShift) {
+                        await tx.shift.update({
+                            where: { id: openShift.id },
+                            data: {
+                                cashPayments: { increment: total }
+                            }
+                        })
+                    }
                 }
             }
-        }
+        })
 
-        if (customerId && status === 'COMPLETED') {
-            const points = Math.floor(total / 1000) // 1 point per 1,000 LAK
-            await db.run('UPDATE Customer SET loyaltyPoints = loyaltyPoints + ?, totalSpent = totalSpent + ?, visitCount = visitCount + 1, lastVisit = ? WHERE id = ?', points, total, now, customerId)
-        }
-
-        return NextResponse.json({ id: orderId, orderNumber }, { status: isNewOrder ? 201 : 200 })
+        return NextResponse.json(order)
     } catch (error) {
         console.error(error)
-        return NextResponse.json({ error: 'Failed to create order' }, { status: 500 })
+        return NextResponse.json({ error: 'Failed' }, { status: 500 })
     }
 }
 
 export async function GET(request: Request) {
+    const { searchParams } = new URL(request.url)
+    const customerId = searchParams.get('customerId')
+    const status = searchParams.get('status')
+    const nextNum = searchParams.get('next-number')
+
     try {
-        const { searchParams } = new URL(request.url)
-        const customerId = searchParams.get('customerId')
-        const status = searchParams.get('status')
-        const nextNum = searchParams.get('next-number')
-
-        const db = await getDb()
-
         if (nextNum) {
-            const startOfDay = new Date();
-            startOfDay.setHours(0, 0, 0, 0);
-            const isoStartOfDay = startOfDay.toISOString();
-            const countResult = await db.get(
-                `SELECT COUNT(*) as count FROM "Order" WHERE createdAt >= ?`,
-                isoStartOfDay
-            );
-            const nextNumber = (countResult?.count || 0) + 1;
-            return NextResponse.json({ orderNumber: `No. ${String(nextNumber).padStart(2, '0')}` });
+            const today = startOfDay(new Date())
+            const count = await prisma.order.count({
+                where: { createdAt: { gte: today } }
+            })
+            return NextResponse.json({ orderNumber: `No. ${String(count + 1).padStart(2, '0')}` })
         }
 
-        let query = 'SELECT * FROM "Order"'
-        let params: any[] = []
+        const where: any = {}
+        if (customerId) where.customerId = customerId
+        if (status) where.status = status
 
-        if (customerId || status) {
-            query += ' WHERE'
-            if (customerId) {
-                query += ' customerId = ?'
-                params.push(customerId)
-            }
-            if (status) {
-                if (customerId) query += ' AND'
-                query += ' status = ?'
-                params.push(status)
-            }
-        }
-
-        query += ' ORDER BY createdAt DESC LIMIT 100'
-        const orders = await db.all(query, params)
-
-        // Fetch items for each order
-        for (const order of orders) {
-            const items = await db.all('SELECT * FROM OrderItem WHERE orderId = ?', order.id)
-            order.items = items
-        }
+        const orders = await prisma.order.findMany({
+            where,
+            include: { items: true },
+            orderBy: { createdAt: 'desc' },
+            take: 100
+        })
 
         return NextResponse.json(orders)
-    } catch (e) {
-        console.error(e)
+    } catch (error) {
+        console.error(error)
         return NextResponse.json({ error: 'Failed' }, { status: 500 })
     }
 }

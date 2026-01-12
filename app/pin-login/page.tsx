@@ -110,7 +110,7 @@ function PinLoginContent() {
                 {/* PIN Display */}
                 <div className="mb-8">
                     <div className="flex justify-center gap-3 mb-2">
-                        {[0, 1, 2, 3, 4, 5].map((i) => (
+                        {[0, 1, 2, 3].map((i) => (
                             <div
                                 key={i}
                                 className={`w-12 h-12 rounded-lg border-2 flex items-center justify-center text-2xl font-bold ${i < pin.length

@@ -4,7 +4,7 @@ import { cookies } from 'next/headers'
 export async function GET() {
     try {
         const cookieStore = await cookies()
-        const session = cookieStore.get('session') || cookieStore.get('cafe_session')
+        const session = cookieStore.get('pos_session') || cookieStore.get('session')
 
         if (!session) {
             return NextResponse.json({ authenticated: false }, { status: 401 })

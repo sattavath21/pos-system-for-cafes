@@ -22,7 +22,7 @@ export async function POST(request: Request) {
 
       // Set session cookie
       response.cookies.set(
-        "session",
+        "pos_session",
         JSON.stringify({
           id: "demo-admin-id",
           email: "admin@cafe.com",
@@ -82,7 +82,7 @@ export async function POST(request: Request) {
 
     // Set session cookie
     response.cookies.set(
-      "session",
+      "pos_session",
       JSON.stringify({
         id: staff.id,
         email: staff.email,

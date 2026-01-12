@@ -1,10 +1,10 @@
 generator client {
   provider = "prisma-client-js"
+  engineType = "library"
 }
 
 datasource db {
   provider = "sqlite"
-  url      = "file:../dev.db"
 }
 
 model User {
@@ -114,6 +114,22 @@ model Order {
   items         OrderItem[]
   createdAt     DateTime    @default(now())
   updatedAt     DateTime    @updatedAt
+  cancellationReason String? // Reason for cancellation (if status is CANCELLED)
+}
+
+model Shift {
+  id            String    @id @default(uuid())
+  userId        String?   // User who opened the shift
+  startTime     DateTime  @default(now())
+  endTime       DateTime?
+  startCash     Float     @default(0)
+  endCash       Float?
+  actualCash    Float?    // Actual cash counted at end of shift
+  difference    Float?    // endCash - actualCash
+  cashPayments  Float     @default(0) // Total cash payments received during shift
+  status        String    @default("OPEN") // OPEN, CLOSED
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
 }
 
 model OrderItem {
