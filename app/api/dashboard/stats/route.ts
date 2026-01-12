@@ -61,11 +61,17 @@ export async function GET() {
         // Calculate changes
         const revChangeNum = yesterdayStats.revenue > 0
             ? ((todayStats.revenue - yesterdayStats.revenue) / yesterdayStats.revenue * 100)
-            : 100
+            : (todayStats.revenue > 0 ? 100 : 0)
 
         const countChangeNum = yesterdayStats.count > 0
             ? ((todayStats.count - yesterdayStats.count) / yesterdayStats.count * 100)
-            : 100
+            : (todayStats.count > 0 ? 100 : 0)
+
+        const aovToday = todayStats.count > 0 ? (todayStats.revenue / todayStats.count) : 0
+        const aovYesterday = yesterdayStats.count > 0 ? (yesterdayStats.revenue / yesterdayStats.count) : 0
+        const aovChangeNum = aovYesterday > 0
+            ? ((aovToday - aovYesterday) / aovYesterday * 100)
+            : (aovToday > 0 ? 100 : 0)
 
         return NextResponse.json({
             summary: [
@@ -83,8 +89,8 @@ export async function GET() {
                 },
                 {
                     title: "Avg Order Value",
-                    value: todayStats.count > 0 ? (todayStats.revenue / todayStats.count) : 0,
-                    change: "N/A",
+                    value: aovToday,
+                    change: `${aovChangeNum >= 0 ? '+' : ''}${aovChangeNum.toFixed(1)}%`,
                     type: "currency"
                 },
                 {

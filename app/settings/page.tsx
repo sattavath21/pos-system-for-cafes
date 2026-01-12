@@ -1,40 +1,123 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Textarea } from "@/components/ui/textarea"
-import { Store, Receipt, DollarSign, Bell } from "lucide-react"
+import { Store, Receipt, DollarSign, Languages, Key } from "lucide-react"
 import Link from "next/link"
 
 export default function SettingsPage() {
-  const [shopName, setShopName] = useState("Café Delight")
-  const [taxRate, setTaxRate] = useState("8")
-  const [serviceCharge, setServiceCharge] = useState("10")
-  const [currency, setCurrency] = useState("USD")
-  const [receiptFooter, setReceiptFooter] = useState("Thank you for your visit!")
+  const [user, setUser] = useState<any>(null)
+  const [settings, setSettings] = useState<any>({})
+  const [isLoading, setIsLoading] = useState(true)
+  const [isSaving, setIsSaving] = useState(false)
+
+  const [adminPin, setAdminPin] = useState("")
+  const [cashierPin, setCashierPin] = useState("")
+
+  useEffect(() => {
+    fetchData()
+  }, [])
+
+  const fetchData = async () => {
+    try {
+      const [uRes, sRes] = await Promise.all([
+        fetch('/api/auth/me'),
+        fetch('/api/settings')
+      ])
+      if (uRes.ok) setUser((await uRes.json()).user)
+      if (sRes.ok) setSettings(await sRes.json())
+    } catch (e) {
+      console.error(e)
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  const handleSaveSettings = async () => {
+    setIsSaving(true)
+    try {
+      const res = await fetch('/api/settings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(settings)
+      })
+      if (res.ok) alert("Settings saved successfully")
+    } catch (e) {
+      alert("Failed to save settings")
+    } finally {
+      setIsSaving(false)
+    }
+  }
+
+  const handleUpdatePin = async (role: string, pin: string) => {
+    if (pin.length < 4) return alert("PIN must be at least 4 digits")
+    try {
+      const res = await fetch('/api/auth/update-pin', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ role, newPin: pin })
+      })
+      if (res.ok) {
+        alert(`${role} PIN updated successfully`)
+        if (role === 'ADMIN') setAdminPin("")
+        else setCashierPin("")
+      } else {
+        alert("Failed to update PIN")
+      }
+    } catch (e) {
+      alert("Error updating PIN")
+    }
+  }
+
+  if (isLoading) return <div className="p-10 text-center">Loading Settings...</div>
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background text-slate-900">
       {/* Header */}
       <header className="border-b bg-white sticky top-0 z-10">
         <div className="flex items-center justify-between p-4">
           <h1 className="text-2xl font-bold text-amber-900">Settings</h1>
-          <div className="flex items-center gap-4">
-            <Link href="/dashboard">
-              <Button variant="outline" size="sm">
-                Dashboard
-              </Button>
-            </Link>
-          </div>
+          <Link href="/dashboard">
+            <Button variant="outline" size="sm">Dashboard</Button>
+          </Link>
         </div>
       </header>
 
       <div className="p-6 space-y-6 max-w-4xl mx-auto">
+        {/* Language Selection */}
+        <Card className="p-6 border-amber-100 shadow-sm">
+          <div className="flex items-center gap-3 mb-6">
+            <div className="bg-blue-100 p-3 rounded-lg">
+              <Languages className="w-6 h-6 text-blue-600" />
+            </div>
+            <div>
+              <h2 className="text-xl font-bold">Language / ພາສາ</h2>
+              <p className="text-sm text-muted-foreground">Select your preferred language</p>
+            </div>
+          </div>
+          <div className="flex gap-4">
+            <Button
+              variant={settings.language === 'en' ? 'default' : 'outline'}
+              onClick={() => setSettings({ ...settings, language: 'en' })}
+              className={settings.language === 'en' ? 'bg-amber-600' : ''}
+            >
+              English
+            </Button>
+            <Button
+              variant={settings.language === 'lo' ? 'default' : 'outline'}
+              onClick={() => setSettings({ ...settings, language: 'lo' })}
+              className={settings.language === 'lo' ? 'bg-amber-600' : ''}
+            >
+              ພາສາລາວ
+            </Button>
+          </div>
+        </Card>
+
         {/* Shop Information */}
-        <Card className="p-6">
+        <Card className="p-6 border-amber-100 shadow-sm">
           <div className="flex items-center gap-3 mb-6">
             <div className="bg-amber-100 p-3 rounded-lg">
               <Store className="w-6 h-6 text-amber-600" />
@@ -47,166 +130,101 @@ export default function SettingsPage() {
 
           <div className="space-y-4">
             <div>
-              <Label htmlFor="shopName">Shop Name</Label>
-              <Input id="shopName" value={shopName} onChange={(e) => setShopName(e.target.value)} />
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <Label htmlFor="address">Address</Label>
-                <Input id="address" placeholder="123 Coffee Street" />
-              </div>
-              <div>
-                <Label htmlFor="phone">Phone Number</Label>
-                <Input id="phone" placeholder="+1 555-0100" />
-              </div>
-            </div>
-
-            <div>
-              <Label htmlFor="email">Email</Label>
-              <Input id="email" type="email" placeholder="contact@cafe.com" />
-            </div>
-
-            <div>
-              <Label htmlFor="taxId">Tax ID</Label>
-              <Input id="taxId" placeholder="123-456-789" />
+              <Label>Shop Name</Label>
+              <Input
+                value={settings.shop_name || ""}
+                onChange={(e) => setSettings({ ...settings, shop_name: e.target.value })}
+              />
             </div>
           </div>
         </Card>
 
-        {/* Tax & Service Charge */}
-        <Card className="p-6">
+        {/* Tax & Pricing */}
+        <Card className="p-6 border-amber-100 shadow-sm">
           <div className="flex items-center gap-3 mb-6">
             <div className="bg-green-100 p-3 rounded-lg">
               <DollarSign className="w-6 h-6 text-green-600" />
             </div>
             <div>
-              <h2 className="text-xl font-bold">Tax & Service Charge</h2>
-              <p className="text-sm text-muted-foreground">Configure pricing and charges</p>
+              <h2 className="text-xl font-bold">Tax & Pricing</h2>
+              <p className="text-sm text-muted-foreground">Configure global tax and loyalty rates</p>
             </div>
           </div>
 
-          <div className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <Label htmlFor="taxRate">Tax Rate (%)</Label>
-                <Input id="taxRate" type="number" value={taxRate} onChange={(e) => setTaxRate(e.target.value)} />
-              </div>
-              <div>
-                <Label htmlFor="serviceCharge">Service Charge (%)</Label>
-                <Input
-                  id="serviceCharge"
-                  type="number"
-                  value={serviceCharge}
-                  onChange={(e) => setServiceCharge(e.target.value)}
-                />
-              </div>
-            </div>
-
+          <div className="grid grid-cols-2 gap-4">
             <div>
-              <Label htmlFor="currency">Currency</Label>
-              <select
-                id="currency"
-                className="w-full h-10 px-3 rounded-md border border-input bg-background"
-                value={currency}
-                onChange={(e) => setCurrency(e.target.value)}
-              >
-                <option value="USD">USD - US Dollar</option>
-                <option value="EUR">EUR - Euro</option>
-                <option value="GBP">GBP - British Pound</option>
-                <option value="CAD">CAD - Canadian Dollar</option>
-              </select>
-            </div>
-          </div>
-        </Card>
-
-        {/* Receipt Customization */}
-        <Card className="p-6">
-          <div className="flex items-center gap-3 mb-6">
-            <div className="bg-blue-100 p-3 rounded-lg">
-              <Receipt className="w-6 h-6 text-blue-600" />
-            </div>
-            <div>
-              <h2 className="text-xl font-bold">Receipt Customization</h2>
-              <p className="text-sm text-muted-foreground">Customize receipt appearance and content</p>
-            </div>
-          </div>
-
-          <div className="space-y-4">
-            <div>
-              <Label htmlFor="receiptHeader">Receipt Header Text</Label>
-              <Input id="receiptHeader" placeholder="Welcome to..." />
-            </div>
-
-            <div>
-              <Label htmlFor="receiptFooter">Receipt Footer Text</Label>
-              <Textarea
-                id="receiptFooter"
-                value={receiptFooter}
-                onChange={(e) => setReceiptFooter(e.target.value)}
-                placeholder="Thank you message..."
+              <Label>Tax Rate (%)</Label>
+              <Input
+                type="number"
+                value={settings.tax_rate || ""}
+                onChange={(e) => setSettings({ ...settings, tax_rate: e.target.value })}
               />
             </div>
-
             <div>
-              <Label htmlFor="receiptLogo">Receipt Logo</Label>
-              <div className="border-2 border-dashed rounded-lg p-8 text-center cursor-pointer hover:bg-muted/50 transition-colors">
-                <Receipt className="w-12 h-12 mx-auto mb-2 text-muted-foreground" />
-                <p className="text-sm text-muted-foreground">Click to upload logo</p>
-                <p className="text-xs text-muted-foreground mt-1">PNG, JPG up to 2MB</p>
-              </div>
+              <Label>Loyalty Rate (1pt = ? LAK)</Label>
+              <Input
+                type="number"
+                value={settings.loyalty_rate || ""}
+                onChange={(e) => setSettings({ ...settings, loyalty_rate: e.target.value })}
+              />
             </div>
           </div>
         </Card>
 
-        {/* Notifications */}
-        <Card className="p-6">
-          <div className="flex items-center gap-3 mb-6">
-            <div className="bg-purple-100 p-3 rounded-lg">
-              <Bell className="w-6 h-6 text-purple-600" />
-            </div>
-            <div>
-              <h2 className="text-xl font-bold">Notifications</h2>
-              <p className="text-sm text-muted-foreground">Manage notification preferences</p>
-            </div>
-          </div>
-
-          <div className="space-y-4">
-            <div className="flex items-center justify-between p-4 border rounded-lg">
-              <div>
-                <p className="font-medium">Low Stock Alerts</p>
-                <p className="text-sm text-muted-foreground">Get notified when inventory is running low</p>
-              </div>
-              <input type="checkbox" className="w-5 h-5" defaultChecked />
-            </div>
-
-            <div className="flex items-center justify-between p-4 border rounded-lg">
-              <div>
-                <p className="font-medium">New Order Notifications</p>
-                <p className="text-sm text-muted-foreground">Real-time alerts for new orders</p>
-              </div>
-              <input type="checkbox" className="w-5 h-5" defaultChecked />
-            </div>
-
-            <div className="flex items-center justify-between p-4 border rounded-lg">
-              <div>
-                <p className="font-medium">Daily Sales Summary</p>
-                <p className="text-sm text-muted-foreground">Receive daily sales reports via email</p>
-              </div>
-              <input type="checkbox" className="w-5 h-5" />
-            </div>
-          </div>
-        </Card>
-
-        {/* Save Button */}
-        <div className="flex justify-end gap-4">
-          <Button variant="outline" size="lg">
-            Cancel
-          </Button>
-          <Button className="bg-amber-600 hover:bg-amber-700" size="lg">
-            Save Changes
+        {/* Save Global Settings */}
+        <div className="flex justify-end">
+          <Button
+            className="bg-amber-600 hover:bg-amber-700 h-12 px-8 text-lg"
+            onClick={handleSaveSettings}
+            disabled={isSaving}
+          >
+            {isSaving ? "Saving..." : "Save Global Settings"}
           </Button>
         </div>
+
+        {/* Admin PIN Management */}
+        {user?.role === 'ADMIN' && (
+          <Card className="p-6 border-red-100 bg-red-50/10 shadow-sm">
+            <div className="flex items-center gap-3 mb-6">
+              <div className="bg-red-100 p-3 rounded-lg">
+                <Key className="w-6 h-6 text-red-600" />
+              </div>
+              <div>
+                <h2 className="text-xl font-bold text-red-900">Security & PINs</h2>
+                <p className="text-sm text-red-600/80">Manage access codes for staff</p>
+              </div>
+            </div>
+
+            <div className="space-y-6">
+              <div className="grid md:grid-cols-2 gap-6 p-4 border rounded-xl bg-white">
+                <div className="space-y-2">
+                  <Label className="text-amber-900 font-bold">Update Admin PIN</Label>
+                  <div className="flex gap-2">
+                    <Input
+                      type="password"
+                      placeholder="New 4+ digit PIN"
+                      value={adminPin}
+                      onChange={(e) => setAdminPin(e.target.value)}
+                    />
+                    <Button onClick={() => handleUpdatePin('ADMIN', adminPin)}>Update</Button>
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-amber-900 font-bold">Update Cashier PIN</Label>
+                  <div className="flex gap-2">
+                    <Input
+                      type="password"
+                      placeholder="New 4+ digit PIN"
+                      value={cashierPin}
+                      onChange={(e) => setCashierPin(e.target.value)}
+                    />
+                    <Button onClick={() => handleUpdatePin('CASHIER', cashierPin)}>Update</Button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </Card>
+        )}
       </div>
     </div>
   )

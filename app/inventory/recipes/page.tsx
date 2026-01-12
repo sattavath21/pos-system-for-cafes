@@ -32,7 +32,10 @@ type RecipeItem = {
     unit: string
 }
 
+import { useTranslation } from "@/hooks/use-translation"
+
 export default function RecipesPage() {
+    const { t } = useTranslation()
     const [products, setProducts] = useState<Product[]>([])
     const [ingredients, setIngredients] = useState<Ingredient[]>([])
     const [selectedProduct, setSelectedProduct] = useState<Product | null>(null)
@@ -99,7 +102,7 @@ export default function RecipesPage() {
 
     const handleRemoveIngredient = async (ingredientId: string) => {
         if (!selectedProduct) return
-        if (!confirm('Remove this ingredient from the recipe?')) return
+        if (!confirm(t.delete + '?')) return
         try {
             const res = await fetch(`/api/recipes/${selectedProduct.id}?ingredientId=${ingredientId}`, {
                 method: 'DELETE'
@@ -119,14 +122,14 @@ export default function RecipesPage() {
                 <div className="flex items-center justify-between p-4">
                     <div className="flex items-center gap-4">
                         <Link href="/inventory" className="text-amber-900 hover:text-amber-700">
-                            <h1 className="text-2xl font-bold">Inventory</h1>
+                            <h1 className="text-2xl font-bold">{t.inventory}</h1>
                         </Link>
                         <ChevronRight className="w-5 h-4 text-muted-foreground" />
-                        <h1 className="text-2xl font-bold text-amber-900">Recipes</h1>
+                        <h1 className="text-2xl font-bold text-amber-900">{t.recipes}</h1>
                     </div>
                     <div className="flex items-center gap-4">
                         <Link href="/dashboard">
-                            <Button variant="outline" size="sm">Dashboard</Button>
+                            <Button variant="outline" size="sm">{t.dashboard}</Button>
                         </Link>
                     </div>
                 </div>
@@ -139,7 +142,7 @@ export default function RecipesPage() {
                         <div className="relative">
                             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                             <Input
-                                placeholder="Search products..."
+                                placeholder={t.search_products}
                                 className="pl-9 h-9"
                                 value={searchQuery}
                                 onChange={e => setSearchQuery(e.target.value)}
@@ -173,35 +176,35 @@ export default function RecipesPage() {
                                 <div>
                                     <Badge variant="outline" className="mb-2 uppercase">{selectedProduct.categoryName}</Badge>
                                     <h2 className="text-4xl font-bold text-slate-900">{selectedProduct.name}</h2>
-                                    <p className="text-muted-foreground mt-2">Manage the ingredients required to prepare this item.</p>
+                                    <p className="text-muted-foreground mt-2">{t.consumption_per_unit}</p>
                                 </div>
                                 <Dialog open={isAddIngredientOpen} onOpenChange={setIsAddIngredientOpen}>
                                     <DialogTrigger asChild>
                                         <Button className="bg-amber-600 hover:bg-amber-700">
                                             <Plus className="w-4 h-4 mr-2" />
-                                            Add Ingredient
+                                            {t.add_ingredient}
                                         </Button>
                                     </DialogTrigger>
                                     <DialogContent>
                                         <DialogHeader>
-                                            <DialogTitle>Add Ingredient to {selectedProduct.name}</DialogTitle>
+                                            <DialogTitle>{t.add_ingredient} to {selectedProduct.name}</DialogTitle>
                                         </DialogHeader>
                                         <div className="space-y-4 py-4">
                                             <div className="space-y-2">
-                                                <Label>Select Ingredient</Label>
+                                                <Label>{t.select_product}</Label>
                                                 <select
                                                     className="w-full p-2 border rounded-md"
                                                     value={newRecipeItem.ingredientId}
                                                     onChange={e => setNewRecipeItem({ ...newRecipeItem, ingredientId: e.target.value })}
                                                 >
-                                                    <option value="">-- Choose Ingredient --</option>
+                                                    <option value="">-- {t.select_product} --</option>
                                                     {ingredients.map(ing => (
                                                         <option key={ing.id} value={ing.id}>{ing.name} ({ing.unit})</option>
                                                     ))}
                                                 </select>
                                             </div>
                                             <div className="space-y-2">
-                                                <Label>Quantity Used</Label>
+                                                <Label>{t.quantity_used}</Label>
                                                 <div className="flex items-center gap-2">
                                                     <Input
                                                         type="number"
@@ -216,9 +219,9 @@ export default function RecipesPage() {
                                             </div>
                                         </div>
                                         <DialogFooter>
-                                            <Button variant="outline" onClick={() => setIsAddIngredientOpen(false)}>Cancel</Button>
+                                            <Button variant="outline" onClick={() => setIsAddIngredientOpen(false)}>{t.cancel}</Button>
                                             <Button className="bg-amber-600 hover:bg-amber-700" onClick={handleAddIngredient} disabled={isLoading || !newRecipeItem.ingredientId || newRecipeItem.quantity <= 0}>
-                                                {isLoading ? 'Saving...' : 'Add to Recipe'}
+                                                {isLoading ? t.processing : t.add_to_recipe}
                                             </Button>
                                         </DialogFooter>
                                     </DialogContent>
@@ -228,7 +231,7 @@ export default function RecipesPage() {
                             <div className="space-y-4">
                                 <h3 className="text-lg font-semibold flex items-center gap-2">
                                     <Package className="w-5 h-5 text-slate-400" />
-                                    Ingredients List
+                                    {t.ingredients_list}
                                 </h3>
                                 {recipe.length > 0 ? (
                                     <div className="grid gap-4">
@@ -240,12 +243,12 @@ export default function RecipesPage() {
                                                     </div>
                                                     <div>
                                                         <p className="font-semibold text-lg">{item.ingredientName}</p>
-                                                        <p className="text-sm text-muted-foreground">Consumption per unit produced</p>
+                                                        <p className="text-sm text-muted-foreground">{t.consumption_per_unit}</p>
                                                     </div>
                                                 </div>
                                                 <div className="flex items-center gap-8">
                                                     <div className="text-right">
-                                                        <p className="text-sm text-muted-foreground">Quantity</p>
+                                                        <p className="text-sm text-muted-foreground">{t.quantity}</p>
                                                         <p className="font-bold text-xl">{item.quantity} <span className="text-sm font-normal text-muted-foreground">{item.unit}</span></p>
                                                     </div>
                                                     <Button
@@ -264,8 +267,8 @@ export default function RecipesPage() {
                                     <Card className="p-12 border-dashed flex flex-col items-center justify-center text-center space-y-4">
                                         <Package className="w-12 h-12 text-slate-200" />
                                         <div className="space-y-2">
-                                            <p className="font-semibold text-slate-600">No ingredients linked yet</p>
-                                            <p className="text-sm text-slate-400 max-w-xs mx-auto">Click the Add Ingredient button above to start building the recipe for this product.</p>
+                                            <p className="font-semibold text-slate-600">{t.no_ingredients_linked}</p>
+                                            <p className="text-sm text-slate-400 max-w-xs mx-auto">{t.add_to_recipe}</p>
                                         </div>
                                     </Card>
                                 )}
@@ -277,8 +280,8 @@ export default function RecipesPage() {
                                 <Coffee className="w-10 h-10 text-amber-600" />
                             </div>
                             <div className="space-y-2">
-                                <h3 className="text-xl font-bold text-slate-800">Select a Product</h3>
-                                <p className="text-muted-foreground max-w-sm mx-auto">Choose a product from the sidebar to manage its recipe and ingredient portions.</p>
+                                <h3 className="text-xl font-bold text-slate-800">{t.select_product}</h3>
+                                <p className="text-muted-foreground max-w-sm mx-auto">{t.search_products}</p>
                             </div>
                         </div>
                     )}

@@ -13,6 +13,7 @@ import { formatLAK, calculateChange, LAK_DENOMINATIONS, calculateTax } from "@/l
 import { PaymentQR } from "@/components/payment-qr"
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog"
 import Image from "next/image"
+import { useTranslation } from "@/hooks/use-translation"
 
 type MenuItem = {
   id: string
@@ -65,6 +66,10 @@ export default function POSPage() {
   const [beeperNumber, setBeeperNumber] = useState("")
   const [showBeeperError, setShowBeeperError] = useState(false)
 
+  const [sysSettings, setSysSettings] = useState<any>({ tax_rate: '10', loyalty_rate: '100' })
+  const [pointsRedeemed, setPointsRedeemed] = useState(0)
+  const [loyaltyDiscount, setLoyaltyDiscount] = useState(0)
+
   // UI state for custom confirmations
   const [isNewOrderConfirmOpen, setIsNewOrderConfirmOpen] = useState(false)
   const [isSuccessOpen, setIsSuccessOpen] = useState(false)
@@ -75,20 +80,22 @@ export default function POSPage() {
 
   const calculateTotal = () => {
     const subtotal = Math.round(cart.reduce((sum, item) => sum + item.price * item.quantity, 0))
-    let discount = 0
+    let promoDiscount = 0
     if (appliedPromo) {
       if (appliedPromo.discountType === 'percentage') {
-        discount = Math.round(subtotal * (appliedPromo.discountValue / 100))
+        promoDiscount = Math.round(subtotal * (appliedPromo.discountValue / 100))
       } else {
-        discount = appliedPromo.discountValue
+        promoDiscount = appliedPromo.discountValue
       }
     }
-    const tax = calculateTax(subtotal - discount)
-    const total = (subtotal - discount) + tax
-    return { subtotal, tax, total, discount }
+
+    const taxableAmount = subtotal - promoDiscount - loyaltyDiscount
+    const tax = calculateTax(taxableAmount, Number(sysSettings.tax_rate) || 0)
+    const total = taxableAmount + tax
+    return { subtotal, tax, total, promoDiscount, loyaltyDiscount, discount: promoDiscount + loyaltyDiscount }
   }
 
-  const { subtotal, tax, total, discount } = calculateTotal()
+  const { subtotal, tax, total, promoDiscount, discount } = calculateTotal()
 
   // Broadcast cart update to customer view
   useEffect(() => {
@@ -96,10 +103,16 @@ export default function POSPage() {
     channel.postMessage({
       type: "CART_UPDATE",
       cart,
-      total: calculateTotal().total
+      subtotal,
+      tax,
+      total,
+      discount,
+      promoDiscount,
+      loyaltyDiscount,
+      promoName: appliedPromo?.name
     })
     return () => channel.close()
-  }, [cart, appliedPromo])
+  }, [cart, appliedPromo, loyaltyDiscount, total])
 
   // Sync payment state with customer view
   useEffect(() => {
@@ -148,8 +161,16 @@ export default function POSPage() {
     const savedResumedId = localStorage.getItem("pos_resumedOrderId")
     if (savedResumedId) setResumedOrderId(savedResumedId)
 
+    fetchSettings()
     setIsInitialLoad(false)
   }, [])
+
+  const fetchSettings = async () => {
+    try {
+      const res = await fetch('/api/settings')
+      if (res.ok) setSysSettings(await res.json())
+    } catch (e) { }
+  }
 
 
   // Persist state
@@ -326,6 +347,30 @@ export default function POSPage() {
     } catch (e) { alert("Error applying promo") }
   }
 
+  const handleRedeemPoints = () => {
+    if (!selectedCustomer) return
+    const availablePoints = (selectedCustomer as any).loyaltyPoints || 0
+    if (availablePoints <= 0) {
+      alert("Customer has no points to redeem")
+      return
+    }
+
+    const rate = Number(sysSettings.loyalty_rate) || 100
+    const maxDiscount = subtotal - promoDiscount
+
+    // Logic: 1 point = loyalty_rate LAK
+    const pointsToUse = Math.min(availablePoints, Math.floor(maxDiscount / rate))
+    const discountAmount = pointsToUse * rate
+
+    if (pointsToUse <= 0) {
+      alert("Not enough points or items for redemption")
+      return
+    }
+
+    setPointsRedeemed(pointsToUse)
+    setLoyaltyDiscount(discountAmount)
+  }
+
   const handleNewOrderClick = () => {
     if (cart.length > 0) {
       setIsNewOrderConfirmOpen(true)
@@ -397,7 +442,9 @@ export default function POSPage() {
           customerId: selectedCustomer?.id,
           paymentMethod,
           status: 'COMPLETED',
-          beeperNumber: beeperNumber || null
+          beeperNumber: beeperNumber || null,
+          pointsRedeemed,
+          taxAmount: tax
         }),
         headers: { 'Content-Type': 'application/json' }
       })
@@ -466,7 +513,9 @@ export default function POSPage() {
           customerId: selectedCustomer?.id,
           paymentMethod: 'BANK_NOTE',
           status: 'HOLD',
-          beeperNumber: beeperNumber || null
+          beeperNumber: beeperNumber || null,
+          pointsRedeemed,
+          taxAmount: tax
         }),
         headers: { 'Content-Type': 'application/json' }
       })
@@ -521,61 +570,67 @@ export default function POSPage() {
         handleNewOrder()
       }
     } catch (e) { console.error(e) }
-    finally { setIsProcessing(false) }
+    finally {
+      setIsProcessing(false)
+      setPointsRedeemed(0)
+      setLoyaltyDiscount(0)
+    }
   }
 
   const filteredItems = menuItems.filter(
     (item) => (activeCategory === "All" || item.category === activeCategory) && item.name.toLowerCase().includes(searchQuery.toLowerCase()),
   )
 
+  const { t } = useTranslation()
+
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background text-slate-900">
       {/* Header */}
       <header className="border-b bg-white sticky top-0 z-10">
         <div className="flex items-center justify-between p-4">
           <div className="flex items-center gap-4">
             <Link href="/dashboard">
               <Button variant="outline" size="sm" className="bg-amber-50 border-amber-200 text-amber-900">
-                Dashboard
+                {t.dashboard}
               </Button>
             </Link>
-            <h1 className="text-2xl font-bold text-amber-900">POS</h1>
+            <h1 className="text-2xl font-bold text-amber-900">{t.pos}</h1>
             <Badge variant="secondary" className="px-3 py-1 text-lg font-mono bg-amber-50 text-amber-900 border-amber-200">
               {orderNumber || "No. --"}
             </Badge>
           </div>
           <div className="flex items-center gap-4">
-            <Button variant="outline" size="sm" className="text-amber-700 border-amber-200 hover:bg-amber-50" onClick={handleNewOrderClick}>
-              <Plus className="w-4 h-4 mr-1" /> New Order
+            <Button variant="outline" size="sm" className="text-amber-700 border-amber-200 hover:bg-amber-50" onClick={handleNewOrder}>
+              <Plus className="w-4 h-4 mr-1" /> {t.new_order}
             </Button>
 
             <Link href="/orders">
               <Button variant="outline" size="sm">
                 <List className="w-4 h-4 mr-2" />
-                View All Orders
+                {t.orders}
               </Button>
             </Link>
             <Link href="/menu">
               <Button variant="outline" size="sm">
                 <List className="w-4 h-4 mr-2" />
-                Menu
+                {t.menu}
               </Button>
             </Link>
             <Link href="/inventory">
               <Button variant="outline" size="sm">
                 <Package className="w-4 h-4 mr-2" />
-                Inventory
+                {t.inventory}
               </Button>
             </Link>
             <Link href="/promotions">
               <Button variant="outline" size="sm">
                 <Tag className="w-4 h-4 mr-2" />
-                Promotions
+                {t.promotions}
               </Button>
             </Link>
 
-            <Button variant="outline" size="sm" onClick={handleLogout}>
-              Logout
+            <Button variant="outline" size="sm" onClick={handleLogout} className="text-red-600 border-red-200 hover:bg-red-50 hover:text-red-700">
+              {t.logout}
             </Button>
           </div>
         </div>
@@ -589,7 +644,7 @@ export default function POSPage() {
             <div className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
               <Input
-                placeholder="Search menu items..."
+                placeholder={t.search_menu}
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="pl-10"
@@ -654,7 +709,7 @@ export default function POSPage() {
             {cart.length === 0 ? (
               <div className="h-full flex flex-col items-center justify-center text-muted-foreground">
                 <Clock className="w-12 h-12 mb-2" />
-                <p>No items in cart</p>
+                <p>No items in {t.cart}</p>
               </div>
             ) : (
               <div className="space-y-3">
@@ -663,7 +718,7 @@ export default function POSPage() {
                     <div className="flex items-start justify-between mb-2">
                       <div className="flex-1">
                         <h4 className="font-semibold">{item.name}</h4>
-                        <p className="text-sm text-muted-foreground">{formatLAK(item.price)} each</p>
+                        <p className="text-sm text-muted-foreground">{formatLAK(item.price)} {t.each}</p>
                       </div>
                       <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => removeItem(item.id)}>
                         <X className="w-4 h-4" />
@@ -702,12 +757,12 @@ export default function POSPage() {
           <div className="p-4 border-t space-y-3">
             {selectedCustomer && (
               <div className="flex justify-between text-sm text-amber-600 font-medium">
-                <span>Loyalty Points Earning</span>
-                <span>+{Math.floor(total / 1000)} pts</span>
+                <span>{t.loyalty_points_earning}</span>
+                <span>+{Math.floor(total / 1000)} {t.pts}</span>
               </div>
             )}
             <div className="flex justify-between text-sm">
-              <span className="text-muted-foreground">Subtotal</span>
+              <span className="text-muted-foreground">{t.subtotal}</span>
               <span className="font-semibold">{formatLAK(subtotal)}</span>
             </div>
             {appliedPromo && (
@@ -719,11 +774,11 @@ export default function POSPage() {
               </div>
             )}
             <div className="flex justify-between text-sm">
-              <span className="text-muted-foreground">Tax (10%)</span>
+              <span className="text-muted-foreground">{t.tax} ({sysSettings.tax_rate}%)</span>
               <span className="font-semibold">{formatLAK(tax)}</span>
             </div>
             <div className="flex justify-between text-lg font-bold pt-2 border-t">
-              <span>Total</span>
+              <span>{t.total}</span>
               <span className="text-amber-600">{formatLAK(total)}</span>
             </div>
           </div>
@@ -731,33 +786,66 @@ export default function POSPage() {
           {/* Actions */}
           <div className="p-4 border-t space-y-2">
             {selectedCustomer ? (
-              <div className="flex items-center gap-2 w-full">
-                <Badge variant="outline" className="flex-1 py-3 text-sm flex items-center gap-2">
-                  <User className="w-4 h-4" /> {selectedCustomer.name}
-                </Badge>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-10 w-10 text-red-500 hover:bg-red-50 hover:text-red-600"
-                  onClick={() => setSelectedCustomer(null)}
-                >
-                  <X className="w-5 h-5" />
-                </Button>
+              <div className="space-y-2">
+                <div className="flex items-center gap-2 w-full">
+                  <Badge variant="outline" className="flex-1 py-3 text-sm flex items-center justify-between gap-2 px-4">
+                    <div className="flex items-center gap-2">
+                      <User className="w-4 h-4" />
+                      <span className="font-bold">{selectedCustomer.name}</span>
+                    </div>
+                    <span className="text-amber-600 font-bold bg-amber-50 px-2 py-0.5 rounded-full border border-amber-100">
+                      {(selectedCustomer as any).loyaltyPoints || 0} {t.pts}
+                    </span>
+                  </Badge>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-10 w-10 text-red-500 hover:bg-red-50 hover:text-red-600 border border-slate-100"
+                    onClick={() => {
+                      setSelectedCustomer(null)
+                      setPointsRedeemed(0)
+                      setLoyaltyDiscount(0)
+                    }}
+                  >
+                    <X className="w-5 h-5" />
+                  </Button>
+                </div>
+                {pointsRedeemed === 0 && ((selectedCustomer as any).loyaltyPoints || 0) > 0 && (
+                  <Button
+                    variant="outline"
+                    className="w-full bg-amber-50 border-amber-200 text-amber-700 hover:bg-amber-100"
+                    onClick={handleRedeemPoints}
+                  >
+                    <Tag className="w-4 h-4 mr-2" /> {t.redeem_points}
+                  </Button>
+                )}
+                {pointsRedeemed > 0 && (
+                  <Button
+                    variant="ghost"
+                    className="w-full text-red-600 hover:bg-red-50"
+                    onClick={() => {
+                      setPointsRedeemed(0)
+                      setLoyaltyDiscount(0)
+                    }}
+                  >
+                    {t.cancel_redemption} ({pointsRedeemed} {t.pts})
+                  </Button>
+                )}
               </div>
             ) : (
               <Button variant="outline" className="w-full" onClick={() => setIsCustomerSearchOpen(true)}>
-                <User className="w-4 h-4 mr-2" /> Add Customer
+                <User className="w-4 h-4 mr-2" /> {t.add_customer}
               </Button>
             )}
 
             {!appliedPromo ? (
               <Button variant="outline" className="w-full border-dashed" onClick={() => setIsPromoOpen(true)}>
                 <Tag className="w-4 h-4 mr-2" />
-                Apply Promo Code
+                {t.apply_promo}
               </Button>
             ) : (
               <Button variant="ghost" className="w-full text-rose-600 hover:text-rose-700 hover:bg-rose-50" onClick={() => setAppliedPromo(null)}>
-                Remove Promo ({appliedPromo.code})
+                {t.remove_promo} ({appliedPromo.code})
               </Button>
             )}
 
@@ -771,7 +859,7 @@ export default function POSPage() {
                 onClick={handleCancelOrder}
               >
                 <AlertCircle className="w-4 h-4 mr-2" />
-                Cancel
+                {t.cancel}
               </Button>
               <Button
                 variant="outline"
@@ -780,7 +868,7 @@ export default function POSPage() {
                 onClick={handleHoldOrder}
               >
                 <Pause className="w-4 h-4 mr-2" />
-                Hold
+                {t.hold_order}
               </Button>
             </div>
             <Dialog open={isPaymentOpen} onOpenChange={setIsPaymentOpen}>
@@ -790,16 +878,16 @@ export default function POSPage() {
                   size="lg"
                   disabled={cart.length === 0 || isProcessing}
                 >
-                  Proceed to Payment
+                  {t.proceed_to_payment}
                 </Button>
               </DialogTrigger>
               <DialogContent className="max-w-md">
                 <DialogHeader>
-                  <DialogTitle>Payment</DialogTitle>
+                  <DialogTitle>{t.checkout}</DialogTitle>
                 </DialogHeader>
                 <div className="space-y-4">
                   <div className="text-center py-4 border-b">
-                    <p className="text-muted-foreground">Total to Pay</p>
+                    <p className="text-muted-foreground">{t.total_to_pay}</p>
                     <p className="text-4xl font-bold text-green-600">{formatLAK(total)}</p>
                   </div>
 
@@ -809,14 +897,14 @@ export default function POSPage() {
                       onClick={() => setPaymentMethod('BANK_NOTE')}
                       className={paymentMethod === 'BANK_NOTE' ? 'bg-amber-600 hover:bg-amber-700' : ''}
                     >
-                      💵 Bank Note
+                      💵 {t.bank_note}
                     </Button>
                     <Button
                       variant={paymentMethod === 'QR_CODE' ? "default" : "outline"}
                       onClick={() => setPaymentMethod('QR_CODE')}
                       className={paymentMethod === 'QR_CODE' ? 'bg-blue-600 hover:bg-blue-700' : ''}
                     >
-                      📱 QR Code
+                      📱 {t.qr_code}
                     </Button>
                   </div>
 
@@ -828,9 +916,9 @@ export default function POSPage() {
                           className={`flex justify-between ${showBeeperError && !beeperNumber ? "text-rose-500" : ""
                             }`}
                         >
-                          <span>Beeper Number</span>
+                          <span>{t.beeper}</span>
                           <span className="text-xs font-bold">
-                            {showBeeperError && !beeperNumber ? "REQUIRED" : "(Required)"}
+                            {showBeeperError && !beeperNumber ? t.required : `(${t.required})`}
                           </span>
                         </Label>
 
@@ -849,13 +937,13 @@ export default function POSPage() {
 
                         {showBeeperError && !beeperNumber && (
                           <p className="text-[10px] text-rose-500 mt-1 font-bold animate-pulse">
-                            Please enter a beeper number
+                            {t.please_enter_beeper_number}
                           </p>
                         )}
                       </div>
 
                       <div className="bg-muted p-4 rounded-lg">
-                        <Label>Cash Received</Label>
+                        <Label>{t.cash_received}</Label>
                         <Input
                           type="text"
                           value={cashReceived ? Number(cashReceived).toLocaleString() : ""}
@@ -869,7 +957,7 @@ export default function POSPage() {
                       </div>
                       {Number(cashReceived) > total && (
                         <div className="bg-green-50 p-3 rounded-lg">
-                          <p className="text-sm text-muted-foreground">Change</p>
+                          <p className="text-sm text-muted-foreground">{t.change}</p>
                           <p className="text-2xl font-bold text-green-600">{formatLAK(Number(cashReceived) - total)}</p>
                           {/* <div className="mt-2 text-xs text-muted-foreground">
                             {calculateChange(total, Number(cashReceived)).denominations.map((d, i) => (
@@ -896,7 +984,7 @@ export default function POSPage() {
                           onClick={() => setCashReceived("")}
                           className="text-xs text-red-500 hover:bg-red-50"
                         >
-                          Clear
+                          {t.clear}
                         </Button>
                       </div>
                     </div>
@@ -943,13 +1031,13 @@ export default function POSPage() {
 
                 {paymentMethod === 'BANK_NOTE' && (
                   <DialogFooter>
-                    <Button variant="outline" onClick={() => setIsPaymentOpen(false)}>Cancel</Button>
+                    <Button variant="outline" onClick={() => setIsPaymentOpen(false)}>{t.cancel}</Button>
                     <Button
                       className="bg-green-600 hover:bg-green-700"
                       onClick={handleCheckout}
                       disabled={isProcessing || !cashReceived || Number(cashReceived) < total}
                     >
-                      {isProcessing ? "Processing..." : "Complete Order"}
+                      {isProcessing ? t.processing : t.complete_order}
                     </Button>
                   </DialogFooter>
                 )}

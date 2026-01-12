@@ -22,7 +22,10 @@ type MenuItem = {
   image?: string
 }
 
+import { useTranslation } from "@/hooks/use-translation"
+
 export default function MenuPage() {
+  const { t } = useTranslation()
   const [searchQuery, setSearchQuery] = useState("")
   const [isDialogOpen, setIsDialogOpen] = useState(false)
   const [editingItem, setEditingItem] = useState<MenuItem | null>(null)
@@ -105,14 +108,14 @@ export default function MenuPage() {
       name: "",
       description: "",
       price: 0,
-      category: "Coffee",
+      category: categories[0]?.name || "Coffee",
       isAvailable: true
     })
     setIsDialogOpen(true)
   }
 
   const handleDelete = async (id: string) => {
-    if (!confirm("Are you sure?")) return
+    if (!confirm(t.delete + "?")) return
     try {
       const res = await fetch(`/api/menu/${id}`, { method: 'DELETE' })
       if (res.ok) {
@@ -161,11 +164,11 @@ export default function MenuPage() {
       {/* Header */}
       <header className="border-b bg-white sticky top-0 z-10">
         <div className="flex items-center justify-between p-4">
-          <h1 className="text-2xl font-bold text-amber-900">Menu Management</h1>
+          <h1 className="text-2xl font-bold text-amber-900">{t.menu_management}</h1>
           <div className="flex items-center gap-4">
             <Link href="/dashboard">
               <Button variant="outline" size="sm">
-                Dashboard
+                {t.dashboard}
               </Button>
             </Link>
           </div>
@@ -178,7 +181,7 @@ export default function MenuPage() {
           <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
             <Input
-              placeholder="Search menu items..."
+              placeholder={t.search_menu_items}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="pl-10"
@@ -188,18 +191,18 @@ export default function MenuPage() {
             <DialogTrigger asChild>
               <Button variant="outline" className="border-amber-600 text-amber-600 hover:bg-amber-50">
                 <Plus className="w-4 h-4 mr-2" />
-                New Category
+                {t.new_category}
               </Button>
             </DialogTrigger>
             <DialogContent>
-              <DialogHeader><DialogTitle>Add New Category</DialogTitle></DialogHeader>
+              <DialogHeader><DialogTitle>{t.new_category}</DialogTitle></DialogHeader>
               <div className="space-y-4 py-4">
-                <Label htmlFor="catName">Category Name</Label>
-                <Input id="catName" value={newCategoryName} onChange={e => setNewCategoryName(e.target.value)} placeholder="e.g. Smoothies" />
+                <Label htmlFor="catName">{t.category_name}</Label>
+                <Input id="catName" value={newCategoryName} onChange={e => setNewCategoryName(e.target.value)} />
               </div>
               <DialogFooter>
-                <Button variant="outline" onClick={() => setIsCategoryDialogOpen(false)}>Cancel</Button>
-                <Button className="bg-amber-600" onClick={handleCreateCategory}>Save Category</Button>
+                <Button variant="outline" onClick={() => setIsCategoryDialogOpen(false)}>{t.cancel}</Button>
+                <Button className="bg-amber-600" onClick={handleCreateCategory}>{t.save_category}</Button>
               </DialogFooter>
             </DialogContent>
           </Dialog>
@@ -208,98 +211,97 @@ export default function MenuPage() {
             <DialogTrigger asChild>
               <Button className="bg-amber-600 hover:bg-amber-700" onClick={handleAddNew}>
                 <Plus className="w-4 h-4 mr-2" />
-                Add Item
+                {t.add_item}
               </Button>
             </DialogTrigger>
             <DialogContent className="max-w-2xl">
-              <DialogHeader>
-                <DialogTitle>{editingItem ? "Edit Menu Item" : "Add New Menu Item"}</DialogTitle>
-              </DialogHeader>
-              <div className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
+              <form onSubmit={(e) => { e.preventDefault(); handleSubmit(); }}>
+                <DialogHeader>
+                  <DialogTitle>{editingItem ? t.edit_menu_item : t.add_menu_item}</DialogTitle>
+                </DialogHeader>
+                <div className="space-y-4 py-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="name">{t.item_name}</Label>
+                      <Input
+                        id="name"
+                        value={formData.name || ""}
+                        onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                        required
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="category">{t.category}</Label>
+                      <select
+                        id="category"
+                        className="w-full h-10 px-3 rounded-md border border-input bg-background"
+                        value={formData.category || (categories[0]?.name || "")}
+                        onChange={(e) => setFormData({ ...formData, category: e.target.value })}
+                      >
+                        {categories.map((cat) => (
+                          <option key={cat.id} value={cat.name}>
+                            {cat.name}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
                   <div className="space-y-2">
-                    <Label htmlFor="name">Item Name</Label>
-                    <Input
-                      id="name"
-                      placeholder="e.g., Caramel Latte"
-                      value={formData.name || ""}
-                      onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                    <Label htmlFor="description">{t.description}</Label>
+                    <Textarea
+                      id="description"
+                      value={formData.description || ""}
+                      onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                     />
                   </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="category">Category</Label>
-                    <select
-                      id="category"
-                      className="w-full h-10 px-3 rounded-md border border-input bg-background"
-                      value={formData.category || (categories[0]?.name || "")}
-                      onChange={(e) => setFormData({ ...formData, category: e.target.value })}
-                    >
-                      {categories.map((cat) => (
-                        <option key={cat.id} value={cat.name}>
-                          {cat.name}
-                        </option>
-                      ))}
-                      {categories.length === 0 && <option value="">No categories</option>}
-                    </select>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="price">{t.price} (LAK)</Label>
+                      <Input
+                        id="price"
+                        type="text"
+                        value={formData.price ? formData.price.toLocaleString() : ""}
+                        onChange={(e) => {
+                          const value = e.target.value.replace(/,/g, "");
+                          if (value === "" || !isNaN(Number(value))) {
+                            setFormData({ ...formData, price: value === "" ? 0 : parseFloat(value) });
+                          }
+                        }}
+                        required
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="availability">{t.status}</Label>
+                      <select
+                        id="availability"
+                        className="w-full h-10 px-3 rounded-md border border-input bg-background"
+                        value={formData.isAvailable ? "available" : "unavailable"}
+                        onChange={(e) => setFormData({ ...formData, isAvailable: e.target.value === "available" })}
+                      >
+                        <option value="available">{t.available}</option>
+                        <option value="unavailable">{t.unavailable}</option>
+                      </select>
+                    </div>
                   </div>
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="description">Description</Label>
-                  <Textarea
-                    id="description"
-                    placeholder="Brief description of the item"
-                    value={formData.description || ""}
-                    onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                  />
-                </div>
-                <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label htmlFor="price">Price (LAK)</Label>
+                    <Label>{t.item_image}</Label>
                     <Input
-                      id="price"
-                      type="text"
-                      placeholder="0"
-                      value={formData.price ? formData.price.toLocaleString() : ""}
-                      onChange={(e) => {
-                        const value = e.target.value.replace(/,/g, "");
-                        if (value === "" || !isNaN(Number(value))) {
-                          setFormData({ ...formData, price: value === "" ? 0 : parseFloat(value) });
-                        }
-                      }}
+                      id="image"
+                      placeholder="Image URL (optional)"
+                      value={formData.image || ""}
+                      onChange={(e) => setFormData({ ...formData, image: e.target.value })}
                     />
                   </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="availability">Availability</Label>
-                    <select
-                      id="availability"
-                      className="w-full h-10 px-3 rounded-md border border-input bg-background"
-                      value={formData.isAvailable ? "available" : "unavailable"}
-                      onChange={(e) => setFormData({ ...formData, isAvailable: e.target.value === "available" })}
-                    >
-                      <option value="available">Available</option>
-                      <option value="unavailable">Unavailable</option>
-                    </select>
-                  </div>
                 </div>
-                <div className="space-y-2">
-                  <Label>Item Image</Label>
-                  {/* Simplified Image Input for now - just text URL or placeholder */}
-                  <Input
-                    id="image"
-                    placeholder="Image URL (optional)"
-                    value={formData.image || ""}
-                    onChange={(e) => setFormData({ ...formData, image: e.target.value })}
-                  />
-                </div>
-              </div>
-              <DialogFooter>
-                <Button variant="outline" onClick={() => setIsDialogOpen(false)}>
-                  Cancel
-                </Button>
-                <Button className="bg-amber-600 hover:bg-amber-700" onClick={handleSubmit} disabled={isLoading}>
-                  {isLoading ? "Saving..." : (editingItem ? "Update Item" : "Add Item")}
-                </Button>
-              </DialogFooter>
+                <DialogFooter>
+                  <Button type="button" variant="outline" onClick={() => setIsDialogOpen(false)}>
+                    {t.cancel}
+                  </Button>
+                  <Button type="submit" className="bg-amber-600 hover:bg-amber-700" disabled={isLoading}>
+                    {isLoading ? t.processing : t.save}
+                  </Button>
+                </DialogFooter>
+              </form>
             </DialogContent>
           </Dialog>
         </div>
@@ -312,20 +314,20 @@ export default function MenuPage() {
               className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/50 transition-colors"
             >
               <div className="flex items-center gap-4">
-                <div className="w-16 h-16 bg-gradient-to-br from-amber-100 to-orange-100 rounded-lg flex items-center justify-center">
-                  <span className="text-2xl">☕</span>
+                <div className="w-16 h-16 bg-gradient-to-br from-amber-100 to-orange-100 rounded-lg flex items-center justify-center overflow-hidden">
+                  {item.image ? <img src={item.image} alt={item.name} className="w-full h-full object-cover" /> : <span className="text-2xl">☕</span>}
                 </div>
                 <div>
                   <div className="flex items-center gap-2">
                     <h3 className="font-semibold">{item.name}</h3>
                     {!item.isAvailable && (
                       <Badge variant="secondary" className="bg-red-100 text-red-700">
-                        Unavailable
+                        {t.unavailable}
                       </Badge>
                     )}
                   </div>
                   <p className="text-sm text-muted-foreground">{item.description}</p>
-                  <p className="text-xs text-muted-foreground italic">Category: {item.category}</p>
+                  <p className="text-xs text-muted-foreground italic">{t.category}: {item.category}</p>
                 </div>
               </div>
               <div className="flex items-center gap-4">

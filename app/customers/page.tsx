@@ -25,7 +25,10 @@ type Customer = {
 
 import { formatLAK } from "@/lib/currency"
 
+import { useTranslation } from "@/hooks/use-translation"
+
 export default function CustomersPage() {
+  const { t } = useTranslation()
   const [searchQuery, setSearchQuery] = useState("")
   const [isDialogOpen, setIsDialogOpen] = useState(false)
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null)
@@ -54,7 +57,7 @@ export default function CustomersPage() {
         // Map data
         setCustomers(data.map((c: any) => ({
           ...c,
-          totalOrders: c.visitCount || 0, // Using visitCount as proxy for totalOrders for now, or need better schema mapping
+          totalOrders: c.totalOrders || c.visitCount || 0,
           totalSpent: c.totalSpent || 0,
           lastVisit: c.lastVisit ? new Date(c.lastVisit).toLocaleDateString() : 'N/A'
         })))
@@ -72,9 +75,7 @@ export default function CustomersPage() {
       })
       if (res.ok) {
         setIsDialogOpen(false)
-        setIsDialogOpen(false)
         setFormData({ name: "", phone: "", email: "", dateOfBirth: "" }) // Reset
-        fetchCustomers()
         fetchCustomers()
       }
     } catch (e) { console.error(e) }
@@ -109,21 +110,21 @@ export default function CustomersPage() {
       {/* Header */}
       <header className="border-b bg-white sticky top-0 z-10">
         <div className="flex items-center justify-between p-4">
-          <h1 className="text-2xl font-bold text-amber-900">Customer Management</h1>
+          <h1 className="text-2xl font-bold text-amber-900">{t.customer_management}</h1>
           <div className="flex items-center gap-4">
             <Link href="/menu">
               <Button variant="outline" size="sm">
-                Menu
+                {t.menu}
               </Button>
             </Link>
             <Link href="/inventory">
               <Button variant="outline" size="sm">
-                Inventory
+                {t.inventory}
               </Button>
             </Link>
             <Link href="/dashboard">
               <Button variant="outline" size="sm">
-                Dashboard
+                {t.dashboard}
               </Button>
             </Link>
           </div>
@@ -134,24 +135,23 @@ export default function CustomersPage() {
         {/* Stats */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
           <Card className="p-6">
-            <p className="text-sm text-muted-foreground mb-1">Total Customers</p>
+            <p className="text-sm text-muted-foreground mb-1">{t.total_customers}</p>
             <p className="text-3xl font-bold">{customers.length}</p>
           </Card>
           <Card className="p-6">
-            <p className="text-sm text-muted-foreground mb-1">Active Today</p>
+            <p className="text-sm text-muted-foreground mb-1">{t.active_today}</p>
             <p className="text-3xl font-bold text-green-600">
-              {/* Mock logic for "Today" as we deal with dates differently in real DB */}
               {customers.filter((c) => c.lastVisit === new Date().toLocaleDateString()).length}
             </p>
           </Card>
           <Card className="p-6">
-            <p className="text-sm text-muted-foreground mb-1">Avg Loyalty Points</p>
+            <p className="text-sm text-muted-foreground mb-1">{t.avg_loyalty_points}</p>
             <p className="text-3xl font-bold text-amber-600">
               {customers.length > 0 ? Math.round(customers.reduce((sum, c) => sum + c.loyaltyPoints, 0) / customers.length) : 0}
             </p>
           </Card>
           <Card className="p-6">
-            <p className="text-sm text-muted-foreground mb-1">Total Revenue</p>
+            <p className="text-sm text-muted-foreground mb-1">{t.total} {t.revenue}</p>
             <p className="text-3xl font-bold text-purple-600">
               {formatLAK(customers.reduce((sum, c) => sum + c.totalSpent, 0))}
             </p>
@@ -163,7 +163,7 @@ export default function CustomersPage() {
           <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
             <Input
-              placeholder="Search by name, phone, or email..."
+              placeholder={t.search_customers_placeholder}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="pl-10"
@@ -173,16 +173,16 @@ export default function CustomersPage() {
             <DialogTrigger asChild>
               <Button className="bg-amber-600 hover:bg-amber-700">
                 <Plus className="w-4 h-4 mr-2" />
-                Add Customer
+                {t.add_customer}
               </Button>
             </DialogTrigger>
             <DialogContent>
               <DialogHeader>
-                <DialogTitle>Add New Customer</DialogTitle>
+                <DialogTitle>{t.add_new_customer}</DialogTitle>
               </DialogHeader>
               <div className="space-y-4">
                 <div>
-                  <Label htmlFor="customerName">Full Name</Label>
+                  <Label htmlFor="customerName">{t.full_name}</Label>
                   <Input
                     id="customerName"
                     placeholder="John Doe"
@@ -191,7 +191,7 @@ export default function CustomersPage() {
                   />
                 </div>
                 <div>
-                  <Label htmlFor="customerPhone">Phone Number</Label>
+                  <Label htmlFor="customerPhone">{t.phone_number}</Label>
                   <Input
                     id="customerPhone"
                     placeholder="+1 555-0100"
@@ -200,7 +200,7 @@ export default function CustomersPage() {
                   />
                 </div>
                 <div>
-                  <Label htmlFor="customerEmail">Email (Optional)</Label>
+                  <Label htmlFor="customerEmail">{t.email} ({t.inactive})</Label>
                   <Input
                     id="customerEmail"
                     type="email"
@@ -210,7 +210,7 @@ export default function CustomersPage() {
                   />
                 </div>
                 <div>
-                  <Label htmlFor="customerDob">Date of Birth (Optional)</Label>
+                  <Label htmlFor="customerDob">{t.date_of_birth} ({t.inactive})</Label>
                   <Input
                     id="customerDob"
                     type="date"
@@ -221,10 +221,10 @@ export default function CustomersPage() {
               </div>
               <DialogFooter>
                 <Button variant="outline" onClick={() => setIsDialogOpen(false)}>
-                  Cancel
+                  {t.cancel}
                 </Button>
                 <Button className="bg-amber-600 hover:bg-amber-700" onClick={handleAddNew} disabled={isLoading}>
-                  {isLoading ? "Using..." : "Add Customer"}
+                  {isLoading ? t.using : t.save}
                 </Button>
               </DialogFooter>
             </DialogContent>
@@ -233,9 +233,9 @@ export default function CustomersPage() {
 
         {/* Customer List */}
         <Card className="p-6">
-          <h2 className="text-lg font-bold mb-4">All Customers</h2>
+          <h2 className="text-lg font-bold mb-4">{t.all_customers}</h2>
           <div className="space-y-3">
-            {filteredCustomers.length === 0 ? <p className="text-muted-foreground">No customers found.</p> :
+            {filteredCustomers.length === 0 ? <p className="text-muted-foreground">{t.no_customers_found}</p> :
               filteredCustomers.map((customer) => (
                 <div
                   key={customer.id}
@@ -246,7 +246,7 @@ export default function CustomersPage() {
                       <h3 className="font-semibold">{customer.name}</h3>
                       <Badge variant="secondary" className="bg-amber-100 text-amber-700">
                         <Star className="w-3 h-3 mr-1" />
-                        {customer.loyaltyPoints} pts
+                        {customer.loyaltyPoints} {t.pts}
                       </Badge>
                     </div>
                     <div className="flex gap-4 text-sm text-muted-foreground">
@@ -256,15 +256,15 @@ export default function CustomersPage() {
                   </div>
                   <div className="flex items-center gap-6">
                     <div className="text-right">
-                      <p className="text-sm text-muted-foreground">Visits</p>
+                      <p className="text-sm text-muted-foreground">{t.orders}</p>
                       <p className="font-semibold">{customer.totalOrders}</p>
                     </div>
                     <div className="text-right">
-                      <p className="text-sm text-muted-foreground">Total Spent</p>
+                      <p className="text-sm text-muted-foreground">{t.total} {t.checkout}</p>
                       <p className="font-semibold text-green-600">{formatLAK(customer.totalSpent)}</p>
                     </div>
                     <div className="text-right">
-                      <p className="text-sm text-muted-foreground">Last Visit</p>
+                      <p className="text-sm text-muted-foreground">{t.last_visit || 'Last Visit'}</p>
                       <p className="font-semibold">{customer.lastVisit}</p>
                     </div>
                     <Button variant="outline" size="icon" onClick={() => handleViewDetails(customer)}>
@@ -281,36 +281,36 @@ export default function CustomersPage() {
           <Dialog open={!!selectedCustomer} onOpenChange={() => setSelectedCustomer(null)}>
             <DialogContent className="max-w-2xl">
               <DialogHeader>
-                <DialogTitle>Customer Details</DialogTitle>
+                <DialogTitle>{t.customer_details}</DialogTitle>
               </DialogHeader>
               <div className="space-y-6">
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <Label className="text-muted-foreground">Name</Label>
+                    <Label className="text-muted-foreground">{t.name}</Label>
                     <p className="font-semibold">{selectedCustomer.name}</p>
                   </div>
                   <div>
-                    <Label className="text-muted-foreground">Phone</Label>
+                    <Label className="text-muted-foreground">{t.phone}</Label>
                     <p className="font-semibold">{selectedCustomer.phone || 'N/A'}</p>
                   </div>
                   <div>
-                    <Label className="text-muted-foreground">Email</Label>
+                    <Label className="text-muted-foreground">{t.email}</Label>
                     <p className="font-semibold">{selectedCustomer.email || 'N/A'}</p>
                   </div>
                   <div>
-                    <Label className="text-muted-foreground">Loyalty Points</Label>
+                    <Label className="text-muted-foreground">{t.loyalty_points}</Label>
                     <p className="font-semibold text-amber-600">{selectedCustomer.loyaltyPoints}</p>
                   </div>
                   <div>
-                    <Label className="text-muted-foreground">Date of Birth</Label>
+                    <Label className="text-muted-foreground">{t.date_of_birth}</Label>
                     <p className="font-semibold">{selectedCustomer.dateOfBirth ? new Date(selectedCustomer.dateOfBirth).toLocaleDateString() : 'N/A'}</p>
                   </div>
                 </div>
 
                 <div className="border-t pt-4">
-                  <h3 className="font-bold mb-4">Order History</h3>
+                  <h3 className="font-bold mb-4">{t.order_history}</h3>
                   {isLoadingHistory ? (
-                    <p className="text-muted-foreground text-sm">Loading history...</p>
+                    <p className="text-muted-foreground text-sm">{t.loading_history}</p>
                   ) : orderHistory.length > 0 ? (
                     <div className="space-y-3 max-h-[300px] overflow-y-auto pr-2">
                       {orderHistory.map((order) => (
@@ -329,7 +329,7 @@ export default function CustomersPage() {
                       ))}
                     </div>
                   ) : (
-                    <p className="text-muted-foreground text-sm">No past orders found for this customer.</p>
+                    <p className="text-muted-foreground text-sm">{t.no_past_orders}</p>
                   )}
                 </div>
               </div>

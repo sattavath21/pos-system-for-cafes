@@ -9,18 +9,27 @@ import {
   Line, LineChart, Pie, PieChart, Cell
 } from "recharts"
 import {
-  Calendar, Download, TrendingUp, DollarSign, ShoppingBag,
+  Calendar as CalendarIcon, Download, TrendingUp, DollarSign, ShoppingBag,
   CreditCard, TrendingDown, Clock, Tag, Package, AlertTriangle, Search, Filter
 } from "lucide-react"
 import Link from "next/link"
 import { formatLAK } from "@/lib/currency"
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
+import { Calendar } from "@/components/ui/calendar"
+import { format, subDays, startOfDay, endOfDay } from "date-fns"
+import { DateRange } from "react-day-picker"
+import { useTranslation } from "@/hooks/use-translation"
 
 const COLORS = ['#d97706', '#2563eb', '#16a34a', '#7c3aed', '#db2777', '#4b5563']
 
 export default function ReportsPage() {
+  const { t } = useTranslation()
   const [data, setData] = useState<any>(null)
   const [isLoading, setIsLoading] = useState(true)
-  const [dateRange, setDateRange] = useState("30") // 7, 30, 90
+  const [dateRange, setDateRange] = useState<DateRange | undefined>({
+    from: subDays(new Date(), 30),
+    to: new Date()
+  })
 
   useEffect(() => {
     const checkRole = async () => {
@@ -35,14 +44,21 @@ export default function ReportsPage() {
       } catch (e) { }
     }
     checkRole()
-    fetchReports()
+  }, [])
+
+  useEffect(() => {
+    if (dateRange?.from && dateRange?.to) {
+      fetchReports()
+    }
   }, [dateRange])
 
   const fetchReports = async () => {
+    if (!dateRange?.from || !dateRange?.to) return
     setIsLoading(true)
     try {
-      const start = new Date(Date.now() - parseInt(dateRange) * 24 * 60 * 60 * 1000).toISOString()
-      const res = await fetch(`/api/reports/analytics?startDate=${start}`)
+      const start = startOfDay(dateRange.from).toISOString()
+      const end = endOfDay(dateRange.to).toISOString()
+      const res = await fetch(`/api/reports/analytics?startDate=${start}&endDate=${end}`)
       if (res.ok) {
         setData(await res.json())
       }
@@ -53,21 +69,12 @@ export default function ReportsPage() {
     }
   }
 
-  const exportCSV = () => {
-    if (!data) return
-    const headers = "Metric,Value\n"
-    const summary = [
-      `Total Revenue,${data.summary.totalRevenue}`,
-      `Total Orders,${data.summary.totalOrders}`,
-      `AOV,${data.summary.aov}`,
-      `Total Discounts,${data.summary.totalDiscounts}`
-    ].join("\n")
-    const blob = new Blob([headers + summary], { type: 'text/csv' })
-    const url = window.URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = `report_${dateRange}d.csv`
-    a.click()
+  const handleExport = async () => {
+    if (!dateRange?.from || !dateRange?.to) return
+    const start = startOfDay(dateRange.from).toISOString()
+    const end = endOfDay(dateRange.to).toISOString()
+    const url = `/api/reports/export?startDate=${start}&endDate=${end}`
+    window.open(url, '_blank')
   }
 
   if (isLoading && !data) return <div className="p-10 text-center">Loading Analytics...</div>
@@ -77,10 +84,10 @@ export default function ReportsPage() {
       {/* Header */}
       <header className="border-b bg-white sticky top-0 z-10">
         <div className="flex items-center justify-between p-4">
-          <h1 className="text-2xl font-bold text-amber-900">Advanced Analytics</h1>
+          <h1 className="text-2xl font-bold text-amber-900">{t.advanced_analytics}</h1>
           <div className="flex items-center gap-4">
             <Link href="/dashboard">
-              <Button variant="outline" size="sm">Dashboard</Button>
+              <Button variant="outline" size="sm">{t.dashboard}</Button>
             </Link>
           </div>
         </div>
@@ -89,27 +96,58 @@ export default function ReportsPage() {
       <div className="p-6 space-y-6">
         {/* Controls */}
         <div className="flex flex-col md:flex-row justify-between items-center gap-4 bg-white p-4 rounded-xl border shadow-sm">
-          <div className="flex items-center gap-2 overflow-x-auto w-full md:w-auto">
-            <p className="text-sm font-medium mr-2 hidden md:block">Timeframe:</p>
-            {[
-              { label: "7 Days", value: "7" },
-              { label: "30 Days", value: "30" },
-              { label: "90 Days", value: "90" },
-            ].map(range => (
+          <div className="flex items-center gap-4 w-full md:w-auto">
+            <p className="text-sm font-medium hidden md:block">{t.timeframe}:</p>
+            <div className="flex gap-2">
               <Button
-                key={range.value}
-                variant={dateRange === range.value ? "default" : "outline"}
+                variant="outline"
                 size="sm"
-                onClick={() => setDateRange(range.value)}
-                className={dateRange === range.value ? "bg-amber-600 hover:bg-amber-700" : ""}
+                onClick={() => setDateRange({ from: startOfDay(new Date()), to: endOfDay(new Date()) })}
               >
-                {range.label}
+                Today
               </Button>
-            ))}
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setDateRange({ from: subDays(new Date(), 7), to: new Date() })}
+              >
+                7 {t.days}
+              </Button>
+            </div>
+
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button variant="outline" size="sm" className="flex items-center gap-2">
+                  <CalendarIcon className="w-4 h-4" />
+                  {dateRange?.from ? (
+                    dateRange.to ? (
+                      <>
+                        {format(dateRange.from, "LLL dd, y")} - {format(dateRange.to, "LLL dd, y")}
+                      </>
+                    ) : (
+                      format(dateRange.from, "LLL dd, y")
+                    )
+                  ) : (
+                    <span>{t.select_date_range}</span>
+                  )}
+
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0" align="start">
+                <Calendar
+                  initialFocus
+                  mode="range"
+                  defaultMonth={dateRange?.from}
+                  selected={dateRange}
+                  onSelect={setDateRange}
+                  numberOfMonths={2}
+                />
+              </PopoverContent>
+            </Popover>
           </div>
-          <Button variant="outline" size="sm" onClick={exportCSV}>
+          <Button variant="outline" size="sm" onClick={handleExport} className="bg-amber-600 text-white hover:bg-amber-700 hover:text-white border-amber-600">
             <Download className="w-4 h-4 mr-2" />
-            Export Full Insight
+            {t.export_report}
           </Button>
         </div>
 
@@ -117,25 +155,25 @@ export default function ReportsPage() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           <Card className="border-l-4 border-l-green-500">
             <CardHeader className="pb-2">
-              <CardDescription>Total Revenue</CardDescription>
+              <CardDescription>{t.today_sales}</CardDescription>
               <CardTitle className="text-2xl font-bold">{formatLAK(data?.summary.totalRevenue || 0)}</CardTitle>
             </CardHeader>
           </Card>
           <Card className="border-l-4 border-l-blue-500">
             <CardHeader className="pb-2">
-              <CardDescription>Total Orders</CardDescription>
+              <CardDescription>{t.orders}</CardDescription>
               <CardTitle className="text-2xl font-bold">{data?.summary.totalOrders || 0}</CardTitle>
             </CardHeader>
           </Card>
           <Card className="border-l-4 border-l-amber-500">
             <CardHeader className="pb-2">
-              <CardDescription>Avg Order Value (AOV)</CardDescription>
+              <CardDescription>{t.avg_order_value} (AOV)</CardDescription>
               <CardTitle className="text-2xl font-bold">{formatLAK(data?.summary.aov || 0)}</CardTitle>
             </CardHeader>
           </Card>
           <Card className="border-l-4 border-l-rose-500">
             <CardHeader className="pb-2">
-              <CardDescription>Customer Discounts</CardDescription>
+              <CardDescription>{t.promotions}</CardDescription>
               <CardTitle className="text-2xl font-bold">{formatLAK(data?.summary.totalDiscounts || 0)}</CardTitle>
             </CardHeader>
           </Card>
@@ -143,17 +181,17 @@ export default function ReportsPage() {
 
         <Tabs defaultValue="overview" className="space-y-6">
           <TabsList className="bg-muted p-1 rounded-lg">
-            <TabsTrigger value="overview">Overview</TabsTrigger>
-            <TabsTrigger value="products">Product Performance</TabsTrigger>
-            <TabsTrigger value="operations">Operations & Payments</TabsTrigger>
-            <TabsTrigger value="promotions">Promotions ROI</TabsTrigger>
+            <TabsTrigger value="overview">{t.overview}</TabsTrigger>
+            <TabsTrigger value="products">{t.product_performance}</TabsTrigger>
+            <TabsTrigger value="operations">{t.operations_payments}</TabsTrigger>
+            <TabsTrigger value="promotions">{t.promotions_roi}</TabsTrigger>
           </TabsList>
 
           <TabsContent value="overview" className="space-y-6">
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
               <Card className="col-span-2">
                 <CardHeader>
-                  <CardTitle>Revenue & Orders Trend</CardTitle>
+                  <CardTitle>{t.revenue_trend}</CardTitle>
                 </CardHeader>
                 <CardContent className="h-[400px]">
                   <ResponsiveContainer width="100%" height="100%">
@@ -172,7 +210,7 @@ export default function ReportsPage() {
 
               <Card>
                 <CardHeader>
-                  <CardTitle>Category Share</CardTitle>
+                  <CardTitle>{t.category_share}</CardTitle>
                 </CardHeader>
                 <CardContent className="h-[400px]">
                   <ResponsiveContainer width="100%" height="100%">
@@ -201,7 +239,7 @@ export default function ReportsPage() {
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               <Card>
                 <CardHeader>
-                  <CardTitle className="text-green-700">Best Sellers (Top 10)</CardTitle>
+                  <CardTitle className="text-green-700">{t.best_sellers}</CardTitle>
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-4">
@@ -226,7 +264,7 @@ export default function ReportsPage() {
                   <CardHeader>
                     <CardTitle className="flex items-center gap-2 text-rose-700">
                       <TrendingDown className="w-5 h-5" />
-                      Low Performance
+                      {t.low_performance}
                     </CardTitle>
                   </CardHeader>
                   <CardContent>
@@ -245,9 +283,9 @@ export default function ReportsPage() {
                   <CardHeader className="bg-rose-50">
                     <CardTitle className="flex items-center gap-2 text-rose-800">
                       <AlertTriangle className="w-5 h-5" />
-                      Trash Items (Zero Sales)
+                      {t.trash_items}
                     </CardTitle>
-                    <CardDescription>Items that haven't sold at all in this period. Consider removal or discount.</CardDescription>
+                    <CardDescription>Items that haven't sold at all in this period.</CardDescription>
                   </CardHeader>
                   <CardContent className="pt-4">
                     <div className="grid grid-cols-2 gap-2">
@@ -269,8 +307,8 @@ export default function ReportsPage() {
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               <Card>
                 <CardHeader>
-                  <CardTitle>Hourly Sales (Peak Hours)</CardTitle>
-                  <CardDescription>Helps determine staffing and power-saving hours.</CardDescription>
+                  <CardTitle>{t.peak_hours}</CardTitle>
+                  <CardDescription>Peak activity hours.</CardDescription>
                 </CardHeader>
                 <CardContent className="h-[350px]">
                   <ResponsiveContainer width="100%" height="100%">
@@ -286,8 +324,8 @@ export default function ReportsPage() {
 
               <Card>
                 <CardHeader>
-                  <CardTitle>Payment Method Distribution</CardTitle>
-                  <CardDescription>Revenue split for cash control and QR fees.</CardDescription>
+                  <CardTitle>{t.payment_method} Distribution</CardTitle>
+                  <CardDescription>Revenue split.</CardDescription>
                 </CardHeader>
                 <CardContent className="h-[350px]">
                   <ResponsiveContainer width="100%" height="100%">
@@ -317,8 +355,8 @@ export default function ReportsPage() {
           <TabsContent value="promotions" className="space-y-6">
             <Card>
               <CardHeader>
-                <CardTitle>Promotion Performance (ROI)</CardTitle>
-                <CardDescription>Identify which promotions are driving revenue vs losing money.</CardDescription>
+                <CardTitle>{t.promotions_roi}</CardTitle>
+                <CardDescription>Promo efficiency.</CardDescription>
               </CardHeader>
               <CardContent>
                 <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">

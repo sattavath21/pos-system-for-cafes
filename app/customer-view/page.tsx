@@ -18,6 +18,12 @@ type CartItem = {
 export default function CustomerViewPage() {
     const [cart, setCart] = useState<CartItem[]>([])
     const [total, setTotal] = useState(0)
+    const [subtotal, setSubtotal] = useState(0)
+    const [tax, setTax] = useState(0)
+    const [discount, setDiscount] = useState(0)
+    const [promoDiscount, setPromoDiscount] = useState(0)
+    const [loyaltyDiscount, setLoyaltyDiscount] = useState(0)
+    const [promoName, setPromoName] = useState("")
     const [isIdle, setIsIdle] = useState(true)
     const [qrPayment, setQrPayment] = useState<any>(null)
 
@@ -29,9 +35,16 @@ export default function CustomerViewPage() {
             if (event.data.type === "CART_UPDATE") {
                 setCart(event.data.cart)
                 setTotal(event.data.total)
+                setSubtotal(event.data.subtotal || 0)
+                setTax(event.data.tax || 0)
+                setDiscount(event.data.discount || 0)
+                setPromoDiscount(event.data.promoDiscount || 0)
+                setLoyaltyDiscount(event.data.loyaltyDiscount || 0)
+                setPromoName(event.data.promoName || "")
                 setIsIdle(event.data.cart.length === 0)
             }
         }
+        // ... (rest of the effect)
 
         paymentChannel.onmessage = (event) => {
             if (event.data.type === "QR_PAYMENT") {
@@ -135,21 +148,31 @@ export default function CustomerViewPage() {
                         </div>
                     </div>
                 ) : (
-                    <div className="space-y-6">
-                        <div className="space-y-2">
-                            <div className="flex justify-between text-lg text-slate-500">
-                                <span>Subtotal</span>
-                                <span>{formatLAK(total / 1.1)}</span>
+                    <div className="space-y-3">
+                        <div className="flex justify-between text-xl text-slate-500">
+                            <span>Subtotal</span>
+                            <span>{formatLAK(subtotal)}</span>
+                        </div>
+                        {promoDiscount > 0 && (
+                            <div className="flex justify-between text-xl text-rose-500">
+                                <span>Promotion {promoName ? `(${promoName})` : ''}</span>
+                                <span>-{formatLAK(promoDiscount)}</span>
                             </div>
-                            <div className="flex justify-between text-lg text-slate-500">
-                                <span>Tax (10%)</span>
-                                <span>{formatLAK(calculateTax(total / 1.1))}</span>
+                        )}
+                        {loyaltyDiscount > 0 && (
+                            <div className="flex justify-between text-xl text-amber-500">
+                                <span>Loyalty Points Earning</span>
+                                <span>-{formatLAK(loyaltyDiscount)}</span>
                             </div>
+                        )}
+                        <div className="flex justify-between text-xl text-slate-500">
+                            <span>Tax</span>
+                            <span>{formatLAK(tax)}</span>
                         </div>
 
                         <div className="border-t pt-6">
                             <div className="flex justify-between items-baseline">
-                                <span className="text-2xl font-bold text-slate-800">Total</span>
+                                <span className="text-3xl font-bold text-slate-800">Total</span>
                                 <span className="text-5xl font-extrabold text-amber-600">{formatLAK(total)}</span>
                             </div>
                             <p className="text-right text-sm text-slate-400 mt-2">Thank you for visiting!</p>

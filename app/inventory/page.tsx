@@ -21,7 +21,10 @@ type Ingredient = {
   cost: number
 }
 
+import { useTranslation } from "@/hooks/use-translation"
+
 export default function InventoryPage() {
+  const { t } = useTranslation()
   const [ingredients, setIngredients] = useState<Ingredient[]>([])
   const [isDialogOpen, setIsDialogOpen] = useState(false)
   const [editingItem, setEditingItem] = useState<Ingredient | null>(null)
@@ -84,7 +87,7 @@ export default function InventoryPage() {
   }
 
   const handleDelete = async (id: string) => {
-    if (!confirm('Are you sure you want to delete this ingredient?')) return
+    if (!confirm(t.delete + '?')) return
 
     try {
       const res = await fetch(`/api/inventory/${id}`, { method: 'DELETE' })
@@ -108,26 +111,26 @@ export default function InventoryPage() {
 
   const getStockStatus = (item: Ingredient) => {
     if (item.currentStock <= item.minStock) {
-      return { label: "Low Stock", color: "bg-red-100 text-red-800" }
+      return { label: t.low_stock, color: "bg-red-100 text-red-800" }
     } else if (item.currentStock >= item.maxStock) {
-      return { label: "Overstock", color: "bg-yellow-100 text-yellow-800" }
+      return { label: t.overstock, color: "bg-yellow-100 text-yellow-800" }
     }
-    return { label: "Normal", color: "bg-green-100 text-green-800" }
+    return { label: t.normal, color: "bg-green-100 text-green-800" }
   }
 
   return (
     <div className="min-h-screen bg-background">
       <header className="border-b bg-white sticky top-0 z-10">
         <div className="flex items-center justify-between p-4">
-          <h1 className="text-2xl font-bold text-amber-900">Inventory Management</h1>
+          <h1 className="text-2xl font-bold text-amber-900">{t.inventory_management}</h1>
           <div className="flex items-center gap-4">
             <Link href="/inventory/recipes">
               <Button variant="outline" size="sm" className="border-amber-600 text-amber-600 hover:bg-amber-50">
-                Manage Recipes
+                {t.manage_recipes}
               </Button>
             </Link>
             <Link href="/dashboard">
-              <Button variant="outline" size="sm">Dashboard</Button>
+              <Button variant="outline" size="sm">{t.dashboard}</Button>
             </Link>
           </div>
         </div>
@@ -137,17 +140,17 @@ export default function InventoryPage() {
         {/* Stats */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
           <Card className="p-6">
-            <p className="text-sm text-muted-foreground mb-1">Total Items</p>
+            <p className="text-sm text-muted-foreground mb-1">{t.total_items}</p>
             <p className="text-3xl font-bold">{ingredients.length}</p>
           </Card>
           <Card className="p-6">
-            <p className="text-sm text-muted-foreground mb-1">Low Stock</p>
+            <p className="text-sm text-muted-foreground mb-1">{t.low_stock}</p>
             <p className="text-3xl font-bold text-red-600">
               {ingredients.filter(i => i.currentStock <= i.minStock).length}
             </p>
           </Card>
           <Card className="p-6">
-            <p className="text-sm text-muted-foreground mb-1">Total Value</p>
+            <p className="text-sm text-muted-foreground mb-1">{t.total_value}</p>
             <p className="text-2xl font-bold text-green-600">
               {formatLAK(ingredients.reduce((sum, i) => sum + (i.currentStock * i.cost), 0))}
             </p>
@@ -157,21 +160,21 @@ export default function InventoryPage() {
               <DialogTrigger asChild>
                 <Button className="w-full bg-amber-600 hover:bg-amber-700">
                   <Plus className="w-4 h-4 mr-2" />
-                  Add Ingredient
+                  {t.add_ingredient}
                 </Button>
               </DialogTrigger>
               <DialogContent>
                 <DialogHeader>
-                  <DialogTitle>{editingItem ? 'Edit' : 'Add'} Ingredient</DialogTitle>
+                  <DialogTitle>{editingItem ? t.edit : t.add_item} {t.inventory}</DialogTitle>
                 </DialogHeader>
                 <div className="space-y-4">
                   <div>
-                    <Label>Name</Label>
+                    <Label>{t.name}</Label>
                     <Input value={formData.name} onChange={e => setFormData({ ...formData, name: e.target.value })} />
                   </div>
                   <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <Label>Unit</Label>
+                      <Label>{t.unit}</Label>
                       <Input
                         placeholder="e.g. kg, L, pcs"
                         value={formData.unit}
@@ -179,29 +182,29 @@ export default function InventoryPage() {
                       />
                     </div>
                     <div>
-                      <Label>Current Stock</Label>
+                      <Label>{t.stock}</Label>
                       <Input type="text" value={formData.currentStock} onChange={e => setFormData({ ...formData, currentStock: Number(e.target.value) })} />
                     </div>
                   </div>
                   <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <Label>Min Stock</Label>
+                      <Label>{t.min_stock}</Label>
                       <Input type="text" value={formData.minStock} onChange={e => setFormData({ ...formData, minStock: Number(e.target.value) })} />
                     </div>
                     <div>
-                      <Label>Max Stock</Label>
+                      <Label>{t.max_stock}</Label>
                       <Input type="text" value={formData.maxStock} onChange={e => setFormData({ ...formData, maxStock: Number(e.target.value) })} />
                     </div>
                   </div>
                   <div>
-                    <Label>Cost per Unit (LAK)</Label>
+                    <Label>{t.cost_per_unit} (LAK)</Label>
                     <Input type="text" value={formData.cost} onChange={e => setFormData({ ...formData, cost: Number(e.target.value) })} />
                   </div>
                 </div>
                 <DialogFooter>
-                  <Button variant="outline" onClick={() => setIsDialogOpen(false)}>Cancel</Button>
+                  <Button variant="outline" onClick={() => setIsDialogOpen(false)}>{t.cancel}</Button>
                   <Button className="bg-amber-600 hover:bg-amber-700" onClick={handleSubmit}>
-                    {editingItem ? 'Update' : 'Add'}
+                    {editingItem ? t.update : t.save}
                   </Button>
                 </DialogFooter>
               </DialogContent>
@@ -211,7 +214,7 @@ export default function InventoryPage() {
 
         {/* Inventory List */}
         <Card className="p-6">
-          <h2 className="text-lg font-bold mb-4">All Ingredients</h2>
+          <h2 className="text-lg font-bold mb-4">{t.all_ingredients}</h2>
           <div className="space-y-3">
             {ingredients.map((item) => {
               const status = getStockStatus(item)
@@ -224,9 +227,9 @@ export default function InventoryPage() {
                       <Badge className={status.color}>{status.label}</Badge>
                     </div>
                     <div className="flex gap-6 text-sm text-muted-foreground ml-8">
-                      <span>Stock: {item.currentStock} {item.unit}</span>
-                      <span>Min: {item.minStock} {item.unit}</span>
-                      <span>Cost: {formatLAK(item.cost)}/{item.unit}</span>
+                      <span>{t.stock}: {item.currentStock} {item.unit}</span>
+                      <span>{t.min_stock}: {item.minStock} {item.unit}</span>
+                      <span>{t.cost}: {formatLAK(item.cost)}/{item.unit}</span>
                     </div>
                   </div>
                   <div className="flex gap-2">
@@ -243,7 +246,7 @@ export default function InventoryPage() {
             {ingredients.length === 0 && (
               <div className="text-center py-12 text-muted-foreground">
                 <Package className="w-12 h-12 mx-auto mb-4 opacity-50" />
-                <p>No ingredients yet. Add your first ingredient to get started.</p>
+                <p>{t.no_items_found}</p>
               </div>
             )}
           </div>

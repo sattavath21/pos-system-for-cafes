@@ -40,6 +40,6 @@ export function calculateChange(total: number, cashReceived: number) {
     };
 }
 
-export function calculateTax(amount: number): number {
-    return Math.round(amount * (10 / 100));
+export function calculateTax(amount: number, rate: number = 10): number {
+    return Math.round(amount * (rate / 100));
 }

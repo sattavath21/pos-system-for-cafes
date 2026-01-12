@@ -24,7 +24,10 @@ type Promotion = {
   isActive: boolean
 }
 
+import { useTranslation } from "@/hooks/use-translation"
+
 export default function PromotionsPage() {
+  const { t } = useTranslation()
   const [promotions, setPromotions] = useState<Promotion[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [isDialogOpen, setIsDialogOpen] = useState(false)
@@ -61,9 +64,12 @@ export default function PromotionsPage() {
       isActive: formData.get('isActive') === 'active'
     }
 
+    const url = editingPromo ? `/api/promotions/${editingPromo.id}` : '/api/promotions'
+    const method = editingPromo ? 'PUT' : 'POST'
+
     try {
-      const res = await fetch('/api/promotions', {
-        method: 'POST',
+      const res = await fetch(url, {
+        method,
         body: JSON.stringify(data),
         headers: { 'Content-Type': 'application/json' }
       })
@@ -72,10 +78,10 @@ export default function PromotionsPage() {
         fetchPromotions()
       } else {
         const err = await res.json()
-        alert(err.error || "Failed to save")
+        alert(err.error || t.save + " " + t.inactive)
       }
     } catch (e) {
-      alert("Error saving promotion")
+      alert(t.save + " Error")
     }
   }
 
@@ -93,9 +99,9 @@ export default function PromotionsPage() {
     <div className="min-h-screen bg-background">
       <header className="border-b bg-white sticky top-0 z-10">
         <div className="flex items-center justify-between p-4">
-          <h1 className="text-2xl font-bold text-amber-900">Promotions & Discounts</h1>
+          <h1 className="text-2xl font-bold text-amber-900">{t.promotions_discounts}</h1>
           <Link href="/dashboard">
-            <Button variant="outline" size="sm">Dashboard</Button>
+            <Button variant="outline" size="sm">{t.dashboard}</Button>
           </Link>
         </div>
       </header>
@@ -103,15 +109,15 @@ export default function PromotionsPage() {
       <div className="p-6 space-y-6">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           <Card className="p-6">
-            <p className="text-sm text-muted-foreground mb-1">Total Promotions</p>
+            <p className="text-sm text-muted-foreground mb-1">{t.total_promotions}</p>
             <p className="text-3xl font-bold">{promotions.length}</p>
           </Card>
           <Card className="p-6">
-            <p className="text-sm text-muted-foreground mb-1">Active</p>
+            <p className="text-sm text-muted-foreground mb-1">{t.active}</p>
             <p className="text-3xl font-bold text-green-600">{activePromotions}</p>
           </Card>
           <Card className="p-6">
-            <p className="text-sm text-muted-foreground mb-1">Inactive</p>
+            <p className="text-sm text-muted-foreground mb-1">{t.inactive}</p>
             <p className="text-3xl font-bold text-red-600">{promotions.length - activePromotions}</p>
           </Card>
         </div>
@@ -120,61 +126,61 @@ export default function PromotionsPage() {
           <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
             <DialogTrigger asChild>
               <Button className="bg-amber-600 hover:bg-amber-700" onClick={handleAddNew}>
-                <Plus className="w-4 h-4 mr-2" /> Create Promotion
+                <Plus className="w-4 h-4 mr-2" /> {t.create_promotion}
               </Button>
             </DialogTrigger>
             <DialogContent className="max-w-2xl">
               <form onSubmit={handleSave}>
                 <DialogHeader>
-                  <DialogTitle>{editingPromo ? "Edit Promotion" : "Create New Promotion"}</DialogTitle>
+                  <DialogTitle>{editingPromo ? t.edit_promotion : t.create_promotion}</DialogTitle>
                 </DialogHeader>
                 <div className="space-y-4 py-4">
                   <div>
-                    <Label htmlFor="name">Promotion Name</Label>
+                    <Label htmlFor="name">{t.promotion_name}</Label>
                     <Input id="name" name="name" required defaultValue={editingPromo?.name} />
                   </div>
                   <div>
-                    <Label htmlFor="description">Description</Label>
+                    <Label htmlFor="description">{t.description}</Label>
                     <Textarea id="description" name="description" defaultValue={editingPromo?.description || ""} />
                   </div>
                   <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <Label htmlFor="code">Promo Code</Label>
+                      <Label htmlFor="code">{t.promo_code}</Label>
                       <Input id="code" name="code" required defaultValue={editingPromo?.code} />
                     </div>
                     <div>
-                      <Label htmlFor="discountType">Type</Label>
+                      <Label htmlFor="discountType">{t.discount_type}</Label>
                       <select name="discountType" className="w-full h-10 px-3 rounded-md border" defaultValue={editingPromo?.discountType || "percentage"}>
-                        <option value="percentage">Percentage (%)</option>
-                        <option value="fixed">Fixed Amount</option>
+                        <option value="percentage">{t.percentage}</option>
+                        <option value="fixed">{t.fixed_amount}</option>
                       </select>
                     </div>
                   </div>
                   <div>
-                    <Label htmlFor="discountValue">Value</Label>
+                    <Label htmlFor="discountValue">{t.discount_value}</Label>
                     <Input id="discountValue" name="discountValue" type="number" required defaultValue={editingPromo?.discountValue} />
                   </div>
                   <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <Label htmlFor="startDate">Start Date</Label>
+                      <Label htmlFor="startDate">{t.start_date}</Label>
                       <Input id="startDate" name="startDate" type="date" required defaultValue={editingPromo?.startDate?.split('T')[0]} />
                     </div>
                     <div>
-                      <Label htmlFor="endDate">End Date</Label>
+                      <Label htmlFor="endDate">{t.end_date}</Label>
                       <Input id="endDate" name="endDate" type="date" required defaultValue={editingPromo?.endDate?.split('T')[0]} />
                     </div>
                   </div>
                   <div>
-                    <Label htmlFor="isActive">Status</Label>
+                    <Label htmlFor="isActive">{t.status}</Label>
                     <select name="isActive" className="w-full h-10 px-3 rounded-md border" defaultValue={editingPromo?.isActive ? "active" : "inactive"}>
-                      <option value="active">Active</option>
-                      <option value="inactive">Inactive</option>
+                      <option value="active">{t.active}</option>
+                      <option value="inactive">{t.inactive}</option>
                     </select>
                   </div>
                 </div>
                 <DialogFooter>
-                  <Button type="button" variant="outline" onClick={() => setIsDialogOpen(false)}>Cancel</Button>
-                  <Button type="submit" className="bg-amber-600">Save</Button>
+                  <Button type="button" variant="outline" onClick={() => setIsDialogOpen(false)}>{t.cancel}</Button>
+                  <Button type="submit" className="bg-amber-600">{t.save}</Button>
                 </DialogFooter>
               </form>
             </DialogContent>
@@ -182,7 +188,7 @@ export default function PromotionsPage() {
         </div>
 
         <Card className="p-6">
-          <h2 className="text-lg font-bold mb-4">All Promotions</h2>
+          <h2 className="text-lg font-bold mb-4">{t.all_promotions}</h2>
           <div className="space-y-3">
             {promotions.map((promo) => (
               <div key={promo.id} className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/50">
@@ -194,14 +200,14 @@ export default function PromotionsPage() {
                     <div>
                       <div className="flex items-center gap-2">
                         <h3 className="font-semibold">{promo.name}</h3>
-                        {promo.isActive ? <Badge className="bg-green-600">Active</Badge> : <Badge variant="secondary">Inactive</Badge>}
+                        {promo.isActive ? <Badge className="bg-green-600">{t.active}</Badge> : <Badge variant="secondary">{t.inactive}</Badge>}
                       </div>
                       <p className="text-sm text-muted-foreground">{promo.description}</p>
                     </div>
                   </div>
                   <div className="flex gap-4 text-sm text-muted-foreground ml-14">
-                    <span>Code: <span className="font-semibold text-foreground">{promo.code}</span></span>
-                    <span>Discount: <span className="font-semibold text-foreground">{promo.discountType === "percentage" ? `${promo.discountValue}%` : formatLAK(promo.discountValue)}</span></span>
+                    <span>{t.promo_code}: <span className="font-semibold text-foreground">{promo.code}</span></span>
+                    <span>{t.discount_value}: <span className="font-semibold text-foreground">{promo.discountType === "percentage" ? `${promo.discountValue}%` : formatLAK(promo.discountValue)}</span></span>
                   </div>
                 </div>
                 <div className="flex gap-2">
@@ -209,7 +215,7 @@ export default function PromotionsPage() {
                 </div>
               </div>
             ))}
-            {promotions.length === 0 && !isLoading && <p className="text-center py-10 text-muted-foreground">No promotions found.</p>}
+            {promotions.length === 0 && !isLoading && <p className="text-center py-10 text-muted-foreground">{t.no_promotions_found}</p>}
           </div>
         </Card>
       </div>

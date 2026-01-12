@@ -3,11 +3,13 @@
 import { useState, useEffect } from "react"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { DollarSign, ShoppingCart, TrendingUp, AlertTriangle, Coffee, Users, Package, Receipt, List, Tag, Play } from "lucide-react"
+import { DollarSign, ShoppingCart, TrendingUp, AlertTriangle, Coffee, Users, Package, Receipt, List, Tag, Play, Store, Settings } from "lucide-react"
+import { useTranslation } from "@/hooks/use-translation"
 import Link from "next/link"
 import { formatLAK } from "@/lib/currency"
 
 export default function DashboardPage() {
+  const { t } = useTranslation()
   const handleLogout = async () => {
     await fetch('/api/auth/logout', { method: 'POST' })
     window.location.href = '/role-select'
@@ -52,16 +54,16 @@ export default function DashboardPage() {
 
   const quickActions = [
     {
-      title: hasActiveSession ? "Resume Order" : "New Order",
+      title: hasActiveSession ? t.resume_order : t.new_order,
       icon: Coffee,
       href: "/pos",
       color: hasActiveSession ? "bg-orange-600 hover:bg-orange-700" : "bg-amber-600 hover:bg-amber-700"
     },
-    { title: "Menu", icon: List, href: "/menu", color: "bg-blue-600 hover:bg-blue-700" },
-    { title: "Inventory", icon: Package, href: "/inventory", color: "bg-orange-600 hover:bg-orange-700" },
-    { title: "Customers", icon: Users, href: "/customers", color: "bg-green-600 hover:bg-green-700" },
-    { title: "Promotions", icon: Tag, href: "/promotions", color: "bg-rose-600 hover:bg-rose-700" },
-    { title: "Reports", icon: Receipt, href: "/reports", color: "bg-purple-600 hover:bg-purple-700" },
+    { title: t.menu, icon: List, href: "/menu", color: "bg-blue-600 hover:bg-blue-700" },
+    { title: t.inventory, icon: Package, href: "/inventory", color: "bg-orange-600 hover:bg-orange-700" },
+    { title: t.customers, icon: Users, href: "/customers", color: "bg-green-600 hover:bg-green-700" },
+    { title: t.promotions, icon: Tag, href: "/promotions", color: "bg-rose-600 hover:bg-rose-700" },
+    { title: t.reports, icon: Receipt, href: "/reports", color: "bg-purple-600 hover:bg-purple-700" },
   ]
 
   const statIcons: Record<string, any> = {
@@ -92,11 +94,21 @@ export default function DashboardPage() {
       {/* Header */}
       <header className="border-b bg-white sticky top-0 z-10">
         <div className="flex items-center justify-between p-4">
-          <h1 className="text-2xl font-bold text-amber-900">Dashboard</h1>
+          <h1 className="text-2xl font-bold text-amber-900">{t.dashboard}</h1>
           <div className="flex items-center gap-4">
-            <span className="text-sm text-muted-foreground">Staff Member</span>
-            <Button variant="outline" size="sm" onClick={handleLogout}>
-              Logout
+            <div className="text-right hidden sm:block">
+              <p className="font-bold text-amber-900 leading-none">{user?.full_name || user?.name || "Staff"}</p>
+              <p className="text-xs text-muted-foreground mt-1 capitalize">{user?.role?.toLowerCase()}</p>
+            </div>
+            {user?.role === 'ADMIN' && (
+              <Link href="/settings">
+                <Button variant="ghost" size="icon" className="text-amber-900 hover:bg-amber-50 cursor-pointer">
+                  <Settings className="w-5 h-5" />
+                </Button>
+              </Link>
+            )}
+            <Button variant="outline" size="sm" onClick={handleLogout} className="text-red-600 border-red-200 hover:bg-red-50 hover:text-red-700">
+              {t.logout}
             </Button>
           </div>
         </div>
@@ -112,7 +124,12 @@ export default function DashboardPage() {
                 <Card key={stat.title} className="p-6">
                   <div className="flex items-start justify-between">
                     <div>
-                      <p className="text-sm text-muted-foreground mb-1">{stat.title}</p>
+                      <p className="text-sm text-muted-foreground mb-1">
+                        {stat.title === "Today's Sales" ? t.today_sales :
+                          stat.title === "Orders" ? t.orders :
+                            stat.title === "Avg Order Value" ? t.avg_order_value :
+                              stat.title === "Low Stock Items" ? t.low_stock_items : stat.title}
+                      </p>
                       <p className="text-3xl font-bold mb-2">
                         {stat.type === "currency" ? formatLAK(stat.value) : stat.value}
                       </p>
@@ -130,8 +147,8 @@ export default function DashboardPage() {
 
         {/* Quick Actions */}
         <Card className="p-6">
-          <h2 className="text-lg font-bold mb-4">Quick Actions</h2>
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+          <h2 className="text-lg font-bold mb-4">{t.quick_actions}</h2>
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-3 gap-4">
             {quickActions
               .filter(action => action.href !== '/reports' || user?.role === 'ADMIN')
               .map((action) => {
@@ -139,8 +156,8 @@ export default function DashboardPage() {
                 return (
                   <Link key={action.title} href={action.href}>
                     <Button className={`w-full h-24 flex flex-col gap-2 ${action.color} text-white`}>
-                      <Icon className="w-8 h-8" />
-                      <span>{action.title}</span>
+                      <Icon />
+                      <span className="text-lg">{action.title}</span>
                     </Button>
                   </Link>
                 )
@@ -152,10 +169,10 @@ export default function DashboardPage() {
           {/* Active Orders */}
           <Card className="p-6">
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-bold">Active Orders</h2>
+              <h2 className="text-lg font-bold">{t.active_orders}</h2>
               <Link href="/orders">
                 <Button variant="outline" size="sm">
-                  View All
+                  {t.view_all}
                 </Button>
               </Link>
             </div>
@@ -207,7 +224,7 @@ export default function DashboardPage() {
           {/* Top Selling Items */}
           {user?.role === 'ADMIN' && (
             <Card className="p-6">
-              <h2 className="text-lg font-bold mb-4">Top Selling Items</h2>
+              <h2 className="text-lg font-bold mb-4">{t.top_selling_items}</h2>
               <div className="space-y-3">
                 {data?.topItems.map((item: any, index: number) => (
                   <div key={item.name} className="flex items-center justify-between p-3 border rounded-lg">
@@ -234,7 +251,7 @@ export default function DashboardPage() {
           <Card className="p-6">
             <div className="flex items-center gap-2 mb-4">
               <AlertTriangle className="w-5 h-5 text-orange-600" />
-              <h2 className="text-lg font-bold">Low Stock Alerts</h2>
+              <h2 className="text-lg font-bold">{t.low_stock_alerts}</h2>
             </div>
             <div className="grid md:grid-cols-3 gap-4">
               {data?.lowStockAlerts.map((item: any) => (

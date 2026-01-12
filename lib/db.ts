@@ -34,13 +34,32 @@ export async function getDb() {
                     "updatedAt" TEXT NOT NULL DEFAULT (datetime('now'))
                 );
                 CREATE UNIQUE INDEX IF NOT EXISTS "Promotion_code_key" ON "Promotion"("code");
+
+                CREATE TABLE IF NOT EXISTS "Setting" (
+                    "key" TEXT PRIMARY KEY,
+                    "value" TEXT NOT NULL
+                );
             `)
+
+            // Seed default settings if not exists
+            const settings = [
+                ['tax_rate', '10'],
+                ['language', 'en'],
+                ['shop_name', 'Cafe POS'],
+                ['loyalty_rate', '100'] // 1 point = 100 LAK
+            ]
+            for (const [key, val] of settings) {
+                await db.run('INSERT OR IGNORE INTO Setting (key, value) VALUES (?, ?)', [key, val])
+            }
 
             // Patch Order table
             const orderInfo = await db.all('PRAGMA table_info("Order")')
             const oCols = orderInfo.map(r => r.name)
             if (!oCols.includes('discount')) await db.exec('ALTER TABLE "Order" ADD COLUMN "discount" REAL DEFAULT 0')
             if (!oCols.includes('promoId')) await db.exec('ALTER TABLE "Order" ADD COLUMN "promoId" TEXT')
+            if (!oCols.includes('pointsRedeemed')) await db.exec('ALTER TABLE "Order" ADD COLUMN "pointsRedeemed" INTEGER DEFAULT 0')
+            if (!oCols.includes('taxAmount')) await db.exec('ALTER TABLE "Order" ADD COLUMN "taxAmount" REAL DEFAULT 0')
+            if (!oCols.includes('subtotal')) await db.exec('ALTER TABLE "Order" ADD COLUMN "subtotal" REAL DEFAULT 0')
 
             // Patch Product table
             const productInfo = await db.all('PRAGMA table_info("Product")')
