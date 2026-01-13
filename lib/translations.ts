@@ -176,6 +176,15 @@ export const translations = {
         available: "Available",
         unavailable: "Unavailable",
         quantity: "Quantity",
+        full_access_to_all_features: "Full access to all features",
+        take_orders_and_process_payments: "Take orders and process payments",
+        select_your_role: "Select Your Role",
+        choose_how_you_want_to_access_the_system: "Choose how you want to access the system",
+        continue_as: "Continue as",
+        enter_pin_for: "Enter PIN for",
+        enter_login: "Enter",
+        logging_in: "Logging in...",
+        back_to_role_selection: "Back to role selection",
     },
     lo: {
         dashboard: "ໜ້າຫຼັກ",
@@ -352,6 +361,16 @@ export const translations = {
         edit_menu_item: "ແກ້ໄຂລາຍການ",
         available: "ມີສິນຄ້າ",
         unavailable: "ສິນຄ້າໝົດ",
-        quantity: "ຈຳນວນ"
+        quantity: "ຈຳນວນ",
+        full_access_to_all_features: "ສິດການເຂົ້າຖຶງທັງໝົດ",
+        take_orders_and_process_payments: "ຮັບອໍເດີ້, ບໍລິຫານສາງ ແລະເມນູ",
+        select_your_role: "ເລືອກສິດການເຂົ້າຖຶງ",
+        choose_how_you_want_to_access_the_system: "ເລືອກວ່າຢາກນຳໃຊ້ລະບົບແບບໃດ",
+        continue_as: "ສືບຕໍ່ດ້ວຍ",
+        enter_pin_for: "ປ້ອນລະຫັດ PIN ຂອງ",
+        enter_login: "ເຂົ້າລະບົບ",
+        logging_in: "ກຳລັງເຂົ້າຖຶງ...",
+        back_to_role_selection: "ກັບຄືນໜ້າເລືອກສິດການເຂົ້າຖຶງ",
+
     }
 }

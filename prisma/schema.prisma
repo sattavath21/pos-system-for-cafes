@@ -4,6 +4,7 @@ generator client {
 
 datasource db {
   provider = "sqlite"
+  url      = env("DATABASE_URL")
 }
 
 model User {
@@ -143,8 +144,8 @@ model OrderItem {
   id        String  @id @default(uuid())
   orderId   String
   order     Order   @relation(fields: [orderId], references: [id])
-  productId String
-  product   Product @relation(fields: [productId], references: [id])
+  productId String?
+  product   Product? @relation(fields: [productId], references: [id])
   name      String  // Snapshot of product name
   price     Float   // Snapshot of price
   quantity  Int

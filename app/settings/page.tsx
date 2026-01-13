@@ -127,13 +127,52 @@ export default function SettingsPage() {
               <p className="text-sm text-muted-foreground">Basic details about your café</p>
             </div>
           </div>
+          <div className="space-y-4">
+            <div className="grid md:grid-cols-2 gap-4">
+              <div>
+                <Label>Shop Name</Label>
+                <Input
+                  value={settings.shopName || ""}
+                  onChange={(e) => setSettings({ ...settings, shopName: e.target.value })}
+                />
+              </div>
+              <div>
+                <Label>Phone Number</Label>
+                <Input
+                  value={settings.shopPhone || ""}
+                  onChange={(e) => setSettings({ ...settings, shopPhone: e.target.value })}
+                />
+              </div>
+            </div>
+            <div>
+              <Label>Shop Address</Label>
+              <Input
+                value={settings.shopAddress || ""}
+                onChange={(e) => setSettings({ ...settings, shopAddress: e.target.value })}
+              />
+            </div>
+          </div>
+        </Card>
+
+        {/* Receipt Customization */}
+        <Card className="p-6 border-amber-100 shadow-sm">
+          <div className="flex items-center gap-3 mb-6">
+            <div className="bg-orange-100 p-3 rounded-lg">
+              <Receipt className="w-6 h-6 text-orange-600" />
+            </div>
+            <div>
+              <h2 className="text-xl font-bold">Receipt Customization</h2>
+              <p className="text-sm text-muted-foreground">Customize text appearing on printed bills</p>
+            </div>
+          </div>
 
           <div className="space-y-4">
             <div>
-              <Label>Shop Name</Label>
+              <Label>Receipt Footer Message</Label>
               <Input
-                value={settings.shop_name || ""}
-                onChange={(e) => setSettings({ ...settings, shop_name: e.target.value })}
+                placeholder="Thank you for visiting!"
+                value={settings.receiptFooter || ""}
+                onChange={(e) => setSettings({ ...settings, receiptFooter: e.target.value })}
               />
             </div>
           </div>
@@ -156,16 +195,16 @@ export default function SettingsPage() {
               <Label>Tax Rate (%)</Label>
               <Input
                 type="number"
-                value={settings.tax_rate || ""}
-                onChange={(e) => setSettings({ ...settings, tax_rate: e.target.value })}
+                value={settings.taxRate || ""}
+                onChange={(e) => setSettings({ ...settings, taxRate: e.target.value })}
               />
             </div>
             <div>
               <Label>Loyalty Rate (1pt = ? LAK)</Label>
               <Input
                 type="number"
-                value={settings.loyalty_rate || ""}
-                onChange={(e) => setSettings({ ...settings, loyalty_rate: e.target.value })}
+                value={settings.loyaltyRate || ""}
+                onChange={(e) => setSettings({ ...settings, loyaltyRate: e.target.value })}
               />
             </div>
           </div>

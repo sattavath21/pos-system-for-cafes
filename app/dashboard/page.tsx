@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { DollarSign, ShoppingCart, TrendingUp, AlertTriangle, Coffee, Users, Package, Receipt, List, Tag, Play, Store, Settings, ChartLine } from "lucide-react"
+import { DollarSign, ShoppingCart, TrendingUp, AlertTriangle, Coffee, Users, Package, Receipt, List, Tag, Play, Store, Settings, ChartLine, Calendar } from "lucide-react"
 import { useTranslation } from "@/hooks/use-translation"
 import Link from "next/link"
 import { formatLAK } from "@/lib/currency"
@@ -111,6 +111,7 @@ export default function DashboardPage() {
     { title: t.inventory, icon: Package, href: "/inventory", color: "bg-orange-600 hover:bg-orange-700" },
     { title: t.customers, icon: Users, href: "/customers", color: "bg-yellow-600 hover:bg-yellow-700" },
     { title: t.promotions, icon: Tag, href: "/promotions", color: "bg-rose-600 hover:bg-rose-700" },
+    { title: "Shifts", icon: Calendar, href: "/shifts", color: "bg-indigo-600 hover:bg-indigo-700", adminOnly: true },
     { title: t.reports, icon: ChartLine, href: "/reports", color: "bg-purple-600 hover:bg-purple-700" },
   ]
 
@@ -200,7 +201,13 @@ export default function DashboardPage() {
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {quickActions
-              .filter(action => action.href !== '/reports' || user?.role === 'ADMIN')
+              .filter(action => {
+                // Filter out reports for non-admin
+                if (action.href === '/reports' && user?.role !== 'ADMIN') return false
+                // Filter out admin-only actions
+                if (action.adminOnly && user?.role !== 'ADMIN') return false
+                return true
+              })
               .map((action) => {
                 const Icon = action.icon
                 return (
@@ -351,12 +358,16 @@ export default function DashboardPage() {
             <div>
               <Label>Starting Cash Amount</Label>
               <Input
-                type="number"
+                type="text"
                 placeholder="0"
-                value={startCash}
-                onChange={e => setStartCash(e.target.value)}
+                value={startCash ? Number(startCash).toLocaleString() : ""}
+                onChange={e => {
+                  const val = e.target.value.replace(/\D/g, "")
+                  setStartCash(val)
+                }}
                 className="text-lg font-bold"
               />
+
             </div>
             <Button className="w-full bg-amber-600 hover:bg-amber-700" onClick={handleOpenShift}>
               Open Shift

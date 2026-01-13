@@ -26,6 +26,7 @@ export default function CustomerViewPage() {
     const [promoName, setPromoName] = useState("")
     const [isIdle, setIsIdle] = useState(true)
     const [qrPayment, setQrPayment] = useState<any>(null)
+    const [settings, setSettings] = useState<any>(null)
 
     useEffect(() => {
         const posChannel = new BroadcastChannel("pos_channel")
@@ -63,6 +64,12 @@ export default function CustomerViewPage() {
             }
         }
 
+        // Fetch settings
+        fetch('/api/settings')
+            .then(res => res.json())
+            .then(data => setSettings(data))
+            .catch(e => console.error(e))
+
         return () => {
             posChannel.close()
             paymentChannel.close()
@@ -76,7 +83,7 @@ export default function CustomerViewPage() {
                     <div className="w-32 h-32 bg-amber-100 rounded-full flex items-center justify-center mx-auto mb-6">
                         <span className="text-6xl">☕</span>
                     </div>
-                    <h1 className="text-6xl font-bold text-amber-900 tracking-tight">Welcome to Cafe POS</h1>
+                    <h1 className="text-6xl font-bold text-amber-900 tracking-tight">Welcome to {settings?.shopName || 'Cafe POS'}</h1>
                     <p className="text-2xl text-amber-700 font-light">
                         We're ready to take your order. Please let our barista know what you'd like!
                     </p>

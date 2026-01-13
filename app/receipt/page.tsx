@@ -13,6 +13,7 @@ function ReceiptContent() {
   const searchParams = useSearchParams()
   const orderId = searchParams.get("id")
   const [order, setOrder] = useState<any>(null)
+  const [settings, setSettings] = useState<any>(null) // Added settings state
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
@@ -34,6 +35,18 @@ function ReceiptContent() {
           setError(e.message)
         })
     }
+
+    // Fetch settings
+    fetch('/api/settings')
+      .then((res) => {
+        if (res.ok) return res.json()
+        throw new Error("Failed to fetch settings")
+      })
+      .then((data) => setSettings(data))
+      .catch((e) => {
+        console.error(e)
+        // Optionally set an error for settings as well, or just log
+      })
   }, [orderId])
 
   if (error) {
@@ -62,8 +75,9 @@ function ReceiptContent() {
         <div className="text-center border-b border-dashed border-black pb-4 mb-4">
           <p className="text-xs uppercase text-gray-500 mb-1">Receipt Number</p>
           <h2 className="text-4xl font-bold mb-2">{order.orderNumber}</h2>
-          <h1 className="text-lg font-bold uppercase tracking-tight">Cafe POS</h1>
-          <p className="text-xs">Vientiane, Laos</p>
+          <h1 className="text-lg font-bold uppercase tracking-tight">{settings?.shopName || 'Cafe POS'}</h1>
+          <p className="text-xs">{settings?.shopAddress || 'Vientiane, Laos'}</p>
+          {settings?.shopPhone && <p className="text-xs">Tel: {settings.shopPhone}</p>}
           <p className="text-[10px] mt-1">{new Date(order.createdAt).toLocaleString()}</p>
         </div>
 
@@ -114,8 +128,8 @@ function ReceiptContent() {
         </div>
 
         <div className="text-center mt-6 pt-4 border-t border-dashed border-black text-[10px] uppercase">
-          <p>Thank you for your visit!</p>
-          <p className="mt-1">Please come again</p>
+          <p>{settings?.receiptFooter || 'Thank you for your visit!'}</p>
+          {!settings?.receiptFooter && <p className="mt-1">Please come again</p>}
         </div>
       </Card>
 

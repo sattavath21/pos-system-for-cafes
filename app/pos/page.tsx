@@ -66,7 +66,7 @@ export default function POSPage() {
   const [beeperNumber, setBeeperNumber] = useState("")
   const [showBeeperError, setShowBeeperError] = useState(false)
 
-  const [sysSettings, setSysSettings] = useState<any>({ tax_rate: '10', loyalty_rate: '100' })
+  const [sysSettings, setSysSettings] = useState<any>({ taxRate: '10', loyaltyRate: '100' })
   const [pointsRedeemed, setPointsRedeemed] = useState(0)
   const [loyaltyDiscount, setLoyaltyDiscount] = useState(0)
 
@@ -75,6 +75,10 @@ export default function POSPage() {
   const [isSuccessOpen, setIsSuccessOpen] = useState(false)
   const [lastOrderInfo, setLastOrderInfo] = useState<any>(null)
   const [resumedOrderId, setResumedOrderId] = useState<string | null>(null)
+  const [isShiftOpen, setIsShiftOpen] = useState(false)
+  const [activeShiftId, setActiveShiftId] = useState<string | null>(null)
+  const [isShiftModalOpen, setIsShiftModalOpen] = useState(false)
+  const [startCash, setStartCash] = useState('')
   const [isInitialLoad, setIsInitialLoad] = useState(true)
   const [isHoldSuccessOpen, setIsHoldSuccessOpen] = useState(false)
 
@@ -94,7 +98,7 @@ export default function POSPage() {
     }
 
     const taxableAmount = subtotal - promoDiscount - loyaltyDiscount
-    const tax = calculateTax(taxableAmount, Number(sysSettings.tax_rate) || 0)
+    const tax = calculateTax(taxableAmount, Number(sysSettings.taxRate) || 0)
     const total = taxableAmount + tax
     return { subtotal, tax, total, promoDiscount, loyaltyDiscount, discount: promoDiscount + loyaltyDiscount }
   }
@@ -178,6 +182,56 @@ export default function POSPage() {
 
 
   // Persist state
+  // Check for active shift on mount
+  useEffect(() => {
+    const checkShiftStatus = async () => {
+      try {
+        const res = await fetch('/api/shifts?status=OPEN')
+        if (res.ok) {
+          const shifts = await res.json()
+          if (shifts.length > 0) {
+            setIsShiftOpen(true)
+            setActiveShiftId(shifts[0].id)
+          } else {
+            setIsShiftModalOpen(true)
+          }
+        }
+      } catch (error) {
+        console.error('Failed to check shift status:', error)
+      }
+    }
+    checkShiftStatus()
+  }, [])
+
+  const handleOpenShift = async () => {
+    if (!startCash) {
+      alert('Please enter starting cash amount')
+      return
+    }
+
+    try {
+      const res = await fetch('/api/shifts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ startCash: parseFloat(startCash) })
+      })
+
+      if (res.ok) {
+        const shift = await res.json()
+        setIsShiftOpen(true)
+        setActiveShiftId(shift.id)
+        setIsShiftModalOpen(false)
+        setStartCash('')
+      } else {
+        const error = await res.json()
+        alert(error.error || 'Failed to open shift')
+      }
+    } catch (error) {
+      console.error('Failed to open shift:', error)
+      alert('Failed to open shift')
+    }
+  }
+
   useEffect(() => {
     if (isInitialLoad) return
 

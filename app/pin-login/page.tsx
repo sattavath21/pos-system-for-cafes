@@ -6,6 +6,7 @@ import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Coffee, Delete } from "lucide-react"
 import { Suspense } from "react"
+import { useTranslation } from "@/hooks/use-translation"
 
 function PinLoginContent() {
     const [pin, setPin] = useState("")
@@ -14,6 +15,7 @@ function PinLoginContent() {
     const router = useRouter()
     const searchParams = useSearchParams()
     const role = searchParams.get('role') // Get role from URL
+    const { t } = useTranslation()
 
     const handleNumberClick = (num: string) => {
         if (pin.length < 6) {
@@ -104,7 +106,7 @@ function PinLoginContent() {
                         <Coffee className="w-8 h-8 text-white" />
                     </div>
                     <h1 className="text-3xl font-bold text-amber-900 mb-2">Cafe POS</h1>
-                    <p className="text-muted-foreground">Enter PIN for {getRoleTitle()}</p>
+                    <p className="text-muted-foreground">{t.enter_pin_for} {getRoleTitle()}</p>
                 </div>
 
                 {/* PIN Display */}
@@ -168,14 +170,14 @@ function PinLoginContent() {
                         disabled={isLoading || pin.length === 0}
                     >
                         <Delete className="w-5 h-5 mr-2" />
-                        Delete
+                        {t.delete}
                     </Button>
                     <Button
                         className="h-12 bg-amber-600 hover:bg-amber-700"
                         onClick={handleSubmit}
                         disabled={isLoading || pin.length < 4}
                     >
-                        {isLoading ? 'Logging in...' : 'Enter'}
+                        {isLoading ? t.logging_in : t.enter_login}
                     </Button>
                 </div>
 
@@ -185,7 +187,7 @@ function PinLoginContent() {
                         className="text-sm text-muted-foreground"
                         onClick={() => router.push('/role-select')}
                     >
-                        Back to role selection
+                        {t.back_to_role_selection}
                     </Button>
                 </div>
             </Card>

@@ -4,19 +4,21 @@ import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Coffee, DollarSign, Settings } from "lucide-react"
 import Link from "next/link"
+import { useTranslation } from "@/hooks/use-translation"
 
 export default function RoleSelectPage() {
+  const { t } = useTranslation()
   const roles = [
     {
       title: "Admin",
-      description: "Full access to all features",
+      description: t.full_access_to_all_features,
       icon: Settings,
       color: "bg-purple-500 hover:bg-purple-600",
       role: "ADMIN",
     },
     {
       title: "Cashier",
-      description: "Take orders and process payments",
+      description: t.take_orders_and_process_payments,
       icon: DollarSign,
       color: "bg-blue-500 hover:bg-blue-600",
       role: "CASHIER",
@@ -34,8 +36,8 @@ export default function RoleSelectPage() {
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-amber-50 to-orange-100 p-4">
       <div className="w-full max-w-4xl">
         <div className="text-center mb-12">
-          <h1 className="text-4xl font-bold text-amber-900 mb-2">Select Your Role</h1>
-          <p className="text-muted-foreground">Choose how you want to access the system</p>
+          <h1 className="text-4xl font-bold text-amber-900 mb-2">{t.select_your_role}</h1>
+          <p className="text-muted-foreground">{t.choose_how_you_want_to_access_the_system}</p>
         </div>
 
         <div className="grid md:grid-cols-2 gap-6">
@@ -54,7 +56,7 @@ export default function RoleSelectPage() {
                         <p className="text-sm text-muted-foreground">{role.description}</p>
                       </div>
                     </div>
-                    <Button className={`w-full ${role.color} text-white`}>Continue as {role.title}</Button>
+                    <Button className={`w-full ${role.color} text-white`}>{t.continue_as} {role.title}</Button>
                   </div>
                 </Card>
               </Link>

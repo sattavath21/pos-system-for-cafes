@@ -58,10 +58,34 @@ export async function POST(request: Request) {
             // Prepare relation connects
             const relationData: any = {}
             if (promoId) {
-                relationData.promotion = { connect: { id: promoId } }
+                const promoExists = await tx.promotion.findUnique({ where: { id: promoId } })
+                if (promoExists) {
+                    relationData.promotion = { connect: { id: promoId } }
+                }
             }
             if (customerId) {
-                relationData.customer = { connect: { id: customerId } }
+                // Check if customer exists before connecting
+                const customerExists = await tx.customer.findUnique({ where: { id: customerId } })
+                if (customerExists) {
+                    relationData.customer = { connect: { id: customerId } }
+                }
+            }
+
+            // Prepare validated items
+            const preparedItems = []
+            for (const item of items) {
+                let pid = null
+                if (item.id) {
+                    const product = await tx.product.findUnique({ where: { id: item.id } })
+                    if (product) pid = item.id
+                }
+                preparedItems.push({
+                    productId: pid,
+                    name: item.name,
+                    price: item.price,
+                    quantity: item.quantity,
+                    total: item.price * item.quantity
+                })
             }
 
             if (isNew) {
@@ -71,13 +95,7 @@ export async function POST(request: Request) {
                         ...orderData,
                         ...relationData,
                         items: {
-                            create: items.map((item: any) => ({
-                                productId: item.id,
-                                name: item.name,
-                                price: item.price,
-                                quantity: item.quantity,
-                                total: item.price * item.quantity
-                            }))
+                            create: preparedItems
                         }
                     }
                 })
@@ -88,12 +106,22 @@ export async function POST(request: Request) {
                 // For update, handle disconnect if IDs are null
                 const updateRelations: any = {}
                 if (promoId) {
-                    updateRelations.promotion = { connect: { id: promoId } }
+                    const promoExists = await tx.promotion.findUnique({ where: { id: promoId } })
+                    if (promoExists) {
+                        updateRelations.promotion = { connect: { id: promoId } }
+                    } else {
+                        updateRelations.promotion = { disconnect: true }
+                    }
                 } else {
                     updateRelations.promotion = { disconnect: true }
                 }
                 if (customerId) {
-                    updateRelations.customer = { connect: { id: customerId } }
+                    const customerExists = await tx.customer.findUnique({ where: { id: customerId } })
+                    if (customerExists) {
+                        updateRelations.customer = { connect: { id: customerId } }
+                    } else {
+                        updateRelations.customer = { disconnect: true }
+                    }
                 } else {
                     updateRelations.customer = { disconnect: true }
                 }
@@ -104,13 +132,7 @@ export async function POST(request: Request) {
                         ...orderData,
                         ...updateRelations,
                         items: {
-                            create: items.map((item: any) => ({
-                                productId: item.id,
-                                name: item.name,
-                                price: item.price,
-                                quantity: item.quantity,
-                                total: item.price * item.quantity
-                            }))
+                            create: preparedItems
                         }
                     }
                 })
