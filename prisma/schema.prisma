@@ -1,6 +1,5 @@
 generator client {
   provider = "prisma-client-js"
-  engineType = "library"
 }
 
 datasource db {
@@ -115,6 +114,14 @@ model Order {
   createdAt     DateTime    @default(now())
   updatedAt     DateTime    @updatedAt
   cancellationReason String? // Reason for cancellation (if status is CANCELLED)
+  beeperNumber  String?     // Added for consistency
+  pointsRedeemed Int?       @default(0) // Added for consistency
+  taxAmount     Float?      @default(0) // Added for consistency
+}
+
+model Setting {
+  key   String @id
+  value String
 }
 
 model Shift {

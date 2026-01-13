@@ -78,12 +78,6 @@ export default function POSPage() {
   const [isInitialLoad, setIsInitialLoad] = useState(true)
   const [isHoldSuccessOpen, setIsHoldSuccessOpen] = useState(false)
 
-  // Shift & Cash Management
-  const [isShiftOpen, setIsShiftOpen] = useState(true) // Assume true initially, check later
-  const [activeShiftId, setActiveShiftId] = useState<string | null>(null)
-  const [isShiftModalOpen, setIsShiftModalOpen] = useState(false)
-  const [startCash, setStartCash] = useState("")
-
   // Cancel Reason
   const [cancelReason, setCancelReason] = useState("")
   const [isCancelConfirmOpen, setIsCancelConfirmOpen] = useState(false)
@@ -172,45 +166,8 @@ export default function POSPage() {
     if (savedResumedId) setResumedOrderId(savedResumedId)
 
     fetchSettings()
-    checkShiftStatus()
     setIsInitialLoad(false)
   }, [])
-
-  const checkShiftStatus = async () => {
-    try {
-      const res = await fetch('/api/shifts?status=OPEN')
-      if (res.ok) {
-        const shifts = await res.json()
-        if (shifts.length > 0) {
-          setIsShiftOpen(true)
-          setActiveShiftId(shifts[0].id)
-        } else {
-          setIsShiftOpen(false)
-          setIsShiftModalOpen(true)
-        }
-      }
-    } catch (e) { console.error(e) }
-  }
-
-  const handleOpenShift = async () => {
-    if (!startCash) return alert("Please enter opening cash amount")
-    try {
-      const res = await fetch('/api/shifts', {
-        method: 'POST',
-        body: JSON.stringify({
-          startCash: Number(startCash)
-        })
-      })
-      if (res.ok) {
-        const shift = await res.json()
-        setActiveShiftId(shift.id)
-        setIsShiftOpen(true)
-        setIsShiftModalOpen(false)
-      } else {
-        alert("Failed to open shift")
-      }
-    } catch (e) { alert("Error opening shift") }
-  }
 
   const fetchSettings = async () => {
     try {
