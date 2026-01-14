@@ -10,6 +10,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogT
 import { Plus, Edit, Trash2, AlertTriangle, Package } from "lucide-react"
 import Link from "next/link"
 import { formatLAK } from "@/lib/currency"
+import { Header } from "@/components/header"
 
 type Ingredient = {
   id: string
@@ -120,21 +121,7 @@ export default function InventoryPage() {
 
   return (
     <div className="min-h-screen bg-background">
-      <header className="border-b bg-white sticky top-0 z-10">
-        <div className="flex items-center justify-between p-4">
-          <h1 className="text-2xl font-bold text-amber-900">{t.inventory_management}</h1>
-          <div className="flex items-center gap-4">
-            <Link href="/inventory/recipes">
-              <Button variant="outline" size="sm" className="border-amber-600 text-amber-600 hover:bg-amber-50">
-                {t.manage_recipes}
-              </Button>
-            </Link>
-            <Link href="/dashboard">
-              <Button variant="outline" size="sm">{t.dashboard}</Button>
-            </Link>
-          </div>
-        </div>
-      </header>
+      <Header title={t.inventory_management} />
 
       <div className="p-6 space-y-6">
         {/* Stats */}
@@ -168,12 +155,12 @@ export default function InventoryPage() {
                   <DialogTitle>{editingItem ? t.edit : t.add_item} {t.inventory}</DialogTitle>
                 </DialogHeader>
                 <div className="space-y-4">
-                  <div>
+                  <div className="space-y-2">
                     <Label>{t.name}</Label>
                     <Input value={formData.name} onChange={e => setFormData({ ...formData, name: e.target.value })} />
                   </div>
                   <div className="grid grid-cols-2 gap-4">
-                    <div>
+                    <div className="space-y-2">
                       <Label>{t.unit}</Label>
                       <Input
                         placeholder="e.g. kg, L, pcs"
@@ -181,22 +168,22 @@ export default function InventoryPage() {
                         onChange={e => setFormData({ ...formData, unit: e.target.value })}
                       />
                     </div>
-                    <div>
+                    <div className="space-y-2">
                       <Label>{t.stock}</Label>
                       <Input type="text" value={formData.currentStock} onChange={e => setFormData({ ...formData, currentStock: Number(e.target.value) })} />
                     </div>
                   </div>
                   <div className="grid grid-cols-2 gap-4">
-                    <div>
+                    <div className="space-y-2">
                       <Label>{t.min_stock}</Label>
                       <Input type="text" value={formData.minStock} onChange={e => setFormData({ ...formData, minStock: Number(e.target.value) })} />
                     </div>
-                    <div>
+                    <div className="space-y-2">
                       <Label>{t.max_stock}</Label>
                       <Input type="text" value={formData.maxStock} onChange={e => setFormData({ ...formData, maxStock: Number(e.target.value) })} />
                     </div>
                   </div>
-                  <div>
+                  <div className="space-y-2">
                     <Label>{t.cost_per_unit} (LAK)</Label>
                     <Input type="text" value={formData.cost} onChange={e => setFormData({ ...formData, cost: Number(e.target.value) })} />
                   </div>
@@ -252,6 +239,6 @@ export default function InventoryPage() {
           </div>
         </Card>
       </div>
-    </div>
+    </div >
   )
 }

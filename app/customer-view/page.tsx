@@ -13,6 +13,7 @@ type CartItem = {
     quantity: number
     modifiers: string[]
     category: string
+    image?: string
 }
 
 export default function CustomerViewPage() {
@@ -27,6 +28,7 @@ export default function CustomerViewPage() {
     const [isIdle, setIsIdle] = useState(true)
     const [qrPayment, setQrPayment] = useState<any>(null)
     const [settings, setSettings] = useState<any>(null)
+    const [customer, setCustomer] = useState<any>(null)
 
     useEffect(() => {
         const posChannel = new BroadcastChannel("pos_channel")
@@ -42,6 +44,7 @@ export default function CustomerViewPage() {
                 setPromoDiscount(event.data.promoDiscount || 0)
                 setLoyaltyDiscount(event.data.loyaltyDiscount || 0)
                 setPromoName(event.data.promoName || "")
+                setCustomer(event.data.customer || null)
                 setIsIdle(event.data.cart.length === 0)
             }
         }
@@ -119,8 +122,12 @@ export default function CustomerViewPage() {
                     {cart.map((item) => (
                         <Card key={item.id} className="p-6 flex items-center justify-between shadow-sm border-0 bg-white/80 backdrop-blur">
                             <div className="flex items-center gap-4">
-                                <div className="w-12 h-12 bg-amber-100 rounded-full flex items-center justify-center text-xl">
-                                    {item.category === "Coffee" ? "☕" : item.category === "Tea" ? "🍵" : "🍽️"}
+                                <div className="w-16 h-16 bg-amber-100 rounded-lg flex items-center justify-center overflow-hidden">
+                                    {item.image ? (
+                                        <img src={item.image} alt={item.name} className="w-full h-full object-cover" />
+                                    ) : (
+                                        <span className="text-2xl">{item.category === "Coffee" ? "☕" : item.category === "Tea" ? "🍵" : "🍽️"}</span>
+                                    )}
                                 </div>
                                 <div>
                                     <h3 className="text-xl font-semibold text-slate-800">{item.name}</h3>
@@ -137,55 +144,71 @@ export default function CustomerViewPage() {
             </div>
 
             {/* Right Panel: Totals or QR Payment */}
-            <div className="w-[400px] bg-white border-l p-8 flex flex-col justify-center shadow-2xl z-10">
-                {qrPayment ? (
-                    <div className="space-y-6">
-                        <div className="text-center">
-                            <h2 className="text-2xl font-bold text-slate-800 mb-2">Scan to Pay</h2>
-                            <p className="text-lg font-semibold text-green-600">{formatLAK(qrPayment.amount)}</p>
-                        </div>
-                        <Card className="p-6 bg-slate-50">
-                            <div className="flex justify-center">
-                                <QRCodeSVG value={qrPayment.qrData} size={250} level="H" />
+            <div className="w-[400px] bg-white border-l p-8 flex flex-col shadow-2xl z-10">
+                {customer && (
+                    <div className="mb-8 p-4 bg-amber-50 rounded-xl border border-amber-100 animate-in slide-in-from-right duration-500">
+                        <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 bg-amber-100 rounded-full flex items-center justify-center">
+                                <span className="text-xl">👤</span>
                             </div>
-                        </Card>
-                        <div className="text-center space-y-2">
-                            <p className="text-sm text-slate-600">Order #{qrPayment.orderNumber}</p>
-                            <p className="text-sm text-blue-600 font-medium">Waiting for payment confirmation...</p>
-                        </div>
-                    </div>
-                ) : (
-                    <div className="space-y-3">
-                        <div className="flex justify-between text-xl text-slate-500">
-                            <span>Subtotal</span>
-                            <span>{formatLAK(subtotal)}</span>
-                        </div>
-                        {promoDiscount > 0 && (
-                            <div className="flex justify-between text-xl text-rose-500">
-                                <span>Promotion {promoName ? `(${promoName})` : ''}</span>
-                                <span>-{formatLAK(promoDiscount)}</span>
+                            <div>
+                                <p className="text-sm text-amber-700 font-medium leading-tight">Selected Customer</p>
+                                <p className="text-lg font-bold text-amber-900 leading-tight">{customer.name}</p>
                             </div>
-                        )}
-                        {loyaltyDiscount > 0 && (
-                            <div className="flex justify-between text-xl text-amber-500">
-                                <span>Loyalty Points Earning</span>
-                                <span>-{formatLAK(loyaltyDiscount)}</span>
-                            </div>
-                        )}
-                        <div className="flex justify-between text-xl text-slate-500">
-                            <span>Tax</span>
-                            <span>{formatLAK(tax)}</span>
-                        </div>
-
-                        <div className="border-t pt-6">
-                            <div className="flex justify-between items-baseline">
-                                <span className="text-3xl font-bold text-slate-800">Total</span>
-                                <span className="text-5xl font-extrabold text-amber-600">{formatLAK(total)}</span>
-                            </div>
-                            <p className="text-right text-sm text-slate-400 mt-2">Thank you for visiting!</p>
                         </div>
                     </div>
                 )}
+
+                <div className="flex-1 flex flex-col justify-center">
+                    {qrPayment ? (
+                        <div className="space-y-6">
+                            <div className="text-center">
+                                <h2 className="text-2xl font-bold text-slate-800 mb-2">Scan to Pay</h2>
+                                <p className="text-lg font-semibold text-green-600">{formatLAK(qrPayment.amount)}</p>
+                            </div>
+                            <Card className="p-6 bg-slate-50">
+                                <div className="flex justify-center">
+                                    <QRCodeSVG value={qrPayment.qrData} size={250} level="H" />
+                                </div>
+                            </Card>
+                            <div className="text-center space-y-2">
+                                <p className="text-sm text-slate-600">Order #{qrPayment.orderNumber}</p>
+                                <p className="text-sm text-blue-600 font-medium">Waiting for payment confirmation...</p>
+                            </div>
+                        </div>
+                    ) : (
+                        <div className="space-y-3">
+                            <div className="flex justify-between text-xl text-slate-500">
+                                <span>Subtotal</span>
+                                <span>{formatLAK(subtotal)}</span>
+                            </div>
+                            {promoDiscount > 0 && (
+                                <div className="flex justify-between text-xl text-rose-500">
+                                    <span>Promotion {promoName ? `(${promoName})` : ''}</span>
+                                    <span>-{formatLAK(promoDiscount)}</span>
+                                </div>
+                            )}
+                            {loyaltyDiscount > 0 && (
+                                <div className="flex justify-between text-xl text-amber-500">
+                                    <span>Loyalty Points Earning</span>
+                                    <span>-{formatLAK(loyaltyDiscount)}</span>
+                                </div>
+                            )}
+                            <div className="flex justify-between text-xl text-slate-500">
+                                <span>Tax</span>
+                                <span>{formatLAK(tax)}</span>
+                            </div>
+
+                            <div className="border-t pt-6">
+                                <div className="flex justify-between items-baseline">
+                                    <span className="text-3xl font-bold text-slate-800">Total</span>
+                                    <span className="text-5xl font-extrabold text-amber-600">{formatLAK(total)}</span>
+                                </div>
+                                <p className="text-right text-sm text-slate-400 mt-2">Thank you for visiting!</p>
+                            </div>
+                        </div>
+                    )}
+                </div>
             </div>
         </div>
     )

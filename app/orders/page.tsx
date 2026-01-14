@@ -7,7 +7,10 @@ import { Badge } from "@/components/ui/badge"
 import { Clock, CheckCircle, XCircle, Play, Printer } from "lucide-react"
 import Link from "next/link"
 import { formatLAK } from "@/lib/currency"
-import { Dialog, DialogContent } from "@/components/ui/dialog"
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { Label } from "@/components/ui/label"
+import { Input } from "@/components/ui/input"
+import { Header } from "@/components/header"
 
 type Order = {
     id: string
@@ -25,6 +28,9 @@ export default function ActiveOrdersPage() {
     const [orders, setOrders] = useState<Order[]>([])
     const [filter, setFilter] = useState<string>("ALL")
     const [printingOrder, setPrintingOrder] = useState<Order | null>(null)
+    const [cancellingOrder, setCancellingOrder] = useState<Order | null>(null)
+    const [cancelReason, setCancelReason] = useState("")
+    const [isProcessing, setIsProcessing] = useState(false)
 
     useEffect(() => {
         fetchOrders()
@@ -56,6 +62,35 @@ export default function ActiveOrdersPage() {
         }
     }
 
+    const handleCancelOrder = async () => {
+        if (!cancellingOrder || !cancelReason) return
+        setIsProcessing(true)
+        try {
+            const res = await fetch('/api/orders', {
+                method: 'POST',
+                body: JSON.stringify({
+                    id: cancellingOrder.id,
+                    items: cancellingOrder.items || [],
+                    total: cancellingOrder.total,
+                    subtotal: cancellingOrder.total,
+                    tax: 0,
+                    status: 'CANCELLED',
+                    cancellationReason: cancelReason
+                }),
+                headers: { 'Content-Type': 'application/json' }
+            })
+            if (res.ok) {
+                setCancellingOrder(null)
+                setCancelReason("")
+                fetchOrders()
+            }
+        } catch (e) {
+            console.error(e)
+        } finally {
+            setIsProcessing(false)
+        }
+    }
+
     const filteredOrders = filter === "ALL"
         ? orders
         : orders.filter(o => o.status === filter)
@@ -81,18 +116,7 @@ export default function ActiveOrdersPage() {
 
     return (
         <div className="min-h-screen bg-background">
-            <header className="border-b bg-white sticky top-0 z-10">
-                <div className="flex items-center justify-between p-4">
-                    <h1 className="text-2xl font-bold text-amber-900">All Orders</h1>
-                    <div className="flex items-center gap-4">
-                        <Link href="/dashboard">
-                            <Button variant="outline" size="sm">
-                                Dashboard
-                            </Button>
-                        </Link>
-                    </div>
-                </div>
-            </header>
+            <Header title="All Orders" />
 
             <div className="p-6 space-y-6">
                 {/* Filter Tabs */}
@@ -154,22 +178,73 @@ export default function ActiveOrdersPage() {
                                 )}
 
                                 {order.status === "COMPLETED" && (
-                                    <Button
-                                        size="sm"
-                                        variant="outline"
-                                        className="border-blue-200 text-blue-600 hover:bg-blue-50"
-                                        onClick={() => {
-                                            window.open(`/receipt?id=${order.id}`, '_blank', 'width=450,height=600');
-                                        }}
-                                    >
-                                        <Printer className="w-4 h-4 mr-1" />
-                                        Print
-                                    </Button>
+                                    <div className="flex gap-2">
+                                        <Button
+                                            size="sm"
+                                            variant="outline"
+                                            className="border-red-200 text-red-600 hover:bg-red-50"
+                                            onClick={() => setCancellingOrder(order)}
+                                        >
+                                            Cancel
+                                        </Button>
+                                        <Button
+                                            size="sm"
+                                            variant="outline"
+                                            className="border-blue-200 text-blue-600 hover:bg-blue-50"
+                                            onClick={() => {
+                                                window.open(`/receipt?id=${order.id}`, '_blank', 'width=450,height=600');
+                                            }}
+                                        >
+                                            <Printer className="w-4 h-4 mr-1" />
+                                            Print
+                                        </Button>
+                                    </div>
                                 )}
                             </div>
                         </Card>
                     ))}
                 </div>
+
+                {/* Cancellation Modal */}
+                <Dialog open={!!cancellingOrder} onOpenChange={() => setCancellingOrder(null)}>
+                    <DialogContent>
+                        <div className="space-y-4">
+                            <DialogHeader>
+                                <DialogTitle>Cancel Order {cancellingOrder?.orderNumber}</DialogTitle>
+                            </DialogHeader>
+                            <p className="text-sm text-muted-foreground">Are you sure you want to cancel this order? This will revert stock and refund cash payments.</p>
+                            <div className="space-y-2">
+                                <Label>Reason for Cancellation</Label>
+                                <Input
+                                    placeholder="e.g. Customer changed mind, incorrect item"
+                                    value={cancelReason}
+                                    onChange={e => setCancelReason(e.target.value)}
+                                />
+                            </div>
+                            <div className="flex justify-end gap-2">
+                                <Button variant="outline" onClick={() => setCancellingOrder(null)}>No, keep order</Button>
+                                <Button
+                                    variant="destructive"
+                                    onClick={handleCancelOrder}
+                                    disabled={!cancelReason || isProcessing}
+                                >
+                                    {isProcessing ? "Processing..." : "Yes, cancel order"}
+                                </Button>
+                            </div>
+                        </div>
+                    </DialogContent>
+                </Dialog>
+
+                {/* Printing Modal (placeholder for future implementation) */}
+                <Dialog open={!!printingOrder} onOpenChange={() => setPrintingOrder(null)}>
+                    <DialogContent>
+                        <DialogHeader>
+                            <DialogTitle>Print Receipt</DialogTitle>
+                        </DialogHeader>
+                        <p>Printing functionality will be implemented here.</p>
+                        <Button onClick={() => setPrintingOrder(null)}>Close</Button>
+                    </DialogContent>
+                </Dialog>
 
                 {filteredOrders.length === 0 && (
                     <div className="text-center py-12 text-muted-foreground">

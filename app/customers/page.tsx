@@ -9,6 +9,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogT
 import { Label } from "@/components/ui/label"
 import { Plus, Search, Star, Eye } from "lucide-react"
 import Link from "next/link"
+import { Header } from "@/components/header"
 
 type Customer = {
   id: string
@@ -108,28 +109,7 @@ export default function CustomersPage() {
   return (
     <div className="min-h-screen bg-background">
       {/* Header */}
-      <header className="border-b bg-white sticky top-0 z-10">
-        <div className="flex items-center justify-between p-4">
-          <h1 className="text-2xl font-bold text-amber-900">{t.customer_management}</h1>
-          <div className="flex items-center gap-4">
-            <Link href="/menu">
-              <Button variant="outline" size="sm">
-                {t.menu}
-              </Button>
-            </Link>
-            <Link href="/inventory">
-              <Button variant="outline" size="sm">
-                {t.inventory}
-              </Button>
-            </Link>
-            <Link href="/dashboard">
-              <Button variant="outline" size="sm">
-                {t.dashboard}
-              </Button>
-            </Link>
-          </div>
-        </div>
-      </header>
+      <Header title={t.customer_management} />
 
       <div className="p-6 space-y-6">
         {/* Stats */}
@@ -181,7 +161,7 @@ export default function CustomersPage() {
                 <DialogTitle>{t.add_new_customer}</DialogTitle>
               </DialogHeader>
               <div className="space-y-4">
-                <div>
+                <div className="space-y-2">
                   <Label htmlFor="customerName">{t.full_name}</Label>
                   <Input
                     id="customerName"
@@ -190,7 +170,7 @@ export default function CustomersPage() {
                     onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                   />
                 </div>
-                <div>
+                <div className="space-y-2">
                   <Label htmlFor="customerPhone">{t.phone_number}</Label>
                   <Input
                     id="customerPhone"
@@ -199,7 +179,7 @@ export default function CustomersPage() {
                     onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
                   />
                 </div>
-                <div>
+                <div className="space-y-2">
                   <Label htmlFor="customerEmail">{t.email} ({t.inactive})</Label>
                   <Input
                     id="customerEmail"
@@ -209,7 +189,7 @@ export default function CustomersPage() {
                     onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                   />
                 </div>
-                <div>
+                <div className="space-y-2">
                   <Label htmlFor="customerDob">{t.date_of_birth} ({t.inactive})</Label>
                   <Input
                     id="customerDob"

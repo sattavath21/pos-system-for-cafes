@@ -10,6 +10,7 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Plus, Edit, Trash2, Tag, Percent } from "lucide-react"
 import Link from "next/link"
+import { Header } from "@/components/header"
 import { formatLAK } from "@/lib/currency"
 
 type Promotion = {
@@ -97,14 +98,7 @@ export default function PromotionsPage() {
 
   return (
     <div className="min-h-screen bg-background">
-      <header className="border-b bg-white sticky top-0 z-10">
-        <div className="flex items-center justify-between p-4">
-          <h1 className="text-2xl font-bold text-amber-900">{t.promotions_discounts}</h1>
-          <Link href="/dashboard">
-            <Button variant="outline" size="sm">{t.dashboard}</Button>
-          </Link>
-        </div>
-      </header>
+      <Header title={t.promotions} />
 
       <div className="p-6 space-y-6">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -135,20 +129,20 @@ export default function PromotionsPage() {
                   <DialogTitle>{editingPromo ? t.edit_promotion : t.create_promotion}</DialogTitle>
                 </DialogHeader>
                 <div className="space-y-4 py-4">
-                  <div>
+                  <div className="space-y-2">
                     <Label htmlFor="name">{t.promotion_name}</Label>
                     <Input id="name" name="name" required defaultValue={editingPromo?.name} />
                   </div>
-                  <div>
+                  <div className="space-y-2">
                     <Label htmlFor="description">{t.description}</Label>
                     <Textarea id="description" name="description" defaultValue={editingPromo?.description || ""} />
                   </div>
                   <div className="grid grid-cols-2 gap-4">
-                    <div>
+                    <div className="space-y-2">
                       <Label htmlFor="code">{t.promo_code}</Label>
                       <Input id="code" name="code" required defaultValue={editingPromo?.code} />
                     </div>
-                    <div>
+                    <div className="space-y-2">
                       <Label htmlFor="discountType">{t.discount_type}</Label>
                       <select name="discountType" className="w-full h-10 px-3 rounded-md border" defaultValue={editingPromo?.discountType || "percentage"}>
                         <option value="percentage">{t.percentage}</option>
@@ -156,21 +150,21 @@ export default function PromotionsPage() {
                       </select>
                     </div>
                   </div>
-                  <div>
+                  <div className="space-y-2">
                     <Label htmlFor="discountValue">{t.discount_value}</Label>
                     <Input id="discountValue" name="discountValue" type="number" required defaultValue={editingPromo?.discountValue} />
                   </div>
                   <div className="grid grid-cols-2 gap-4">
-                    <div>
+                    <div className="space-y-2">
                       <Label htmlFor="startDate">{t.start_date}</Label>
                       <Input id="startDate" name="startDate" type="date" required defaultValue={editingPromo?.startDate?.split('T')[0]} />
                     </div>
-                    <div>
+                    <div className="space-y-2">
                       <Label htmlFor="endDate">{t.end_date}</Label>
                       <Input id="endDate" name="endDate" type="date" required defaultValue={editingPromo?.endDate?.split('T')[0]} />
                     </div>
                   </div>
-                  <div>
+                  <div className="space-y-2">
                     <Label htmlFor="isActive">{t.status}</Label>
                     <select name="isActive" className="w-full h-10 px-3 rounded-md border" defaultValue={editingPromo?.isActive ? "active" : "inactive"}>
                       <option value="active">{t.active}</option>

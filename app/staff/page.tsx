@@ -9,6 +9,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogT
 import { Label } from "@/components/ui/label"
 import { Plus, Edit, Trash2, Search, UserCheck, UserX } from "lucide-react"
 import Link from "next/link"
+import { Header } from "@/components/header"
+import { useTranslation } from "@/hooks/use-translation"
 
 type Staff = {
   id: string
@@ -20,6 +22,7 @@ type Staff = {
 }
 
 export default function StaffPage() {
+  const { t } = useTranslation()
   const [searchQuery, setSearchQuery] = useState("")
   const [isDialogOpen, setIsDialogOpen] = useState(false)
   const [editingStaff, setEditingStaff] = useState<Staff | null>(null)
@@ -99,18 +102,7 @@ export default function StaffPage() {
   return (
     <div className="min-h-screen bg-background">
       {/* Header */}
-      <header className="border-b bg-white sticky top-0 z-10">
-        <div className="flex items-center justify-between p-4">
-          <h1 className="text-2xl font-bold text-amber-900">Staff Management</h1>
-          <div className="flex items-center gap-4">
-            <Link href="/dashboard">
-              <Button variant="outline" size="sm">
-                Dashboard
-              </Button>
-            </Link>
-          </div>
-        </div>
-      </header>
+      <Header title={t.staff_management} />
 
       <div className="p-6 space-y-6">
         {/* Stats */}
@@ -156,15 +148,15 @@ export default function StaffPage() {
                 <DialogTitle>{editingStaff ? "Edit Staff Member" : "Add New Staff Member"}</DialogTitle>
               </DialogHeader>
               <div className="space-y-4">
-                <div>
+                <div className="space-y-2">
                   <Label htmlFor="staffName">Full Name</Label>
                   <Input id="staffName" placeholder="John Doe" defaultValue={editingStaff?.name} />
                 </div>
-                <div>
+                <div className="space-y-2">
                   <Label htmlFor="staffEmail">Email</Label>
                   <Input id="staffEmail" type="email" placeholder="john@cafe.com" defaultValue={editingStaff?.email} />
                 </div>
-                <div>
+                <div className="space-y-2">
                   <Label htmlFor="staffRole">Role</Label>
                   <select
                     id="staffRole"
@@ -177,12 +169,12 @@ export default function StaffPage() {
                   </select>
                 </div>
                 {!editingStaff && (
-                  <div>
+                  <div className="space-y-2">
                     <Label htmlFor="staffPassword">Password</Label>
                     <Input id="staffPassword" type="password" placeholder="Create a password" />
                   </div>
                 )}
-                <div>
+                <div className="space-y-2">
                   <Label htmlFor="staffStatus">Status</Label>
                   <select
                     id="staffStatus"

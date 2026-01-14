@@ -6,7 +6,9 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Store, Receipt, DollarSign, Languages, Key } from "lucide-react"
+import { useTranslation } from "@/hooks/use-translation"
 import Link from "next/link"
+import { Header } from "@/components/header"
 
 export default function SettingsPage() {
   const [user, setUser] = useState<any>(null)
@@ -72,20 +74,15 @@ export default function SettingsPage() {
     }
   }
 
-  if (isLoading) return <div className="p-10 text-center">Loading Settings...</div>
+  const { t } = useTranslation()
+
+  if (isLoading) return <div className="p-10 text-center">{t.loading_setting}</div>
+
 
   return (
     <div className="min-h-screen bg-background text-slate-900">
       {/* Header */}
-      <header className="border-b bg-white sticky top-0 z-10">
-        <div className="flex items-center justify-between p-4">
-          <h1 className="text-2xl font-bold text-amber-900">Settings</h1>
-          <Link href="/dashboard">
-            <Button variant="outline" size="sm">Dashboard</Button>
-          </Link>
-        </div>
-      </header>
-
+      <Header title="Shop Settings" />
       <div className="p-6 space-y-6 max-w-4xl mx-auto">
         {/* Language Selection */}
         <Card className="p-6 border-amber-100 shadow-sm">
@@ -95,7 +92,7 @@ export default function SettingsPage() {
             </div>
             <div>
               <h2 className="text-xl font-bold">Language / ພາສາ</h2>
-              <p className="text-sm text-muted-foreground">Select your preferred language</p>
+              <p className="text-sm text-muted-foreground">{t.select_preferred_language}</p>
             </div>
           </div>
           <div className="flex gap-4">
@@ -123,20 +120,20 @@ export default function SettingsPage() {
               <Store className="w-6 h-6 text-amber-600" />
             </div>
             <div>
-              <h2 className="text-xl font-bold">Shop Information</h2>
+              <h2 className="text-xl font-bold">{t.shop_info}</h2>
               <p className="text-sm text-muted-foreground">Basic details about your café</p>
             </div>
           </div>
           <div className="space-y-4">
             <div className="grid md:grid-cols-2 gap-4">
-              <div>
+              <div className="space-y-2">
                 <Label>Shop Name</Label>
                 <Input
                   value={settings.shopName || ""}
                   onChange={(e) => setSettings({ ...settings, shopName: e.target.value })}
                 />
               </div>
-              <div>
+              <div className="space-y-2">
                 <Label>Phone Number</Label>
                 <Input
                   value={settings.shopPhone || ""}
@@ -144,7 +141,7 @@ export default function SettingsPage() {
                 />
               </div>
             </div>
-            <div>
+            <div className="space-y-2">
               <Label>Shop Address</Label>
               <Input
                 value={settings.shopAddress || ""}
@@ -167,7 +164,7 @@ export default function SettingsPage() {
           </div>
 
           <div className="space-y-4">
-            <div>
+            <div className="space-y-2">
               <Label>Receipt Footer Message</Label>
               <Input
                 placeholder="Thank you for visiting!"
@@ -191,7 +188,7 @@ export default function SettingsPage() {
           </div>
 
           <div className="grid grid-cols-2 gap-4">
-            <div>
+            <div className="space-y-2">
               <Label>Tax Rate (%)</Label>
               <Input
                 type="number"
@@ -199,7 +196,7 @@ export default function SettingsPage() {
                 onChange={(e) => setSettings({ ...settings, taxRate: e.target.value })}
               />
             </div>
-            <div>
+            <div className="space-y-2">
               <Label>Loyalty Rate (1pt = ? LAK)</Label>
               <Input
                 type="number"
@@ -222,49 +219,51 @@ export default function SettingsPage() {
         </div>
 
         {/* Admin PIN Management */}
-        {user?.role === 'ADMIN' && (
-          <Card className="p-6 border-red-100 bg-red-50/10 shadow-sm">
-            <div className="flex items-center gap-3 mb-6">
-              <div className="bg-red-100 p-3 rounded-lg">
-                <Key className="w-6 h-6 text-red-600" />
+        {
+          user?.role === 'ADMIN' && (
+            <Card className="p-6 border-red-100 bg-red-50/10 shadow-sm">
+              <div className="flex items-center gap-3 mb-6">
+                <div className="bg-red-100 p-3 rounded-lg">
+                  <Key className="w-6 h-6 text-red-600" />
+                </div>
+                <div>
+                  <h2 className="text-xl font-bold text-red-900">Security & PINs</h2>
+                  <p className="text-sm text-red-600/80">Manage access codes for staff</p>
+                </div>
               </div>
-              <div>
-                <h2 className="text-xl font-bold text-red-900">Security & PINs</h2>
-                <p className="text-sm text-red-600/80">Manage access codes for staff</p>
-              </div>
-            </div>
 
-            <div className="space-y-6">
-              <div className="grid md:grid-cols-2 gap-6 p-4 border rounded-xl bg-white">
-                <div className="space-y-2">
-                  <Label className="text-amber-900 font-bold">Update Admin PIN</Label>
-                  <div className="flex gap-2">
-                    <Input
-                      type="password"
-                      placeholder="New 4+ digit PIN"
-                      value={adminPin}
-                      onChange={(e) => setAdminPin(e.target.value)}
-                    />
-                    <Button onClick={() => handleUpdatePin('ADMIN', adminPin)}>Update</Button>
+              <div className="space-y-6">
+                <div className="grid md:grid-cols-2 gap-6 p-4 border rounded-xl bg-white">
+                  <div className="space-y-2">
+                    <Label className="text-amber-900 font-bold">Update Admin PIN</Label>
+                    <div className="flex gap-2">
+                      <Input
+                        type="password"
+                        placeholder="New 4+ digit PIN"
+                        value={adminPin}
+                        onChange={(e) => setAdminPin(e.target.value)}
+                      />
+                      <Button onClick={() => handleUpdatePin('ADMIN', adminPin)}>Update</Button>
+                    </div>
                   </div>
-                </div>
-                <div className="space-y-2">
-                  <Label className="text-amber-900 font-bold">Update Cashier PIN</Label>
-                  <div className="flex gap-2">
-                    <Input
-                      type="password"
-                      placeholder="New 4+ digit PIN"
-                      value={cashierPin}
-                      onChange={(e) => setCashierPin(e.target.value)}
-                    />
-                    <Button onClick={() => handleUpdatePin('CASHIER', cashierPin)}>Update</Button>
+                  <div className="space-y-2">
+                    <Label className="text-amber-900 font-bold">Update Cashier PIN</Label>
+                    <div className="flex gap-2">
+                      <Input
+                        type="password"
+                        placeholder="New 4+ digit PIN"
+                        value={cashierPin}
+                        onChange={(e) => setCashierPin(e.target.value)}
+                      />
+                      <Button onClick={() => handleUpdatePin('CASHIER', cashierPin)}>Update</Button>
+                    </div>
                   </div>
                 </div>
               </div>
-            </div>
-          </Card>
-        )}
-      </div>
-    </div>
+            </Card>
+          )
+        }
+      </div >
+    </div >
   )
 }

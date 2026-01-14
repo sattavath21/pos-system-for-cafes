@@ -10,6 +10,7 @@ import { DollarSign, ShoppingCart, TrendingUp, AlertTriangle, Coffee, Users, Pac
 import { useTranslation } from "@/hooks/use-translation"
 import Link from "next/link"
 import { formatLAK } from "@/lib/currency"
+import { Header } from "@/components/header"
 
 export default function DashboardPage() {
   const { t } = useTranslation()
@@ -141,27 +142,7 @@ export default function DashboardPage() {
   return (
     <div className="min-h-screen bg-background">
       {/* Header */}
-      <header className="border-b bg-white sticky top-0 z-10">
-        <div className="flex items-center justify-between p-4">
-          <h1 className="text-2xl font-bold text-amber-900">{t.dashboard}</h1>
-          <div className="flex items-center gap-4">
-            <div className="text-right hidden sm:block">
-              <p className="font-bold text-amber-900 leading-none">{user?.full_name || user?.name || "Staff"}</p>
-              <p className="text-xs text-muted-foreground mt-1 capitalize">{user?.role?.toLowerCase()}</p>
-            </div>
-            {user?.role === 'ADMIN' && (
-              <Link href="/settings">
-                <Button variant="ghost" size="icon" className="text-amber-900 hover:bg-amber-50 cursor-pointer">
-                  <Settings className="w-5 h-5" />
-                </Button>
-              </Link>
-            )}
-            <Button variant="outline" size="sm" onClick={handleLogout} className="text-red-600 border-red-200 hover:bg-red-50 hover:text-red-700">
-              {t.logout}
-            </Button>
-          </div>
-        </div>
-      </header>
+      <Header title={t.dashboard} />
 
       <div className="p-6 space-y-6">
         {/* Stats Grid */}
@@ -355,7 +336,7 @@ export default function DashboardPage() {
               <p className="font-bold">👋 Good Morning!</p>
               <p>You must open a shift and count the cash drawer before taking orders.</p>
             </div>
-            <div>
+            <div className="space-y-2">
               <Label>Starting Cash Amount</Label>
               <Input
                 type="text"
@@ -367,7 +348,6 @@ export default function DashboardPage() {
                 }}
                 className="text-lg font-bold"
               />
-
             </div>
             <Button className="w-full bg-amber-600 hover:bg-amber-700" onClick={handleOpenShift}>
               Open Shift

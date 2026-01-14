@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogTrigger } from "@/components/ui/dialog"
 import { Label } from "@/components/ui/label"
-import { Minus, Plus, X, Search, Clock, User, List, Pause, Package, Check, AlertCircle, Tag, Printer } from "lucide-react"
+import { Search, Plus, List, Package, Tag, Clock, X, Minus, Trash2, Pause, User, ArrowLeft, Check, ChevronRight, Printer } from "lucide-react"
 import Link from "next/link"
 import { Badge } from "@/components/ui/badge"
 import { formatLAK, calculateChange, LAK_DENOMINATIONS, calculateTax } from "@/lib/currency"
@@ -14,6 +14,7 @@ import { PaymentQR } from "@/components/payment-qr"
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog"
 import Image from "next/image"
 import { useTranslation } from "@/hooks/use-translation"
+import { Header } from "@/components/header"
 
 type MenuItem = {
   id: string
@@ -31,6 +32,7 @@ type CartItem = {
   quantity: number
   modifiers: string[]
   category: string
+  image?: string
 }
 
 type Customer = {
@@ -117,10 +119,11 @@ export default function POSPage() {
       discount,
       promoDiscount,
       loyaltyDiscount,
-      promoName: appliedPromo?.name
+      promoName: appliedPromo?.name,
+      customer: selectedCustomer
     })
     return () => channel.close()
-  }, [cart, appliedPromo, loyaltyDiscount, total])
+  }, [cart, appliedPromo, loyaltyDiscount, total, selectedCustomer])
 
   // Sync payment state with customer view
   useEffect(() => {
@@ -651,55 +654,11 @@ export default function POSPage() {
   return (
     <div className="min-h-screen bg-background text-slate-900">
       {/* Header */}
-      <header className="border-b bg-white sticky top-0 z-10">
-        <div className="flex items-center justify-between p-4">
-          <div className="flex items-center gap-4">
-            <Link href="/dashboard">
-              <Button variant="outline" size="sm" className="bg-amber-50 border-amber-200 text-amber-900">
-                {t.dashboard}
-              </Button>
-            </Link>
-            <h1 className="text-2xl font-bold text-amber-900">{t.pos}</h1>
-            <Badge variant="secondary" className="px-3 py-1 text-lg font-mono bg-amber-50 text-amber-900 border-amber-200">
-              {orderNumber || "No. --"}
-            </Badge>
-          </div>
-          <div className="flex items-center gap-4">
-            <Button variant="outline" size="sm" className="text-amber-700 border-amber-200 hover:bg-amber-50" onClick={handleNewOrder}>
-              <Plus className="w-4 h-4 mr-1" /> {t.new_order}
-            </Button>
-
-            <Link href="/orders">
-              <Button variant="outline" size="sm">
-                <List className="w-4 h-4 mr-2" />
-                {t.orders}
-              </Button>
-            </Link>
-            <Link href="/menu">
-              <Button variant="outline" size="sm">
-                <List className="w-4 h-4 mr-2" />
-                {t.menu}
-              </Button>
-            </Link>
-            <Link href="/inventory">
-              <Button variant="outline" size="sm">
-                <Package className="w-4 h-4 mr-2" />
-                {t.inventory}
-              </Button>
-            </Link>
-            <Link href="/promotions">
-              <Button variant="outline" size="sm">
-                <Tag className="w-4 h-4 mr-2" />
-                {t.promotions}
-              </Button>
-            </Link>
-
-            <Button variant="outline" size="sm" onClick={handleLogout} className="text-red-600 border-red-200 hover:bg-red-50 hover:text-red-700">
-              {t.logout}
-            </Button>
-          </div>
-        </div>
-      </header>
+      <Header title={t.pos}>
+        <Badge variant="secondary" className="px-3 py-1 text-lg font-mono bg-amber-50 text-amber-900 border-amber-200">
+          {orderNumber || "No. --"}
+        </Badge>
+      </Header>
 
       <div className="flex h-[calc(100vh-73px)]">
         {/* Left Side - Menu */}
@@ -923,8 +882,8 @@ export default function POSPage() {
                 disabled={cart.length === 0 || isProcessing}
                 onClick={handleCancelOrderClick}
               >
-                <AlertCircle className="w-4 h-4 mr-2" />
-                {t.cancel}
+                <Trash2 className="w-4 h-4 mr-2" />
+                {t.clear}
               </Button>
               <Button
                 variant="outline"
@@ -976,7 +935,7 @@ export default function POSPage() {
                   {paymentMethod === 'BANK_NOTE' && (
                     <div className="space-y-4">
 
-                      <div>
+                      <div className="space-y-2">
                         <Label
                           className={`flex justify-between ${showBeeperError && !beeperNumber ? "text-rose-500" : ""
                             }`}
@@ -1007,7 +966,7 @@ export default function POSPage() {
                         )}
                       </div>
 
-                      <div className="bg-muted p-4 rounded-lg">
+                      <div className="bg-muted p-4 rounded-lg space-y-2">
                         <Label>{t.cash_received}</Label>
                         <Input
                           type="text"
@@ -1057,7 +1016,7 @@ export default function POSPage() {
 
                   {paymentMethod === 'QR_CODE' && (
                     <div className="space-y-4">
-                      <div>
+                      <div className="space-y-2">
                         <Label className={`flex justify-between ${showBeeperError && !beeperNumber ? 'text-rose-500' : ''}`}>
                           <span>Beeper Number</span>
                           <span className="text-xs font-bold">{showBeeperError && !beeperNumber ? 'REQUIRED' : '(Required)'}</span>

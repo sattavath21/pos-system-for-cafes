@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogTrigger } from "@/components/ui/dialog"
 import { formatLAK } from "@/lib/currency"
+import { Header } from "@/components/header"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Plus, Edit, Trash2, Search, ImageIcon } from "lucide-react"
@@ -162,18 +163,7 @@ export default function MenuPage() {
   return (
     <div className="min-h-screen bg-background">
       {/* Header */}
-      <header className="border-b bg-white sticky top-0 z-10">
-        <div className="flex items-center justify-between p-4">
-          <h1 className="text-2xl font-bold text-amber-900">{t.menu_management}</h1>
-          <div className="flex items-center gap-4">
-            <Link href="/dashboard">
-              <Button variant="outline" size="sm">
-                {t.dashboard}
-              </Button>
-            </Link>
-          </div>
-        </div>
-      </header>
+      <Header title={t.menu_management} />
 
       <div className="p-6 space-y-6">
         {/* Search and Add */}
@@ -197,8 +187,10 @@ export default function MenuPage() {
             <DialogContent>
               <DialogHeader><DialogTitle>{t.new_category}</DialogTitle></DialogHeader>
               <div className="space-y-4 py-4">
-                <Label htmlFor="catName">{t.category_name}</Label>
-                <Input id="catName" value={newCategoryName} onChange={e => setNewCategoryName(e.target.value)} />
+                <div className="space-y-2">
+                  <Label htmlFor="catName">{t.category_name}</Label>
+                  <Input id="catName" value={newCategoryName} onChange={e => setNewCategoryName(e.target.value)} />
+                </div>
               </div>
               <DialogFooter>
                 <Button variant="outline" onClick={() => setIsCategoryDialogOpen(false)}>{t.cancel}</Button>

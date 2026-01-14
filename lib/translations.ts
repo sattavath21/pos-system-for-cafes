@@ -185,6 +185,16 @@ export const translations = {
         enter_login: "Enter",
         logging_in: "Logging in...",
         back_to_role_selection: "Back to role selection",
+        loading_setting: "Loading Settings...",
+        select_preferred_language: "Select your preferred language",
+        revenue: "Revenue",
+        cost: "Cost",
+        profit: "Profit",
+        last_visit: "Last Visit",
+        no_items_found: "No Items Found",
+        staff_management: "Staff Managmenet"
+
+
     },
     lo: {
         dashboard: "ໜ້າຫຼັກ",
@@ -371,6 +381,16 @@ export const translations = {
         enter_login: "ເຂົ້າລະບົບ",
         logging_in: "ກຳລັງເຂົ້າຖຶງ...",
         back_to_role_selection: "ກັບຄືນໜ້າເລືອກສິດການເຂົ້າຖຶງ",
+        loading_setting: "ກຳລັງໂຫຼດໜ້າຕັ້ງຄ່າ",
+        select_preferred_language: "ເລືອກພາສາຂອງລະບົບ",
+        revenue: "ລາຍຮັບ",
+        cost: "ມູນຄ່າ",
+        profit: "ກຳໄລ",
+        last_visit: "ມາຮ້ານລ່າສຸດ",
+        no_items_found: "ບໍ່ພົບລາຍການ",
+        staff_management: "ຈັດການພະນັກງານ"
+
+
 
     }
 }
