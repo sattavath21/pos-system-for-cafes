@@ -192,7 +192,7 @@ export const translations = {
         profit: "Profit",
         last_visit: "Last Visit",
         no_items_found: "No Items Found",
-        staff_management: "Staff Managmenet"
+        staff_management: "Staff Management"
 
 
     },
