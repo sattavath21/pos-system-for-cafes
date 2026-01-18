@@ -5,6 +5,7 @@ import { Card } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { QRCodeSVG } from "qrcode.react"
 import { formatLAK, calculateTax } from "@/lib/currency"
+import { useShift } from "@/components/shift-provider"
 
 type CartItem = {
     id: string
@@ -14,6 +15,9 @@ type CartItem = {
     modifiers: string[]
     category: string
     image?: string
+    sugar?: string
+    shot?: string
+    size?: string
 }
 
 export default function CustomerViewPage() {
@@ -79,6 +83,26 @@ export default function CustomerViewPage() {
         }
     }, [])
 
+    const { status: shiftStatus } = useShift()
+
+    // ... rest of useEffects
+
+    if (shiftStatus === 'CLOSED') {
+        return (
+            <div className="min-h-screen bg-slate-900 flex flex-col items-center justify-center p-8 text-center text-white">
+                <div className="max-w-md space-y-6">
+                    <div className="w-24 h-24 bg-slate-800 rounded-full flex items-center justify-center mx-auto mb-4 border border-slate-700">
+                        <span className="text-4xl">🔒</span>
+                    </div>
+                    <h1 className="text-4xl font-bold">Store is Currently Closed</h1>
+                    <p className="text-xl text-slate-400">
+                        We are not taking orders at the moment. Please check back later.
+                    </p>
+                </div>
+            </div>
+        )
+    }
+
     if (isIdle) {
         return (
             <div className="min-h-screen bg-amber-50 flex flex-col items-center justify-center p-8 text-center animate-in fade-in duration-700">
@@ -118,27 +142,51 @@ export default function CustomerViewPage() {
                     <p className="text-slate-500">Please review your items below</p>
                 </header>
 
-                <div className="flex-1 overflow-y-auto pr-2 space-y-4">
-                    {cart.map((item) => (
-                        <Card key={item.id} className="p-6 flex items-center justify-between shadow-sm border-0 bg-white/80 backdrop-blur">
-                            <div className="flex items-center gap-4">
-                                <div className="w-16 h-16 bg-amber-100 rounded-lg flex items-center justify-center overflow-hidden">
-                                    {item.image ? (
-                                        <img src={item.image} alt={item.name} className="w-full h-full object-cover" />
-                                    ) : (
-                                        <span className="text-2xl">{item.category === "Coffee" ? "☕" : item.category === "Tea" ? "🍵" : "🍽️"}</span>
-                                    )}
-                                </div>
-                                <div>
-                                    <h3 className="text-xl font-semibold text-slate-800">{item.name}</h3>
-                                    <div className="flex items-center gap-2 mt-1">
-                                        <Badge variant="secondary" className="bg-slate-100 text-slate-600">x{item.quantity}</Badge>
-                                        <span className="text-slate-400">@ {formatLAK(item.price)}</span>
-                                    </div>
-                                </div>
+                <div className="flex-1 overflow-y-auto pr-2">
+                    {/* Grouping Logic */}
+                    {Object.entries(
+                        cart.reduce((acc: any, item) => {
+                            const cat = item.category || "Other";
+                            if (!acc[cat]) acc[cat] = [];
+                            acc[cat].push(item);
+                            return acc;
+                        }, {})
+                    ).map(([category, items]: [string, any]) => (
+                        <div key={category} className="mb-8">
+                            <h2 className="text-md font-bold text-slate-400 uppercase tracking-widest mb-4 border-b ">{category}</h2>
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                                {items.map((item: any) => (
+                                    <Card key={item.id} className="p-4 flex flex-col gap-3 shadow-sm border-0 bg-white/80 backdrop-blur hover:bg-white transition-colors">
+                                        <div className="flex items-center gap-6">
+                                            <div className="w-24 h-24 bg-amber-100 rounded-lg flex items-center justify-center overflow-hidden flex-shrink-0">
+                                                {item.image ? (
+                                                    <img src={item.image} alt={item.name} className="w-full h-full object-cover" />
+                                                ) : (
+                                                    <span className="text-xl">{item.category === "Coffee" ? "☕" : item.category === "Tea" ? "🍵" : "🍽️"}</span>
+                                                )}
+                                            </div>
+                                            <div className="min-w-0 flex-1">
+                                                <h3 className="text-2xl font-semibold text-slate-800 truncate leading-tight">{item.name}</h3>
+                                                {(item.sugar || item.shot || item.size) && (
+                                                    <div className="flex flex-wrap gap-1 mt-1">
+                                                        {item.sugar && item.sugar !== '100%' && <Badge variant="outline" className="text-xs">Sweet: {item.sugar}</Badge>}
+                                                        {item.shot && item.shot !== 'Normal' && <Badge variant="outline" className="text-xs">Shot: {item.shot}</Badge>}
+                                                        {item.size && item.size !== 'M' && <Badge variant="outline" className="text-xs">Size: {item.size}</Badge>}
+                                                    </div>
+                                                )}
+                                                <div className="flex items-center gap-2 mt-0.5">
+                                                    <Badge variant="secondary" className="bg-slate-100 text-slate-600 px-1.5 py-0 text-md">x{item.quantity}</Badge>
+                                                    <span className="text-base text-slate-400">@ {formatLAK(item.price)}</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div className="flex justify-between items-end mt-auto">
+                                            <p className="text-2xl font-bold text-amber-700">{formatLAK(item.price * item.quantity)}</p>
+                                        </div>
+                                    </Card>
+                                ))}
                             </div>
-                            <p className="text-xl font-bold text-slate-700">{formatLAK(item.price * item.quantity)}</p>
-                        </Card>
+                        </div>
                     ))}
                 </div>
             </div>

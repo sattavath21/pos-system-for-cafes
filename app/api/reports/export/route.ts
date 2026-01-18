@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { getDb } from '@/lib/db'
+import { prisma } from '@/lib/prisma'
 import * as XLSX from 'xlsx'
 
 export async function GET(request: Request) {
@@ -12,23 +12,53 @@ export async function GET(request: Request) {
             return NextResponse.json({ error: 'Missing date range' }, { status: 400 })
         }
 
-        const db = await getDb()
+        const start = new Date(startDate)
+        const end = new Date(endDate)
 
         // Fetch Orders
-        const orders = await db.all(`
-            SELECT * FROM "Order"
-            WHERE createdAt >= ? AND createdAt <= ?
-            ORDER BY createdAt DESC
-        `, startDate, endDate)
+        const orders = await prisma.order.findMany({
+            where: {
+                createdAt: {
+                    gte: start,
+                    lte: end
+                }
+            },
+            orderBy: { createdAt: 'desc' }
+        })
 
         // Fetch Order Items
-        const orderItems = await db.all(`
-            SELECT oi.*, o.orderNumber, o.createdAt as orderDate
-            FROM OrderItem oi
-            JOIN "Order" o ON oi.orderId = o.id
-            WHERE o.createdAt >= ? AND o.createdAt <= ?
-            ORDER BY o.createdAt DESC
-        `, startDate, endDate)
+        const orderItems = await prisma.orderItem.findMany({
+            where: {
+                order: {
+                    createdAt: {
+                        gte: start,
+                        lte: end
+                    }
+                }
+            },
+            include: {
+                order: {
+                    select: {
+                        orderNumber: true,
+                        createdAt: true
+                    }
+                }
+            },
+            orderBy: { order: { createdAt: 'desc' } }
+        })
+
+        // Flat for Excel
+        const flatItems = orderItems.map(item => ({
+            id: item.id,
+            orderId: item.orderId,
+            productId: item.productId,
+            name: item.name,
+            price: item.price,
+            quantity: item.quantity,
+            total: item.total,
+            orderNumber: item.order.orderNumber,
+            orderDate: item.order.createdAt
+        }))
 
         // Create workbook
         const wb = XLSX.utils.book_new()
@@ -38,7 +68,7 @@ export async function GET(request: Request) {
         XLSX.utils.book_append_sheet(wb, wsOrders, "Orders")
 
         // Items Sheet
-        const wsItems = XLSX.utils.json_to_sheet(orderItems)
+        const wsItems = XLSX.utils.json_to_sheet(flatItems)
         XLSX.utils.book_append_sheet(wb, wsItems, "Order Items")
 
         // Generate buffer

@@ -2,39 +2,95 @@ import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { startOfDay } from 'date-fns'
 
+// Force dynamic to prevent caching issues with Orders
+export const dynamic = 'force-dynamic'
+
 export async function POST(request: Request) {
     try {
         const body = await request.json()
         const {
             id, items, total, subtotal, tax, discount,
             promoId, customerId, paymentMethod, status,
-            beeperNumber, cancellationReason
+            beeperNumber, cancellationReason,
+            pointsRedeemed, taxAmount
         } = body
 
-        // Validate status
-        const validStatuses = ['COMPLETED', 'HOLD', 'CANCELLED']
-        const orderStatus = validStatuses.includes(status) ? status : 'COMPLETED'
+        // --- VALIDATION PHASE (Fail Fast) ---
 
-        let order
+        // 1. Validate Items & VariationSizes
+        if (!items || !Array.isArray(items) || items.length === 0) {
+            return NextResponse.json({ error: 'Order must have items' }, { status: 400 })
+        }
 
-        // Transaction to ensure data integrity
-        await prisma.$transaction(async (tx: any) => {
-            // 1. Handle Order Number
+        // Extract variationSizeIds from items
+        const variationSizeIds = Array.from(new Set(items.map((i: any) => i.variationSizeId)))
+            .filter(id => id !== undefined && id !== null) as string[]
+
+        if (variationSizeIds.length === 0) {
+            return NextResponse.json({ error: 'Items must have variationSizeId' }, { status: 400 })
+        }
+
+        // Check if ALL referenced variationSizes exist in DB
+        const existingVariationSizes = await prisma.variationSize.findMany({
+            where: { id: { in: variationSizeIds } },
+            select: { id: true, price: true, size: true, variation: { select: { type: true, menu: { select: { name: true } } } } }
+        })
+
+        const existingVariationSizeIds = new Set(existingVariationSizes.map(vs => vs.id))
+        const missingIds = variationSizeIds.filter(id => !existingVariationSizeIds.has(id))
+
+        if (missingIds.length > 0) {
+            return NextResponse.json({
+                error: `Foreign Key Violation: VariationSizes with IDs [${missingIds.join(', ')}] do not exist.`
+            }, { status: 400 })
+        }
+
+        // 2. Validate Customer (if provided)
+        if (customerId) {
+            const customer = await prisma.customer.findUnique({ where: { id: customerId } })
+            if (!customer) {
+                return NextResponse.json({ error: `Customer ${customerId} not found` }, { status: 400 })
+            }
+        }
+
+        // 3. Validate Promotion (if provided)
+        if (promoId) {
+            const promo = await prisma.promotion.findUnique({ where: { id: promoId } })
+            if (!promo) {
+                return NextResponse.json({ error: `Promotion ${promoId} not found` }, { status: 400 })
+            }
+        }
+
+        // 4. Validate Shift (Only if COMPLETED + CASH)
+        let openShiftId: string | null = null
+        if (status === 'COMPLETED' && (paymentMethod === 'BANK_NOTE' || paymentMethod === 'CASH')) {
+            const openShift = await prisma.shift.findFirst({ where: { status: 'OPEN' } })
+            if (openShift) {
+                openShiftId = openShift.id
+                console.log("Found open shift:", openShiftId)
+            } else {
+                console.log("No open shift found for cash payment!")
+            }
+        }
+
+        // --- EXECUTION PHASE (Transaction) ---
+
+        const result = await prisma.$transaction(async (tx) => {
+            // 1. Determine Order Number
             let orderNumber = ""
             let isNew = false
+            const orderId = id || crypto.randomUUID()
 
-            if (id) {
-                const existing = await tx.order.findUnique({ where: { id } })
-                if (existing) {
-                    orderNumber = existing.orderNumber
-                } else {
-                    isNew = true
-                }
+            // Fetch previous state if exists
+            const previousOrder = await tx.order.findUnique({
+                where: { id: orderId },
+                include: { items: true }
+            })
+
+            if (previousOrder) {
+                orderNumber = previousOrder.orderNumber
             } else {
                 isNew = true
-            }
-
-            if (isNew) {
                 const today = startOfDay(new Date())
                 const count = await tx.order.count({
                     where: { createdAt: { gte: today } }
@@ -42,219 +98,185 @@ export async function POST(request: Request) {
                 orderNumber = `No. ${String(count + 1).padStart(2, '0')}`
             }
 
-            // 2. Upsert Order
-            const orderId = id || crypto.randomUUID()
-
-            // Prepare order data (without relation IDs)
+            // 2. Prepare Payload
             const orderData = {
                 orderNumber,
-                status: orderStatus,
-                total, subtotal, tax, discount: discount || 0,
-                paymentMethod: paymentMethod || 'CASH',
+                status: status || 'COMPLETED',
+                total: parseFloat(total),
+                subtotal: parseFloat(subtotal),
+                tax: parseFloat(taxAmount || tax || 0),
+                discount: parseFloat(discount || 0),
+                paymentMethod: paymentMethod || 'BANK_NOTE',
                 beeperNumber: beeperNumber || null,
-                cancellationReason: status === 'CANCELLED' ? cancellationReason : null
+                cancellationReason: status === 'CANCELLED' ? cancellationReason : null,
+                pointsRedeemed: pointsRedeemed ? parseInt(pointsRedeemed) : 0,
+                updatedAt: new Date()
             }
 
-            // Prepare relation connects
-            const relationData: any = {}
-            if (promoId) {
-                const promoExists = await tx.promotion.findUnique({ where: { id: promoId } })
-                if (promoExists) {
-                    relationData.promotion = { connect: { id: promoId } }
+            // 3. Prepare Items (using variationSizeId)
+            const preparedItems = items.map((item: any) => {
+                // Validate existence
+                if (!existingVariationSizeIds.has(item.variationSizeId)) {
+                    throw new Error(`Critical race condition: VariationSize ${item.variationSizeId} deleted during transaction`)
                 }
-            }
-            if (customerId) {
-                // Check if customer exists before connecting
-                const customerExists = await tx.customer.findUnique({ where: { id: customerId } })
-                if (customerExists) {
-                    relationData.customer = { connect: { id: customerId } }
-                }
-            }
 
-            // Prepare validated items
-            const preparedItems = []
-            for (const item of items) {
-                let pid = null
-                if (item.id) {
-                    const product = await tx.product.findUnique({ where: { id: item.id } })
-                    if (product) pid = item.id
+                return {
+                    variationSizeId: item.variationSizeId,
+                    name: item.name, // Snapshot: "Latte (Hot) - M"
+                    price: parseFloat(item.price), // Snapshot from VariationSize
+                    quantity: parseInt(item.quantity),
+                    total: parseFloat((item.price * item.quantity).toString()),
+                    sugarLevel: item.sugarLevel || null,
+                    shotType: item.shotType || null,
+                    cupSize: item.cupSize || null
                 }
-                preparedItems.push({
-                    productId: pid,
-                    name: item.name,
-                    price: item.price,
-                    quantity: item.quantity,
-                    total: item.price * item.quantity
-                })
-            }
+            })
 
+            // 4. Update/Create Order
+            let savedOrder;
             if (isNew) {
-                order = await tx.order.create({
+                savedOrder = await tx.order.create({
                     data: {
                         id: orderId,
                         ...orderData,
-                        ...relationData,
+                        customer: customerId ? { connect: { id: customerId } } : undefined,
+                        promotion: promoId ? { connect: { id: promoId } } : undefined,
                         items: {
                             create: preparedItems
                         }
                     }
                 })
             } else {
-                // For update, check previous status to handle reversals
-                const previous = await tx.order.findUnique({
-                    where: { id: orderId },
-                    include: { items: true }
-                })
-
-                // Update: Delete old items and re-create (simplest strategy)
+                // Delete existing items to replace with new set
                 await tx.orderItem.deleteMany({ where: { orderId } })
 
-                // For update, handle disconnect if IDs are null
-                const updateRelations: any = {}
-                if (promoId) {
-                    const promoExists = await tx.promotion.findUnique({ where: { id: promoId } })
-                    relationData.promotion = promoExists ? { connect: { id: promoId } } : { disconnect: true }
-                } else {
-                    relationData.promotion = { disconnect: true }
-                }
-
-                if (customerId) {
-                    const customerExists = await tx.customer.findUnique({ where: { id: customerId } })
-                    relationData.customer = customerExists ? { connect: { id: customerId } } : { disconnect: true }
-                } else {
-                    relationData.customer = { disconnect: true }
-                }
-
-                order = await tx.order.update({
+                savedOrder = await tx.order.update({
                     where: { id: orderId },
                     data: {
                         ...orderData,
-                        ...relationData, // Use the same relation connects/disconnects
+                        customer: customerId ? { connect: { id: customerId } } : { disconnect: true },
+                        promotion: promoId ? { connect: { id: promoId } } : { disconnect: true },
                         items: {
                             create: preparedItems
                         }
                     }
                 })
+            }
 
-                // REVERSAL LOGIC: If status changed from COMPLETED to CANCELLED (or other)
-                if (previous?.status === 'COMPLETED' && orderStatus !== 'COMPLETED') {
-                    // 1. Revert Stock
-                    for (const item of previous.items) {
-                        if (!item.productId) continue
-                        const recipes = await tx.recipe.findMany({
-                            where: { productId: item.productId }
-                        })
+            // --- BUSINESS LOGIC (Stock, Loyalty, Cash) ---
+            // Only trigger if status is COMPLETED
+
+            const wasCompleted = previousOrder?.status === 'COMPLETED'
+            const isNowCompleted = status === 'COMPLETED'
+            const isCancelled = status === 'CANCELLED'
+
+            // A. If newly COMPLETED (new order OR updated from HOLD -> COMPLETED)
+            if (isNowCompleted && !wasCompleted) {
+
+                // 1. Deduct Stock (based on menu recipes)
+                for (const item of preparedItems) {
+                    // Get the menu from variationSize
+                    const vs = await tx.variationSize.findUnique({
+                        where: { id: item.variationSizeId },
+                        include: { variation: { include: { menu: true } } }
+                    })
+
+                    if (vs?.variation?.menu) {
+                        const recipes = await tx.recipe.findMany({ where: { menuId: vs.variation.menu.id } })
                         for (const recipe of recipes) {
                             await tx.ingredient.update({
                                 where: { id: recipe.ingredientId },
-                                data: {
-                                    currentStock: { increment: recipe.quantity * item.quantity }
-                                }
-                            })
-                        }
-                    }
-
-                    // 2. Revert Loyalty
-                    if (previous.customerId) {
-                        const points = Math.floor(previous.total / 1000)
-                        await tx.customer.update({
-                            where: { id: previous.customerId },
-                            data: {
-                                loyaltyPoints: { decrement: points },
-                                totalSpent: { decrement: previous.total },
-                                visitCount: { decrement: 1 }
-                            }
-                        })
-                    }
-
-                    // 3. Revert Cash Drawer if it was Cash
-                    if (previous.paymentMethod === 'BANK_NOTE') {
-                        const openShift = await tx.shift.findFirst({
-                            where: { status: 'OPEN' }
-                        })
-                        if (openShift) {
-                            await tx.shift.update({
-                                where: { id: openShift.id },
-                                data: {
-                                    cashPayments: { decrement: previous.total }
-                                }
+                                data: { currentStock: { decrement: recipe.quantity * item.quantity } }
                             })
                         }
                     }
                 }
+
+                // 2. Add Loyalty (if customer)
+                if (customerId) {
+                    const earned = Math.floor(savedOrder.total / 1000)
+                    const redeemed = savedOrder.pointsRedeemed || 0
+
+                    await tx.customer.update({
+                        where: { id: customerId },
+                        data: {
+                            loyaltyPoints: { increment: earned - redeemed },
+                            totalSpent: { increment: savedOrder.total },
+                            visitCount: { increment: 1 },
+                            lastVisit: new Date()
+                        }
+                    })
+                }
+
+                // 3. Update Cash Drawer (if Cash & Open Shift exists)
+                if ((paymentMethod === 'BANK_NOTE' || paymentMethod === 'CASH') && openShiftId) {
+                    await tx.shift.update({
+                        where: { id: openShiftId },
+                        data: { cashPayments: { increment: savedOrder.total } }
+                    })
+                }
             }
 
-            // 3. Stock Deduction (Only if status became COMPLETED now)
-            // But wait, if it was already COMPLETED, we don't want to double deduct.
-            // Check if it's new COMPLETED or transition to COMPLETED.
-            const isTransitionToCompleted = orderStatus === 'COMPLETED' && (!isNew && (await tx.order.findUnique({ where: { id: orderId } })).status !== 'COMPLETED')
+            // B. If REVERSAL (COMPLETED -> CANCELLED)
+            if (wasCompleted && isCancelled) {
+                // 1. Revert Stock
+                const oldItems = previousOrder.items
+                for (const item of oldItems) {
+                    if (!item.variationSizeId) continue
+                    const vs = await tx.variationSize.findUnique({
+                        where: { id: item.variationSizeId },
+                        include: { variation: { include: { menu: true } } }
+                    })
 
-            // Re-evaluating: simplest is to check if orderStatus === 'COMPLETED' 
-            // AND (isNew OR previousStatus !== 'COMPLETED')
-            // I'll use a cleaner approach inside the transaction.
-
-            if (orderStatus === 'COMPLETED') {
-                // If it's an update, we need to know if it was ALREADY completed
-                // but I already have 'isNew' and I can fetch 'previous' status.
-
-                // Let's re-fetch the order inside the transaction to be sure of the state before the update or just after.
-                // Actually, I can just use a flag.
-
-                const wasAlreadyCompleted = !isNew && (await tx.order.findUnique({ where: { id: orderId } }))?.status === 'COMPLETED'
-
-                if (!wasAlreadyCompleted) {
-                    for (const item of items) {
-                        const recipes = await tx.recipe.findMany({
-                            where: { productId: item.id }
-                        })
-
+                    if (vs?.variation?.menu) {
+                        const recipes = await tx.recipe.findMany({ where: { menuId: vs.variation.menu.id } })
                         for (const recipe of recipes) {
                             await tx.ingredient.update({
                                 where: { id: recipe.ingredientId },
-                                data: {
-                                    currentStock: { decrement: recipe.quantity * item.quantity }
-                                }
-                            })
-                        }
-                    }
-
-                    // 4. Loyalty Points
-                    if (customerId) {
-                        const points = Math.floor(total / 1000)
-                        await tx.customer.update({
-                            where: { id: customerId },
-                            data: {
-                                loyaltyPoints: { increment: points },
-                                totalSpent: { increment: total },
-                                visitCount: { increment: 1 },
-                                lastVisit: new Date()
-                            }
-                        })
-                    }
-
-                    // 5. Update Cash Drawer (Shift) if Cash Payment
-                    if (paymentMethod === 'BANK_NOTE') {
-                        const openShift = await tx.shift.findFirst({
-                            where: { status: 'OPEN' }
-                        })
-
-                        if (openShift) {
-                            await tx.shift.update({
-                                where: { id: openShift.id },
-                                data: {
-                                    cashPayments: { increment: total }
-                                }
+                                data: { currentStock: { increment: recipe.quantity * item.quantity } }
                             })
                         }
                     }
                 }
+
+                // 2. Revert Loyalty
+                if (previousOrder.customerId) {
+                    const earned = Math.floor(previousOrder.total / 1000)
+                    const redeemed = previousOrder.pointsRedeemed || 0
+
+                    await tx.customer.update({
+                        where: { id: previousOrder.customerId },
+                        data: {
+                            loyaltyPoints: { decrement: earned - redeemed },
+                            totalSpent: { decrement: previousOrder.total },
+                            visitCount: { decrement: 1 }
+                        }
+                    })
+                }
+
+                // 3. Revert Cash
+                if (previousOrder.paymentMethod === 'BANK_NOTE' || previousOrder.paymentMethod === 'CASH') {
+                    const shift = await tx.shift.findFirst({ where: { status: 'OPEN' } })
+                    if (shift) {
+                        await tx.shift.update({
+                            where: { id: shift.id },
+                            data: { cashPayments: { decrement: previousOrder.total } }
+                        })
+                    }
+                }
             }
+
+            return savedOrder
         })
 
-        return NextResponse.json(order)
-    } catch (error) {
-        console.error(error)
-        return NextResponse.json({ error: 'Failed' }, { status: 500 })
+        return NextResponse.json(result)
+
+    } catch (error: any) {
+        console.error("Order Transaction Failed:", error)
+        return NextResponse.json({
+            error: error.message || 'Transaction failed',
+            details: error.meta
+        }, { status: 500 })
     }
 }
 
@@ -290,4 +312,3 @@ export async function GET(request: Request) {
         return NextResponse.json({ error: 'Failed' }, { status: 500 })
     }
 }
-

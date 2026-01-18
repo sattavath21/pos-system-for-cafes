@@ -1,12 +1,13 @@
 import type { Metadata } from 'next'
-import { Geist, Geist_Mono, Noto_Sans_Lao_Looped } from 'next/font/google'
+import { Geist, Geist_Mono, Noto_Sans_Lao } from 'next/font/google'
 import { Analytics } from '@vercel/analytics/next'
 import './globals.css'
+import { ShiftProvider } from '@/components/shift-provider'
 
 const _geist = Geist({ subsets: ["latin"] });
 const _geistMono = Geist_Mono({ subsets: ["latin"] });
 
-const notoLaos = Noto_Sans_Lao_Looped({
+const notoLaos = Noto_Sans_Lao({
   subsets: ["lao"],
   weight: ["400", "700"],
   variable: '--font-laos',
@@ -45,7 +46,9 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className={notoLaos.className}>
-        {children}
+        <ShiftProvider>
+          {children}
+        </ShiftProvider>
         <Analytics />
       </body>
     </html>

@@ -1,10 +1,9 @@
 import { NextResponse } from 'next/server'
-import { getDb } from '@/lib/db'
+import { prisma } from '@/lib/prisma'
 
 export async function GET() {
     try {
-        const db = await getDb()
-        const settingsRaw = await db.all('SELECT * FROM Setting')
+        const settingsRaw = await prisma.setting.findMany()
         const settings: Record<string, string> = {}
         settingsRaw.forEach(s => {
             settings[s.key] = s.value
@@ -17,18 +16,22 @@ export async function GET() {
 
 export async function POST(request: Request) {
     try {
-        const db = await getDb()
         const updates = await request.json()
 
-        for (const [key, value] of Object.entries(updates)) {
-            await db.run(
-                'REPLACE INTO Setting (key, value) VALUES (?, ?)',
-                [key, String(value)]
+        // Use a transaction for multiple updates
+        await prisma.$transaction(
+            Object.entries(updates).map(([key, value]) =>
+                prisma.setting.upsert({
+                    where: { key },
+                    update: { value: String(value) },
+                    create: { key, value: String(value) }
+                })
             )
-        }
+        )
 
         return NextResponse.json({ success: true })
     } catch (error) {
+        console.error("Settings Update Error:", error)
         return NextResponse.json({ error: 'Failed to update settings' }, { status: 500 })
     }
 }

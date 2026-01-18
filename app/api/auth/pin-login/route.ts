@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { getDb } from '@/lib/db'
+import { prisma } from '@/lib/prisma'
 import bcrypt from 'bcryptjs'
 import { cookies } from 'next/headers'
 
@@ -15,9 +15,13 @@ export async function POST(request: Request) {
             return NextResponse.json({ error: 'Role is required' }, { status: 400 })
         }
 
-        const db = await getDb()
         // Only get users with the specified role
-        const users = await db.all('SELECT * FROM User WHERE isActive = 1 AND role = ?', role)
+        const users = await prisma.user.findMany({
+            where: {
+                isActive: true,
+                role: role
+            }
+        })
 
         // Check PIN against users with matching role
         let matchedUser = null

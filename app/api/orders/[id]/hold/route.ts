@@ -1,16 +1,15 @@
 import { NextResponse } from 'next/server'
-import { getDb } from '@/lib/db'
+import { prisma } from '@/lib/prisma'
 
 export async function PUT(request: Request, { params }: { params: Promise<{ id: string }> }) {
     try {
         const { id } = await params
-        const db = await getDb()
 
         // Update order status to HOLD
-        await db.run(
-            'UPDATE "Order" SET status = ?, updatedAt = CURRENT_TIMESTAMP WHERE id = ?',
-            'HOLD', id
-        )
+        await prisma.order.update({
+            where: { id },
+            data: { status: 'HOLD' }
+        })
 
         return NextResponse.json({ success: true })
     } catch (error) {

@@ -1,125 +1,227 @@
 import { NextResponse } from 'next/server'
-import { getDb } from '@/lib/db'
+import { prisma } from '@/lib/prisma'
+import { startOfDay, endOfDay } from 'date-fns'
+import { calculateInclusiveTax } from '@/lib/currency'
 
 export async function GET(request: Request) {
     try {
         const { searchParams } = new URL(request.url)
-        const startDate = searchParams.get('startDate') || new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString()
-        const endDate = searchParams.get('endDate') || new Date().toISOString()
+        const startDateStr = searchParams.get('startDate')
+        const endDateStr = searchParams.get('endDate')
 
-        const db = await getDb()
+        const startDate = startDateStr ? new Date(startDateStr) : new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)
+        const endDate = endDateStr ? new Date(endDateStr) : new Date()
 
-        // 1. Revenue & Orders Trend (Daily)
-        const dailyTrend = await db.all(`
-            SELECT 
-                strftime('%Y-%m-%d', createdAt) as date,
-                SUM(total) as revenue,
-                COUNT(*) as orders
-            FROM "Order"
-            WHERE createdAt >= ? AND createdAt <= ? AND status = 'COMPLETED'
-            GROUP BY date
-            ORDER BY date ASC
-        `, startDate, endDate)
+        // 1. Daily Trend
+        const orders = await prisma.order.findMany({
+            where: {
+                createdAt: {
+                    gte: startDate,
+                    lte: endDate
+                },
+                status: 'COMPLETED'
+            },
+            select: {
+                total: true,
+                createdAt: true,
+                discount: true
+            }
+        })
+
+        console.log(`Analytics: Found ${orders.length} orders between ${startDate.toISOString()} and ${endDate.toISOString()}`)
+
+        const trendMap = new Map()
+        orders.forEach(o => {
+            const date = o.createdAt.toISOString().split('T')[0]
+            if (!trendMap.has(date)) trendMap.set(date, { date, revenue: 0, orders: 0 })
+            const entry = trendMap.get(date)
+            entry.revenue += o.total
+            entry.orders += 1
+        })
+        const dailyTrend = Array.from(trendMap.values()).sort((a, b) => a.date.localeCompare(b.date))
 
         // 2. Category Share
-        const categoryShare = await db.all(`
-            SELECT 
-                c.name as category,
-                SUM(oi.total) as revenue,
-                SUM(oi.quantity) as quantity
-            FROM OrderItem oi
-            JOIN Product p ON oi.productId = p.id
-            JOIN Category c ON p.categoryId = c.id
-            JOIN "Order" o ON oi.orderId = o.id
-            WHERE o.createdAt >= ? AND o.createdAt <= ? AND o.status = 'COMPLETED'
-            GROUP BY c.name
-            ORDER BY revenue DESC
-        `, startDate, endDate)
+        const orderItems = await prisma.orderItem.findMany({
+            where: {
+                order: {
+                    createdAt: { gte: startDate, lte: endDate },
+                    status: 'COMPLETED'
+                }
+            },
+            include: {
+                variationSize: {
+                    include: {
+                        variation: {
+                            include: {
+                                menu: {
+                                    include: { category: true }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        })
 
-        // 3. Hourly Sales (Heatmap)
-        const hourlySales = await db.all(`
-            SELECT 
-                strftime('%H', createdAt) as hour,
-                SUM(total) as revenue,
-                COUNT(*) as orders
-            FROM "Order"
-            WHERE createdAt >= ? AND createdAt <= ? AND status = 'COMPLETED'
-            GROUP BY hour
-            ORDER BY hour ASC
-        `, startDate, endDate)
+        const categoryMap = new Map()
+        orderItems.forEach(item => {
+            const catName = item.variationSize?.variation.menu.category.name || "Other"
 
-        // 4. Payment Method Breakdown
-        const paymentMethods = await db.all(`
-            SELECT 
-                paymentMethod,
-                SUM(total) as revenue,
-                COUNT(*) as orders
-            FROM "Order"
-            WHERE createdAt >= ? AND createdAt <= ? AND status = 'COMPLETED'
-            GROUP BY paymentMethod
-        `, startDate, endDate)
+            if (!categoryMap.has(catName)) categoryMap.set(catName, { category: catName, revenue: 0, quantity: 0 })
+            const entry = categoryMap.get(catName)
+            entry.revenue += item.total
+            entry.quantity += item.quantity
+        })
+        const categoryShare = Array.from(categoryMap.values()).sort((a, b) => b.revenue - a.revenue)
 
-        // 5. Product Performance
-        const topProducts = await db.all(`
-            SELECT 
-                oi.name,
-                SUM(oi.quantity) as sold,
-                SUM(oi.total) as revenue
-            FROM OrderItem oi
-            JOIN "Order" o ON oi.orderId = o.id
-            WHERE o.createdAt >= ? AND o.createdAt <= ? AND o.status = 'COMPLETED'
-            GROUP BY oi.name
-            ORDER BY sold DESC
-            LIMIT 10
-        `, startDate, endDate)
+        // 3. Hourly Sales
+        const hourMap = new Map()
+        orders.forEach(o => {
+            const hour = o.createdAt.getHours().toString().padStart(2, '0')
+            if (!hourMap.has(hour)) hourMap.set(hour, { hour, revenue: 0, orders: 0 })
+            const entry = hourMap.get(hour)
+            entry.revenue += o.total
+            entry.orders += 1
+        })
+        const hourlySales = Array.from(hourMap.values()).sort((a, b) => a.hour.localeCompare(b.hour))
 
-        const worstProducts = await db.all(`
-            SELECT 
-                p.name,
-                COALESCE(SUM(oi.quantity), 0) as sold,
-                COALESCE(SUM(oi.total), 0) as revenue
-            FROM Product p
-            LEFT JOIN OrderItem oi ON p.id = oi.productId
-            LEFT JOIN "Order" o ON oi.orderId = o.id AND o.createdAt >= ? AND o.createdAt <= ? AND o.status = 'COMPLETED'
-            GROUP BY p.id
-            ORDER BY sold ASC
-            LIMIT 10
-        `, startDate, endDate)
+        // 4. Payment Methods
+        const payMap = new Map()
+        const methodOrders = await prisma.order.findMany({
+            where: {
+                createdAt: { gte: startDate, lte: endDate },
+                status: 'COMPLETED'
+            },
+            select: { paymentMethod: true, total: true, discount: true }
+        })
+        methodOrders.forEach(o => {
+            const m = o.paymentMethod || "CASH"
+            if (!payMap.has(m)) payMap.set(m, { paymentMethod: m, revenue: 0, orders: 0 })
+            const entry = payMap.get(m)
+            entry.revenue += o.total
+            entry.orders += 1
+        })
+        const paymentMethods = Array.from(payMap.values())
 
-        const zeroSales = await db.all(`
-            SELECT name, price
-            FROM Product 
-            WHERE id NOT IN (
-                SELECT productId 
-                FROM OrderItem oi
-                JOIN "Order" o ON oi.orderId = o.id
-                WHERE o.createdAt >= ? AND o.createdAt <= ? AND o.status = 'COMPLETED'
-            )
-        `, startDate, endDate)
+        // 5. Product Performance (Refined Grouping)
+        const bestSellerMap = new Map()
+        const lowPerfMap = new Map()
 
-        // 6. Promotion Impact
-        const promoImpact = await db.all(`
-            SELECT 
-                p.name,
-                COUNT(o.id) as usageCount,
-                SUM(o.discount) as totalDiscount,
-                SUM(o.total) as totalRevenue
-            FROM "Order" o
-            JOIN Promotion p ON o.promoId = p.id
-            WHERE o.createdAt >= ? AND o.createdAt <= ? AND o.status = 'COMPLETED'
-            GROUP BY p.name
-        `, startDate, endDate)
+        orderItems.forEach(item => {
+            const vs = item.variationSize
+            const menuName = vs?.variation.menu.name || item.name.split(' - ')[0]
+            const varType = vs?.variation.type || ""
 
-        // 7. Overall Stats (AOV, Total Rev, etc.)
-        const summary = await db.get(`
-            SELECT 
-                SUM(total) as totalRevenue,
-                COUNT(*) as totalOrders,
-                AVG(total) as aov,
-                SUM(discount) as totalDiscounts
-            FROM "Order"
-            WHERE createdAt >= ? AND createdAt <= ? AND status = 'COMPLETED'
-        `, startDate, endDate)
+            // Best Seller Key: Menu + Variation (e.g., Latte (COLD))
+            const bestSellerKey = `${menuName} (${varType})`
+            if (!bestSellerMap.has(bestSellerKey)) {
+                bestSellerMap.set(bestSellerKey, { name: bestSellerKey, productName: menuName, variantType: varType, sold: 0, revenue: 0 })
+            }
+            const bsEntry = bestSellerMap.get(bestSellerKey)
+            bsEntry.sold += item.quantity
+            bsEntry.revenue += item.total
+
+            // Low Performance Key: Menu only (e.g., Latte)
+            const lowPerfKey = menuName
+            if (!lowPerfMap.has(lowPerfKey)) {
+                lowPerfMap.set(lowPerfKey, { name: lowPerfKey, sold: 0, revenue: 0 })
+            }
+            const lpEntry = lowPerfMap.get(lowPerfKey)
+            lpEntry.sold += item.quantity
+            lpEntry.revenue += item.total
+        })
+
+        const topProducts = Array.from(bestSellerMap.values())
+            .sort((a, b) => b.sold - a.sold)
+            .slice(0, 10)
+
+        const worstProducts = Array.from(lowPerfMap.values())
+            .filter(p => p.sold > 0)
+            .sort((a, b) => a.sold - b.sold)
+            .slice(0, 5)
+
+        // Zero Sales / Trash Items: Count by Menu
+        const allMenus = await prisma.menu.findMany({
+            include: {
+                variations: {
+                    include: { sizes: true }
+                }
+            }
+        })
+
+        const soldMenuNames = new Set(Array.from(lowPerfMap.keys()))
+        const trashItems = allMenus
+            .filter(m => !soldMenuNames.has(m.name))
+            .map(m => ({
+                name: m.name,
+                price: 0 // Price varies by variation/size
+            }))
+
+        // 6. Size & Variation Type Stats
+        const sizeMap = new Map()
+        const varTypeMap = new Map()
+
+        orderItems.forEach(item => {
+            const vs = item.variationSize
+            const size = vs?.size || "Unknown"
+            const type = vs?.variation.type || "Other"
+
+            if (!sizeMap.has(size)) sizeMap.set(size, { name: size, sold: 0, revenue: 0 })
+            const sEntry = sizeMap.get(size)
+            sEntry.sold += item.quantity
+            sEntry.revenue += item.total
+
+            if (!varTypeMap.has(type)) varTypeMap.set(type, { name: type, sold: 0, revenue: 0 })
+            const vEntry = varTypeMap.get(type)
+            vEntry.sold += item.quantity
+            vEntry.revenue += item.total
+        })
+
+        const sizeStats = Array.from(sizeMap.values()).sort((a, b) => b.sold - a.sold)
+        const variationStats = Array.from(varTypeMap.values()).sort((a, b) => b.sold - a.sold)
+
+        // 6. Promo Impact
+        const promoOrders = await prisma.order.findMany({
+            where: {
+                createdAt: { gte: startDate, lte: endDate },
+                status: 'COMPLETED',
+                promoId: { not: null }
+            },
+            include: { promotion: true }
+        })
+        const promoMap = new Map()
+        promoOrders.forEach(o => {
+            const name = o.promotion?.name || "Unknown"
+            if (!promoMap.has(name)) promoMap.set(name, { name, usageCount: 0, totalDiscount: 0, totalRevenue: 0 })
+            const entry = promoMap.get(name)
+            entry.usageCount += 1
+            entry.totalDiscount += o.discount
+            entry.totalRevenue += o.total
+        })
+        const promoImpact = Array.from(promoMap.values())
+
+        // 7. Summary
+        const totalRevenue = orders.reduce((sum, o) => sum + o.total, 0)
+        const totalOrders = orders.length
+        const aov = totalOrders > 0 ? totalRevenue / totalOrders : 0
+        const totalDiscounts = methodOrders.reduce((sum, o) => sum + (o as any).discount || 0, 0) // We need discount in fetch
+
+        // Summary Stats (robustified)
+        const summaryStats = await prisma.order.aggregate({
+            where: {
+                createdAt: { gte: startDate, lte: endDate },
+                status: 'COMPLETED'
+            },
+            _sum: { total: true, discount: true, tax: true },
+            _count: true,
+            _avg: { total: true }
+        })
+
+        // Final verification check for the user in logs
+        if (summaryStats._count === 0) {
+            const lastOrder = await prisma.order.findFirst({ orderBy: { createdAt: 'desc' } })
+            console.log("Analytics Diagnostic: No orders in range. Last order in DB:", lastOrder?.createdAt)
+        }
 
         return NextResponse.json({
             dailyTrend,
@@ -128,10 +230,17 @@ export async function GET(request: Request) {
             paymentMethods,
             topProducts,
             worstProducts,
-            zeroSales,
+            zeroSales: trashItems,
+            sizeStats,
+            variationStats,
             promoImpact,
             summary: {
-                ...summary,
+                totalRevenue: summaryStats._sum.total || 0,
+                netSales: (summaryStats._sum.total || 0) - (summaryStats._sum.tax || 0),
+                taxCollected: summaryStats._sum.tax || 0,
+                totalOrders: summaryStats._count || 0,
+                aov: summaryStats._avg.total || 0,
+                totalDiscounts: summaryStats._sum.discount || 0,
                 periodCount: dailyTrend.length
             }
         })

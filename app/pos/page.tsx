@@ -6,32 +6,44 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogTrigger } from "@/components/ui/dialog"
 import { Label } from "@/components/ui/label"
-import { Search, Plus, List, Package, Tag, Clock, X, Minus, Trash2, Pause, User, ArrowLeft, Check, ChevronRight, Printer } from "lucide-react"
+import { Search, Plus, List, Package, Tag, Clock, X, Minus, Trash2, Pause, User, ArrowLeft, Check, ChevronRight, Printer, CheckCircle } from "lucide-react"
 import Link from "next/link"
 import { Badge } from "@/components/ui/badge"
-import { formatLAK, calculateChange, LAK_DENOMINATIONS, calculateTax } from "@/lib/currency"
+import { formatLAK, calculateChange, LAK_DENOMINATIONS, calculateTax, calculateInclusiveTax } from "@/lib/currency"
 import { PaymentQR } from "@/components/payment-qr"
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog"
 import Image from "next/image"
 import { useTranslation } from "@/hooks/use-translation"
 import { Header } from "@/components/header"
+import { CustomizationDialog } from "@/app/pos/components/CustomizationDialog"
+import { useShift } from "@/components/shift-provider"
 
 type MenuItem = {
   id: string
   name: string
-  price: number
   category: string
   isAvailable: boolean
   image?: string
+  variations: Array<{
+    id: string
+    type: string
+    sizes: Array<{
+      id: string
+      size: string
+      price: number
+    }>
+  }>
 }
 
 type CartItem = {
   id: string
+  variationSizeId: string
   name: string
   price: number
   quantity: number
-  modifiers: string[]
-  category: string
+  sugar?: string
+  shot?: string
+  category?: string
   image?: string
 }
 
@@ -55,6 +67,7 @@ export default function POSPage() {
   const [menuItems, setMenuItems] = useState<MenuItem[]>([])
   const [categories, setCategories] = useState<string[]>(["All"])
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null)
+  const [user, setUser] = useState<any>(null)
   // Payment Dialog state
   const [isPaymentOpen, setIsPaymentOpen] = useState(false)
   const [isProcessing, setIsProcessing] = useState(false)
@@ -77,10 +90,6 @@ export default function POSPage() {
   const [isSuccessOpen, setIsSuccessOpen] = useState(false)
   const [lastOrderInfo, setLastOrderInfo] = useState<any>(null)
   const [resumedOrderId, setResumedOrderId] = useState<string | null>(null)
-  const [isShiftOpen, setIsShiftOpen] = useState(false)
-  const [activeShiftId, setActiveShiftId] = useState<string | null>(null)
-  const [isShiftModalOpen, setIsShiftModalOpen] = useState(false)
-  const [startCash, setStartCash] = useState('')
   const [isInitialLoad, setIsInitialLoad] = useState(true)
   const [isHoldSuccessOpen, setIsHoldSuccessOpen] = useState(false)
 
@@ -88,21 +97,28 @@ export default function POSPage() {
   const [cancelReason, setCancelReason] = useState("")
   const [isCancelConfirmOpen, setIsCancelConfirmOpen] = useState(false)
 
+  // Customization Logic
+  const [customizationOpen, setCustomizationOpen] = useState(false)
+  const [productToCustomize, setProductToCustomize] = useState<MenuItem | null>(null)
+  const [manualPoints, setManualPoints] = useState("")
+
   const calculateTotal = () => {
-    const subtotal = Math.round(cart.reduce((sum, item) => sum + item.price * item.quantity, 0))
+    const total = Math.round(cart.reduce((sum, item) => sum + item.price * item.quantity, 0))
     let promoDiscount = 0
     if (appliedPromo) {
       if (appliedPromo.discountType === 'percentage') {
-        promoDiscount = Math.round(subtotal * (appliedPromo.discountValue / 100))
+        promoDiscount = Math.round(total * (appliedPromo.discountValue / 100))
       } else {
         promoDiscount = appliedPromo.discountValue
       }
     }
 
-    const taxableAmount = subtotal - promoDiscount - loyaltyDiscount
-    const tax = calculateTax(taxableAmount, Number(sysSettings.taxRate) || 0)
-    const total = taxableAmount + tax
-    return { subtotal, tax, total, promoDiscount, loyaltyDiscount, discount: promoDiscount + loyaltyDiscount }
+    // Final total customer pays
+    const finalTotal = total - promoDiscount - loyaltyDiscount
+    const tax = calculateInclusiveTax(finalTotal, Number(sysSettings.taxRate) || 0)
+    const subtotal = finalTotal - tax // Net sales
+
+    return { subtotal, tax, total: finalTotal, promoDiscount, loyaltyDiscount, discount: promoDiscount + loyaltyDiscount }
   }
 
   const { subtotal, tax, total, promoDiscount, discount } = calculateTotal()
@@ -176,64 +192,36 @@ export default function POSPage() {
     setIsInitialLoad(false)
   }, [])
 
+  useEffect(() => {
+    const fetchUser = async () => {
+      try {
+        const res = await fetch('/api/auth/me')
+        if (res.ok) {
+          const d = await res.json()
+          setUser(d.user)
+        }
+      } catch (e) { }
+    }
+    fetchUser()
+  }, [])
+
   const fetchSettings = async () => {
     try {
       const res = await fetch('/api/settings')
-      if (res.ok) setSysSettings(await res.json())
+      if (res.ok) {
+        const data = await res.json()
+        setSysSettings({
+          ...data,
+          taxRate: data.taxRate || data.tax_rate || '10',
+          loyaltyRate: data.loyaltyRate || data.loyalty_rate || '1000'
+        })
+      }
     } catch (e) { }
   }
 
 
-  // Persist state
-  // Check for active shift on mount
-  useEffect(() => {
-    const checkShiftStatus = async () => {
-      try {
-        const res = await fetch('/api/shifts?status=OPEN')
-        if (res.ok) {
-          const shifts = await res.json()
-          if (shifts.length > 0) {
-            setIsShiftOpen(true)
-            setActiveShiftId(shifts[0].id)
-          } else {
-            setIsShiftModalOpen(true)
-          }
-        }
-      } catch (error) {
-        console.error('Failed to check shift status:', error)
-      }
-    }
-    checkShiftStatus()
-  }, [])
-
-  const handleOpenShift = async () => {
-    if (!startCash) {
-      alert('Please enter starting cash amount')
-      return
-    }
-
-    try {
-      const res = await fetch('/api/shifts', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ startCash: parseFloat(startCash) })
-      })
-
-      if (res.ok) {
-        const shift = await res.json()
-        setIsShiftOpen(true)
-        setActiveShiftId(shift.id)
-        setIsShiftModalOpen(false)
-        setStartCash('')
-      } else {
-        const error = await res.json()
-        alert(error.error || 'Failed to open shift')
-      }
-    } catch (error) {
-      console.error('Failed to open shift:', error)
-      alert('Failed to open shift')
-    }
-  }
+  // Shift Management context
+  const { status: shiftStatus, checkShiftStatus } = useShift()
 
   useEffect(() => {
     if (isInitialLoad) return
@@ -265,19 +253,11 @@ export default function POSPage() {
       const res = await fetch('/api/menu')
       if (res.ok) {
         const data = await res.json()
-        const items = data.map((d: any) => ({
-          id: d.id,
-          name: d.name,
-          price: Number(d.price),
-          category: d.categoryName || "Uncategorized",
-          isAvailable: Boolean(d.isAvailable),
-          image: d.image
-        }))
-
-        setMenuItems(items)
+        // Data already in correct hierarchical format from API
+        setMenuItems(data)
 
         // Extract unique categories
-        const uniqueCategories = Array.from(new Set(items.map((i: any) => i.category))) as string[]
+        const uniqueCategories = Array.from(new Set(data.map((i: any) => i.category))) as string[]
         setCategories(["All", ...uniqueCategories])
       }
     } catch (e) { console.error(e) }
@@ -301,18 +281,65 @@ export default function POSPage() {
   }, [customerQuery, isCustomerSearchOpen])
 
   // Handle Resume Order and Fetch Next Number
+  const [isResumeWarningOpen, setIsResumeWarningOpen] = useState(false)
+  const [pendingResumeId, setPendingResumeId] = useState<string | null>(null)
+
+  const handleResumeOrder = async (resumeId: string) => {
+    if (cart.length > 0) {
+      setPendingResumeId(resumeId)
+      setIsResumeWarningOpen(true)
+      return
+    }
+    await performResume(resumeId)
+  }
+
+  const performResume = async (resumeId: string) => {
+    try {
+      const res = await fetch('/api/orders')
+      if (res.ok) {
+        const all = await res.json()
+        const found = all.find((o: any) => o.id === resumeId)
+        if (found) {
+          setCart(found.items.map((i: any) => ({
+            id: i.variationSizeId, // Could use i.id if uniqueCartId was stored, but variationSizeId is safer for now
+            variationSizeId: i.variationSizeId,
+            name: i.name,
+            price: i.price,
+            quantity: i.quantity,
+            sugar: i.sugarLevel,
+            shot: i.shotType,
+            cupSize: i.cupSize
+          })))
+          setOrderNumber(found.orderNumber)
+          setResumedOrderId(found.id)
+          setBeeperNumber(found.beeperNumber || "")
+
+          if (found.customerId) {
+            const cRes = await fetch(`/api/customers?q=${found.customerId}`)
+            if (cRes.ok) {
+              const customers = await cRes.json()
+              const c = customers.find((cust: any) => cust.id === found.customerId)
+              if (c) setSelectedCustomer(c)
+            }
+          }
+          window.history.replaceState({}, document.title, "/pos")
+        }
+      }
+    } catch (e) { console.error(e) }
+  }
+
   useEffect(() => {
     const params = new URLSearchParams(window.location.search)
     const resumeId = params.get('resumeOrder')
 
-    const initialize = async () => {
-      // 1. Auto-Hold existing session if switching
-      const existingCartStr = localStorage.getItem("pos_cart")
-      const existingCart = existingCartStr ? JSON.parse(existingCartStr) : []
-      const existingResumedId = localStorage.getItem("pos_resumedOrderId")
+    // Auto-Hold existing session if switching (this logic remains in the useEffect for initial load)
+    const existingCartStr = localStorage.getItem("pos_cart")
+    const existingCart = existingCartStr ? JSON.parse(existingCartStr) : []
+    const existingResumedId = localStorage.getItem("pos_resumedOrderId")
 
-      if (resumeId && existingCart.length > 0 && existingResumedId !== resumeId) {
-        // Auto-save the current session as HOLD before loading the next one
+    if (resumeId && existingCart.length > 0 && existingResumedId !== resumeId) {
+      // Auto-save the current session as HOLD before loading the next one
+      const autoHold = async () => {
         try {
           const existingCust = JSON.parse(localStorage.getItem("pos_customer") || "null")
           const existingTable = localStorage.getItem("pos_table") || ""
@@ -335,44 +362,17 @@ export default function POSPage() {
           })
         } catch (e) { console.error("Auto-hold failed", e) }
       }
+      autoHold()
+    }
 
-      // 2. Load the requested order or fetch next number
-      if (resumeId) {
-        try {
-          const res = await fetch('/api/orders')
-          if (res.ok) {
-            const all = await res.json()
-            const found = all.find((o: any) => o.id === resumeId)
-            if (found) {
-              setCart(found.items.map((i: any) => ({
-                id: i.productId,
-                name: i.name,
-                price: i.price,
-                quantity: i.quantity,
-                modifiers: []
-              })))
-              setOrderNumber(found.orderNumber)
-              setResumedOrderId(found.id)
-              if (found.customerId) {
-                const cRes = await fetch(`/api/customers?q=${found.customerId}`)
-                if (cRes.ok) {
-                  const customers = await cRes.json()
-                  const c = customers.find((cust: any) => cust.id === found.customerId)
-                  if (c) setSelectedCustomer(c)
-                }
-              }
-              window.history.replaceState({}, document.title, "/pos")
-            }
-          }
-        } catch (e) { console.error(e) }
-      } else {
-        const savedOrderNum = localStorage.getItem("pos_orderNumber")
-        if (!savedOrderNum) {
-          fetchNextOrderNumber()
-        }
+    if (resumeId) {
+      performResume(resumeId)
+    } else {
+      const savedOrderNum = localStorage.getItem("pos_orderNumber")
+      if (!savedOrderNum) {
+        fetchNextOrderNumber()
       }
     }
-    initialize()
   }, [])
 
   const fetchNextOrderNumber = async () => {
@@ -408,28 +408,35 @@ export default function POSPage() {
     } catch (e) { alert("Error applying promo") }
   }
 
-  const handleRedeemPoints = () => {
+  // Replaced by manual function below
+  // const handleRedeemPoints = () => { ... }
+
+  const handleManualRedeem = () => {
     if (!selectedCustomer) return
-    const availablePoints = (selectedCustomer as any).loyaltyPoints || 0
-    if (availablePoints <= 0) {
-      alert("Customer has no points to redeem")
-      return
-    }
+    const points = parseInt(manualPoints)
+    if (isNaN(points) || points <= 0) return alert("Invalid points")
+
+    // Check max available
+    const available = (selectedCustomer as any).loyaltyPoints || 0
+    if (points > available) return alert(`Not enough points. Max ${available}`)
 
     const rate = Number(sysSettings.loyalty_rate) || 100
+    const discountAmount = points * rate
+
+    // Check against total
     const maxDiscount = subtotal - promoDiscount
-
-    // Logic: 1 point = loyalty_rate LAK
-    const pointsToUse = Math.min(availablePoints, Math.floor(maxDiscount / rate))
-    const discountAmount = pointsToUse * rate
-
-    if (pointsToUse <= 0) {
-      alert("Not enough points or items for redemption")
+    if (discountAmount > maxDiscount && maxDiscount > 0) {
+      // Allow using more points than total? usually no.
+      // Auto adjust? Or alert? User asked to "type how many point".
+      // Let's allow and cap discount at total, but points deducted should probably match discount used?
+      // Or just block if > total.
+      alert(`Discount exceeds total. Max points usable: ${Math.floor(maxDiscount / rate)}`)
       return
     }
 
-    setPointsRedeemed(pointsToUse)
+    setPointsRedeemed(points)
     setLoyaltyDiscount(discountAmount)
+    setManualPoints("")
   }
 
   const handleNewOrderClick = () => {
@@ -458,16 +465,44 @@ export default function POSPage() {
     setIsNewOrderConfirmOpen(false)
   }
 
-  const addToCart = (item: MenuItem) => {
+  const handleClickProduct = (item: MenuItem) => {
+    setProductToCustomize(item)
+    setCustomizationOpen(true)
+  }
+
+  const handleAddToCartWithCustomization = (selection: {
+    variationSizeId: string
+    name: string
+    price: number
+    sugar: string
+    shot: string
+  }) => {
     setCart((prev) => {
-      const existing = prev.find((cartItem) => cartItem.id === item.id)
+      // Unique ID based on variationSizeId + customizations
+      const uniqueId = `${selection.variationSizeId}-${selection.sugar}-${selection.shot}`
+
+      // Check existing similar item
+      const existing = prev.find((item) => item.id === uniqueId)
+
       if (existing) {
-        return prev.map((cartItem) =>
-          cartItem.id === item.id ? { ...cartItem, quantity: cartItem.quantity + 1 } : cartItem,
+        return prev.map((item) =>
+          item.id === uniqueId ? { ...item, quantity: item.quantity + 1 } : item
         )
       }
-      return [...prev, { ...item, quantity: 1, modifiers: [] }]
+
+      return [...prev, {
+        id: uniqueId,
+        variationSizeId: selection.variationSizeId,
+        name: selection.name,
+        price: selection.price,
+        quantity: 1,
+        sugar: selection.sugar,
+        shot: selection.shot,
+        category: productToCustomize?.category || "Other",
+        image: productToCustomize?.image
+      }]
     })
+    setProductToCustomize(null)
   }
 
   const updateQuantity = (id: string, delta: number) => {
@@ -494,7 +529,17 @@ export default function POSPage() {
         method: 'POST',
         body: JSON.stringify({
           id: resumedOrderId,
-          items: cart.map(i => ({ id: i.id, name: i.name, price: i.price, quantity: i.quantity })),
+          beeperNumber: beeperNumber || null,
+          pointsRedeemed,
+          taxAmount: tax,
+          items: cart.map(i => ({
+            variationSizeId: i.variationSizeId,
+            name: i.name,
+            price: i.price,
+            quantity: i.quantity,
+            sugarLevel: i.sugar,
+            shotType: i.shot
+          })),
           total,
           subtotal,
           tax,
@@ -502,22 +547,17 @@ export default function POSPage() {
           promoId: appliedPromo?.id,
           customerId: selectedCustomer?.id,
           paymentMethod,
-          status: 'COMPLETED',
-          beeperNumber: beeperNumber || null,
-          pointsRedeemed,
-          taxAmount: tax
+          status: 'COMPLETED'
         }),
         headers: { 'Content-Type': 'application/json' }
       })
 
       if (res.ok) {
         const data = await res.json()
-        // Broadcast payment complete
         const channel = new BroadcastChannel("payment_channel")
         channel.postMessage({ type: "PAYMENT_COMPLETE" })
         channel.close()
 
-        // Success - Store full details for receipt
         setLastOrderInfo({
           id: data.id,
           orderNumber,
@@ -531,21 +571,8 @@ export default function POSPage() {
           promo: appliedPromo,
           date: new Date().toLocaleString()
         })
-        setCart([])
-        setTableNumber("")
-        setSelectedCustomer(null)
-        setAppliedPromo(null)
-        setResumedOrderId(null)
-        setBeeperNumber("")
-        setCashReceived("")
-        setOrderNumber("")
-        setIsPaymentOpen(false)
-        localStorage.removeItem("pos_cart")
-        localStorage.removeItem("pos_customer")
-        localStorage.removeItem("pos_table")
-        localStorage.removeItem("pos_orderNumber")
-        localStorage.removeItem("pos_beeperNumber")
-        fetchNextOrderNumber()
+        handleNewOrder() // This resets resumedOrderId
+        setIsPaymentOpen(false) // Close the payment dialog
         setIsSuccessOpen(true)
       } else {
         alert("Failed to create order")
@@ -565,14 +592,21 @@ export default function POSPage() {
         method: 'POST',
         body: JSON.stringify({
           id: resumedOrderId,
-          items: cart.map(i => ({ id: i.id, name: i.name, price: i.price, quantity: i.quantity })),
+          items: cart.map(i => ({
+            variationSizeId: i.variationSizeId,
+            name: i.name,
+            price: i.price,
+            quantity: i.quantity,
+            sugarLevel: i.sugar,
+            shotType: i.shot
+          })),
           total,
           subtotal,
           tax,
           discount,
           promoId: appliedPromo?.id,
           customerId: selectedCustomer?.id,
-          paymentMethod: 'BANK_NOTE',
+          paymentMethod: 'CASH',
           status: 'HOLD',
           beeperNumber: beeperNumber || null,
           pointsRedeemed,
@@ -582,18 +616,7 @@ export default function POSPage() {
       })
 
       if (res.ok) {
-        setCart([])
-        setTableNumber("")
-        setSelectedCustomer(null)
-        setBeeperNumber("")
-        setCashReceived("")
-        setOrderNumber("")
-        localStorage.removeItem("pos_cart")
-        localStorage.removeItem("pos_customer")
-        localStorage.removeItem("pos_table")
-        localStorage.removeItem("pos_orderNumber")
-        localStorage.removeItem("pos_beeperNumber")
-        fetchNextOrderNumber()
+        handleNewOrder() // This resets resumedOrderId and orderNumber
         setIsHoldSuccessOpen(true)
       } else {
         // Handle error
@@ -608,7 +631,7 @@ export default function POSPage() {
 
   const handleCancelOrderClick = () => {
     if (!resumedOrderId) {
-      handleNewOrder()
+      setCart([]) // Just clear the cart if it's a fresh order
       return
     }
     setIsCancelConfirmOpen(true)
@@ -658,6 +681,14 @@ export default function POSPage() {
         <Badge variant="secondary" className="px-3 py-1 text-lg font-mono bg-amber-50 text-amber-900 border-amber-200">
           {orderNumber || "No. --"}
         </Badge>
+        <div className="flex gap-2 ml-4">
+          <Link href="/inventory">
+            <Button variant="outline" size="sm">Inventory</Button>
+          </Link>
+          <Link href="/menu">
+            <Button variant="outline" size="sm">Menu</Button>
+          </Link>
+        </div>
       </Header>
 
       <div className="flex h-[calc(100vh-73px)]">
@@ -699,7 +730,7 @@ export default function POSPage() {
                 <Card
                   key={item.id}
                   className={`p-4 cursor-pointer hover:shadow-lg transition-shadow ${!item.isAvailable ? 'opacity-50 pointer-events-none' : ''}`}
-                  onClick={() => addToCart(item)}
+                  onClick={() => handleClickProduct(item)}
                 >
                   <div className="aspect-square bg-gradient-to-br from-amber-100 to-orange-100 rounded-lg mb-3 flex items-center justify-center overflow-hidden">
                     {item.image && item.image !== '/placeholder.svg' ? (
@@ -709,7 +740,11 @@ export default function POSPage() {
                     )}
                   </div>
                   <h3 className="font-semibold mb-1 text-balance">{item.name}</h3>
-                  <p className="text-lg font-bold text-amber-600">{formatLAK(item.price)}</p>
+                  <p className="text-lg font-bold text-amber-600">
+                    {item.variations?.length > 0
+                      ? formatLAK(Math.min(...item.variations.flatMap(v => v.sizes.map(s => s.price))))
+                      : "N/A"}
+                  </p>
                 </Card>
               ))}
             </div>
@@ -743,6 +778,15 @@ export default function POSPage() {
                       <div className="flex-1">
                         <h4 className="font-semibold">{item.name}</h4>
                         <p className="text-sm text-muted-foreground">{formatLAK(item.price)} {t.each}</p>
+                        <div className="flex flex-wrap gap-1 mt-1">
+                          {item.sugar && item.sugar !== "100%" && (
+                            <span className="text-[10px] bg-slate-100 px-1 rounded text-slate-500 border border-slate-200">Sugar: {item.sugar}</span>
+                          )}
+                          {item.shot && item.shot !== "Normal" && (
+                            <span className="text-[10px] bg-slate-100 px-1 rounded text-slate-500 border border-slate-200">Shot: {item.shot}</span>
+                          )}
+
+                        </div>
                       </div>
                       <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => removeItem(item.id)}>
                         <X className="w-4 h-4" />
@@ -807,6 +851,141 @@ export default function POSPage() {
             </div>
           </div>
 
+          {/* Resume Warning Dialog */}
+          <AlertDialog open={isResumeWarningOpen} onOpenChange={setIsResumeWarningOpen}>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>There are active orders</AlertDialogTitle>
+                <AlertDialogDescription>
+                  If you continue, the current active order will automatically be put on hold.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel onClick={() => {
+                  setPendingResumeId(null)
+                  setIsResumeWarningOpen(false)
+                }}>
+                  Cancel
+                </AlertDialogCancel>
+                <AlertDialogAction onClick={async () => {
+                  if (pendingResumeId) {
+                    // Auto-hold current first
+                    const subtotal = Math.round(cart.reduce((sum, item) => sum + item.price * item.quantity, 0))
+                    const tax = calculateTax(subtotal)
+                    const total = subtotal + tax
+
+                    await fetch('/api/orders', {
+                      method: 'POST',
+                      body: JSON.stringify({
+                        id: resumedOrderId,
+                        items: cart,
+                        total, subtotal, tax,
+                        customerId: selectedCustomer?.id,
+                        status: 'HOLD'
+                      }),
+                      headers: { 'Content-Type': 'application/json' }
+                    })
+
+                    await performResume(pendingResumeId)
+                    setPendingResumeId(null)
+                    setIsResumeWarningOpen(false)
+                  }
+                }}>
+                  Continue
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+
+          <Dialog open={isSuccessOpen} onOpenChange={setIsSuccessOpen}>
+            <DialogContent className="max-w-[400px] max-h-[90vh] overflow-y-auto !transform-none data-[state=open]:animate-none" size="sm">
+              <div className="text-center space-y-2 mb-4 pt-4">
+                <div className="flex justify-center mb-4">
+                  <CheckCircle className="w-10 h-10 text-green-600" strokeWidth={2.5} />
+
+                </div>
+                <DialogTitle className="text-2xl font-bold">{t.payment_successful}</DialogTitle>
+                <p className="text-muted-foreground">Order completed successfully</p>
+              </div>
+
+              {lastOrderInfo && (
+                <div className="border border-dashed border-slate-200 p-4 rounded-lg bg-slate-50 font-mono text-sm leading-relaxed">
+                  <div className="text-center border-b border-dashed border-slate-300 pb-3 mb-3">
+                    <p className="text-[10px] uppercase tracking-wider text-slate-500">Order Number</p>
+                    <p className="text-3xl font-bold">{lastOrderInfo.orderNumber}</p>
+                    <p className="text-lg font-bold uppercase mt-1">{sysSettings?.shopName || 'Cafe POS'}</p>
+                    <p className="text-[10px] mt-1">{lastOrderInfo.date}</p>
+                  </div>
+
+                  {lastOrderInfo.beeperNumber && (
+                    <div className="mb-3 p-2 border-2 border-dashed border-slate-400 text-center font-bold text-xl">
+                      BEEPER: {lastOrderInfo.beeperNumber}
+                    </div>
+                  )}
+
+                  <div className="space-y-1 mb-3">
+                    {lastOrderInfo?.items.map((item: any, i: number) => (
+                      <div key={i} className="flex flex-col mb-1 capitalize">
+                        <div className="flex justify-between">
+                          <span className="truncate mr-2 font-bold">{item.name} x{item.quantity}</span>
+                          <span>{formatLAK(item.price * item.quantity)}</span>
+                        </div>
+                        <div className="text-[10px] text-slate-500 pl-2">
+                          {item.sugar && <span>Sugar: {item.sugar} </span>}
+                          {item.shot && <span>Shot: {item.shot} </span>}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  <div className="border-t border-dashed border-slate-300 pt-3 space-y-1">
+                    <div className="flex justify-between text-xs">
+                      <span>Subtotal</span>
+                      <span>{formatLAK(lastOrderInfo.subtotal)}</span>
+                    </div>
+                    {lastOrderInfo.discount > 0 && (
+                      <div className="flex justify-between text-xs text-rose-600">
+                        <span>Discount</span>
+                        <span>-{formatLAK(lastOrderInfo.discount)}</span>
+                      </div>
+                    )}
+                    <div className="flex justify-between text-xs">
+                      <span>Tax ({sysSettings.taxRate}%)</span>
+                      <span>{formatLAK(lastOrderInfo.tax)}</span>
+                    </div>
+                    <div className="flex justify-between font-bold text-lg mt-2 pt-2 border-t border-dashed border-slate-300">
+                      <span>TOTAL</span>
+                      <span>{formatLAK(lastOrderInfo.total)}</span>
+                    </div>
+                  </div>
+
+                  {lastOrderInfo.customer && (
+                    <div className="mt-3 pt-3 border-t border-dashed border-slate-300 text-[10px] text-slate-600">
+                      <p>Customer: {lastOrderInfo.customer.name}</p>
+                      <p>Points Earned: +{Math.floor(lastOrderInfo.total / 1000)}</p>
+                    </div>
+                  )}
+                  <div className="text-center mt-3 pt-2 text-[8px] opacity-70">
+                    <p>Payment: {lastOrderInfo?.paymentMethod === 'BANK_NOTE' ? 'Cash' : 'Transfer'}</p>
+                    <p className="font-bold mt-1 uppercase">Thank you for your visit!</p>
+                  </div>
+                </div>
+              )}
+
+              <div className="flex flex-col gap-2 mt-6">
+                <Button className="w-full bg-blue-600 hover:bg-blue-700 py-6 text-lg font-bold" onClick={() => {
+                  if (lastOrderInfo?.id) window.open(`/receipt?id=${lastOrderInfo.id}`, '_blank', 'width=450,height=600')
+                }}>
+                  <Printer className="w-5 h-5 mr-2" />
+                  {t.print_receipt}
+                </Button>
+                <Button variant="outline" className="w-full py-6 text-lg font-semibold border-amber-200 text-amber-900 bg-amber-50 hover:bg-amber-100" onClick={() => setIsSuccessOpen(false)}>
+                  {t.new_order || "New Order"}
+                </Button>
+              </div>
+            </DialogContent>
+          </Dialog>
+
           {/* Actions */}
           <div className="p-4 border-t space-y-2">
             {selectedCustomer ? (
@@ -835,13 +1014,22 @@ export default function POSPage() {
                   </Button>
                 </div>
                 {pointsRedeemed === 0 && ((selectedCustomer as any).loyaltyPoints || 0) > 0 && (
-                  <Button
-                    variant="outline"
-                    className="w-full bg-amber-50 border-amber-200 text-amber-700 hover:bg-amber-100"
-                    onClick={handleRedeemPoints}
-                  >
-                    <Tag className="w-4 h-4 mr-2" /> {t.redeem_points}
-                  </Button>
+                  <div className="flex gap-2">
+                    <Input
+                      placeholder="Points"
+                      value={manualPoints}
+                      onChange={(e) => setManualPoints(e.target.value.replace(/\D/g, ""))}
+                      className="h-9"
+                    />
+                    <Button
+                      variant="outline"
+                      className="bg-amber-50 border-amber-200 text-amber-700 hover:bg-amber-100 h-9"
+                      onClick={handleManualRedeem}
+                      disabled={!manualPoints}
+                    >
+                      <Tag className="w-4 h-4 mr-2" /> {t.redeem_points}
+                    </Button>
+                  </div>
                 )}
                 {pointsRedeemed > 0 && (
                   <Button
@@ -895,184 +1083,205 @@ export default function POSPage() {
                 {t.hold_order}
               </Button>
             </div>
-            <Dialog open={isPaymentOpen} onOpenChange={setIsPaymentOpen}>
-              <DialogTrigger asChild>
-                <Button
-                  className="w-full bg-green-600 hover:bg-green-700 text-white"
-                  size="lg"
-                  disabled={cart.length === 0 || isProcessing}
-                >
-                  {t.proceed_to_payment}
-                </Button>
-              </DialogTrigger>
-              <DialogContent className="max-w-md">
-                <DialogHeader>
-                  <DialogTitle>{t.checkout}</DialogTitle>
-                </DialogHeader>
-                <div className="space-y-4">
-                  <div className="text-center py-4 border-b">
-                    <p className="text-muted-foreground">{t.total_to_pay}</p>
-                    <p className="text-4xl font-bold text-green-600">{formatLAK(total)}</p>
-                  </div>
+          </div>
 
-                  <div className="grid grid-cols-2 gap-3">
-                    <Button
-                      variant={paymentMethod === 'BANK_NOTE' ? "default" : "outline"}
-                      onClick={() => setPaymentMethod('BANK_NOTE')}
-                      className={paymentMethod === 'BANK_NOTE' ? 'bg-amber-600 hover:bg-amber-700' : ''}
-                    >
-                      💵 {t.bank_note}
-                    </Button>
-                    <Button
-                      variant={paymentMethod === 'QR_CODE' ? "default" : "outline"}
-                      onClick={() => setPaymentMethod('QR_CODE')}
-                      className={paymentMethod === 'QR_CODE' ? 'bg-blue-600 hover:bg-blue-700' : ''}
-                    >
-                      📱 {t.qr_code}
-                    </Button>
-                  </div>
+          <Button
+            className="w-full bg-green-600 hover:bg-green-700 text-white"
+            size="lg"
+            disabled={cart.length === 0 || isProcessing}
+            onClick={() => {
+              if (shiftStatus !== 'OPEN') {
+                alert("Please open a shift first!")
+                return
+              }
+              setIsPaymentOpen(true)
+            }}
+          >
+            {t.proceed_to_payment}
+          </Button>
 
-                  {paymentMethod === 'BANK_NOTE' && (
-                    <div className="space-y-4">
+          <Dialog open={isPaymentOpen} onOpenChange={setIsPaymentOpen}>
+            <DialogContent className="max-w-md">
+              <DialogHeader>
+                <DialogTitle>{t.checkout}</DialogTitle>
+              </DialogHeader>
+              <div className="space-y-4">
+                <div className="text-center py-4 border-b">
+                  <p className="text-muted-foreground">{t.total_to_pay}</p>
+                  <p className="text-4xl font-bold text-green-600">{formatLAK(total)}</p>
+                </div>
 
-                      <div className="space-y-2">
-                        <Label
-                          className={`flex justify-between ${showBeeperError && !beeperNumber ? "text-rose-500" : ""
-                            }`}
-                        >
-                          <span>{t.beeper}</span>
-                          <span className="text-xs font-bold">
-                            {showBeeperError && !beeperNumber ? t.required : `(${t.required})`}
-                          </span>
-                        </Label>
-
-                        <Input
-                          placeholder="e.g. 05"
-                          value={beeperNumber}
-                          onChange={e => {
-                            setBeeperNumber(e.target.value)
-                            if (showBeeperError) setShowBeeperError(false)
-                          }}
-                          className={`text-lg font-bold ${showBeeperError && !beeperNumber
-                            ? "border-rose-500 bg-rose-50 focus-visible:ring-rose-500"
-                            : ""
-                            }`}
-                        />
-
-                        {showBeeperError && !beeperNumber && (
-                          <p className="text-[10px] text-rose-500 mt-1 font-bold animate-pulse">
-                            {t.please_enter_beeper_number}
-                          </p>
-                        )}
-                      </div>
-
-                      <div className="bg-muted p-4 rounded-lg space-y-2">
-                        <Label>{t.cash_received}</Label>
-                        <Input
-                          type="text"
-                          value={cashReceived ? Number(cashReceived).toLocaleString() : ""}
-                          onChange={e => {
-                            const val = e.target.value.replace(/\D/g, "")
-                            setCashReceived(val)
-                          }}
-                          placeholder="Enter amount in kips"
-                          className="text-2xl font-bold h-14"
-                        />
-                      </div>
-                      {Number(cashReceived) > total && (
-                        <div className="bg-green-50 p-3 rounded-lg">
-                          <p className="text-sm text-muted-foreground">{t.change}</p>
-                          <p className="text-2xl font-bold text-green-600">{formatLAK(Number(cashReceived) - total)}</p>
-                          {/* <div className="mt-2 text-xs text-muted-foreground">
-                            {calculateChange(total, Number(cashReceived)).denominations.map((d, i) => (
-                              <div key={i}>{d.count} x {formatLAK(d.denom)}</div>
-                            ))}
-                          </div> */}
-                        </div>
-                      )}
-                      <div className="grid grid-cols-4 gap-2">
-                        {LAK_DENOMINATIONS.map(denom => (
-                          <Button
-                            key={denom}
-                            variant="outline"
-                            size="sm"
-                            onClick={() => setCashReceived(prev => String(Number(prev || 0) + denom))}
-                            className="text-xs"
-                          >
-                            +{formatLAK(denom)}
-                          </Button>
-                        ))}
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => setCashReceived("")}
-                          className="text-xs text-red-500 hover:bg-red-50"
-                        >
-                          {t.clear}
-                        </Button>
-                      </div>
-                    </div>
-                  )}
-
-                  {paymentMethod === 'QR_CODE' && (
-                    <div className="space-y-4">
-                      <div className="space-y-2">
-                        <Label className={`flex justify-between ${showBeeperError && !beeperNumber ? 'text-rose-500' : ''}`}>
-                          <span>Beeper Number</span>
-                          <span className="text-xs font-bold">{showBeeperError && !beeperNumber ? 'REQUIRED' : '(Required)'}</span>
-                        </Label>
-                        <Input
-                          placeholder="e.g. 05"
-                          value={beeperNumber}
-                          onChange={e => {
-                            setBeeperNumber(e.target.value)
-                            if (showBeeperError) setShowBeeperError(false)
-                          }}
-                          className={`text-lg font-bold ${showBeeperError && !beeperNumber ? 'border-rose-500 bg-rose-50 focus-visible:ring-rose-500' : ''}`}
-                        />
-                        {showBeeperError && !beeperNumber && (
-                          <p className="text-[10px] text-rose-500 mt-1 font-bold animate-pulse">Please enter a beeper number</p>
-                        )}
-                      </div>
-                      <PaymentQR
-                        amount={total}
-                        orderNumber={orderNumber || `ORD-${Date.now().toString().slice(-6)}`}
-                        onComplete={handleCheckout}
-                      />
-                      <div className="pt-4 border-t">
-                        <Button
-                          className="w-full bg-blue-600 hover:bg-blue-700 text-white"
-                          onClick={handleCheckout}
-                          disabled={isProcessing}
-                        >
-                          <Check className="w-4 h-4 mr-2" />
-                          Mark as Paid (Manual)
-                        </Button>
-                      </div>
-                    </div>
-                  )}
+                <div className="grid grid-cols-2 gap-3">
+                  <Button
+                    variant={paymentMethod === 'BANK_NOTE' ? "default" : "outline"}
+                    onClick={() => setPaymentMethod('BANK_NOTE')}
+                    className={paymentMethod === 'BANK_NOTE' ? 'bg-amber-600 hover:bg-amber-700' : ''}
+                  >
+                    💵 {t.bank_note}
+                  </Button>
+                  <Button
+                    variant={paymentMethod === 'QR_CODE' ? "default" : "outline"}
+                    onClick={() => setPaymentMethod('QR_CODE')}
+                    className={paymentMethod === 'QR_CODE' ? 'bg-blue-600 hover:bg-blue-700' : ''}
+                  >
+                    📱 {t.qr_code}
+                  </Button>
                 </div>
 
                 {paymentMethod === 'BANK_NOTE' && (
-                  <DialogFooter>
-                    <Button variant="outline" onClick={() => setIsPaymentOpen(false)}>{t.cancel}</Button>
-                    <Button
-                      className="bg-green-600 hover:bg-green-700"
-                      onClick={handleCheckout}
-                      disabled={isProcessing || !cashReceived || Number(cashReceived) < total}
-                    >
-                      {isProcessing ? t.processing : t.complete_order}
-                    </Button>
-                  </DialogFooter>
-                )}
-              </DialogContent>
-            </Dialog>
+                  <div className="space-y-4">
 
-          </div>
+                    <div className="space-y-2">
+                      <Label
+                        className={`flex justify-between ${showBeeperError && !beeperNumber ? "text-rose-500" : ""
+                          }`}
+                      >
+                        <span>{t.beeper}</span>
+                        <span className="text-xs font-bold">
+                          {showBeeperError && !beeperNumber ? t.required : `(${t.required})`}
+                        </span>
+                      </Label>
+
+                      <Input
+                        placeholder="e.g. 05"
+                        value={beeperNumber}
+                        onChange={e => {
+                          setBeeperNumber(e.target.value)
+                          if (showBeeperError) setShowBeeperError(false)
+                        }}
+                        className={`text-lg font-bold ${showBeeperError && !beeperNumber
+                          ? "border-rose-500 bg-rose-50 focus-visible:ring-rose-500"
+                          : ""
+                          }`}
+                      />
+
+                      {showBeeperError && !beeperNumber && (
+                        <p className="text-[10px] text-rose-500 mt-1 font-bold animate-pulse">
+                          {t.please_enter_beeper_number}
+                        </p>
+                      )}
+                    </div>
+
+                    <div className="bg-muted p-4 rounded-lg space-y-2">
+                      <Label>{t.cash_received}</Label>
+                      <Input
+                        type="text"
+                        value={cashReceived ? Number(cashReceived).toLocaleString() : ""}
+                        onChange={e => {
+                          const val = e.target.value.replace(/\D/g, "")
+                          setCashReceived(val)
+                        }}
+                        placeholder="Enter amount in kips"
+                        className="text-2xl font-bold h-14"
+                      />
+                    </div>
+                    <div>
+                      <div className="flex justify-between items-center mb-2">
+                        <Label></Label>
+                        <span className={`text-xl font-bold ${calculateChange(Number(cashReceived), total).totalChange <= 0 ? 'text-green-600' : 'text-red-500'}`}>
+                          {(() => {
+                            const change = calculateChange(Number(cashReceived), total).totalChange
+                            if (change === 0) return <span className="text-green-600">Exact Amount</span>
+                            if (change < 0) return `Change: ${formatLAK(Math.abs(change))}`
+                            return `Missing: ${formatLAK(Math.abs(change))}`
+                          })()}
+                        </span>
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-4 gap-2">
+                      {LAK_DENOMINATIONS.map(denom => (
+                        <Button
+                          key={denom}
+                          variant="outline"
+                          size="lg"
+                          onClick={() => setCashReceived(prev => String(Number(prev || 0) + denom))}
+                          className="text-md"
+                        >
+                          +{formatLAK(denom)}
+                        </Button>
+                      ))}
+
+                      <Button
+                        variant="ghost"
+                        size="lg"
+                        onClick={() => setCashReceived("")}
+                        className="text-md text-red-500 hover:bg-red-50 col-start-3"
+                      >
+                        {t.clear}
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="lg"
+                        onClick={() => setCashReceived(total.toString())}
+                        className="text-md bg-green-50 text-green-700 border-green-200 hover:bg-green-100"
+                      >
+                        {t.pay_exact}
+                      </Button>
+
+                    </div>
+                  </div>
+                )}
+
+                {paymentMethod === 'QR_CODE' && (
+                  <div className="space-y-4">
+                    <div className="space-y-2">
+                      <Label className={`flex justify-between ${showBeeperError && !beeperNumber ? 'text-rose-500' : ''}`}>
+                        <span>Beeper Number</span>
+                        <span className="text-xs font-bold">{showBeeperError && !beeperNumber ? 'REQUIRED' : '(Required)'}</span>
+                      </Label>
+                      <Input
+                        placeholder="e.g. 05"
+                        value={beeperNumber}
+                        onChange={e => {
+                          setBeeperNumber(e.target.value)
+                          if (showBeeperError) setShowBeeperError(false)
+                        }}
+                        className={`text-lg font-bold ${showBeeperError && !beeperNumber ? 'border-rose-500 bg-rose-50 focus-visible:ring-rose-500' : ''}`}
+                      />
+                      {showBeeperError && !beeperNumber && (
+                        <p className="text-[10px] text-rose-500 mt-1 font-bold animate-pulse">Please enter a beeper number</p>
+                      )}
+                    </div>
+                    <PaymentQR
+                      amount={total}
+                      orderNumber={orderNumber || `ORD-${Date.now().toString().slice(-6)}`}
+                      onComplete={handleCheckout}
+                    />
+                    <div className="pt-4 border-t">
+                      <Button
+                        className="w-full bg-blue-600 hover:bg-blue-700 text-white"
+                        onClick={handleCheckout}
+                        disabled={isProcessing}
+                      >
+                        <Check className="w-4 h-4 mr-2" />
+                        Mark as Paid (Manual)
+                      </Button>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {paymentMethod === 'BANK_NOTE' && (
+                <DialogFooter>
+                  <Button variant="outline" size="lg" onClick={() => setIsPaymentOpen(false)}>{t.cancel}</Button>
+                  <Button
+                    className="bg-green-600 hover:bg-green-700"
+                    onClick={handleCheckout}
+                    size="lg"
+                    disabled={isProcessing || !cashReceived || Number(cashReceived) < total}
+                  >
+                    {isProcessing ? t.processing : t.complete_order}
+                  </Button>
+                </DialogFooter>
+              )}
+            </DialogContent>
+          </Dialog>
+
         </div>
       </div>
 
       {/* Promo Dialog */}
+
       <Dialog open={isPromoOpen} onOpenChange={setIsPromoOpen}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader><DialogTitle>Apply Promo Code</DialogTitle></DialogHeader>
@@ -1141,100 +1350,6 @@ export default function POSPage() {
         </AlertDialogContent>
       </AlertDialog>
 
-      {/* Success Dialog with Receipt */}
-      <Dialog open={isSuccessOpen} onOpenChange={setIsSuccessOpen}>
-        <DialogContent className="sm:max-w-md max-h-[90vh] overflow-y-auto">
-          <DialogTitle className="sr-only">Payment Successful Receipt</DialogTitle>
-          <div className="flex flex-col items-center pt-4">
-            <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mb-4">
-              <Check className="w-8 h-8 text-green-600" />
-            </div>
-            <h2 className="text-xl font-bold text-amber-900 mb-6">Payment Successful</h2>
-
-            {/* Receipt Visual */}
-            <Card id="printable-receipt" className="w-full p-6 bg-white border-dashed border-2 shadow-none font-mono text-sm mb-20">
-              <div className="text-center border-b border-dashed pb-4 mb-4">
-                <p className="text-xs text-muted-foreground mb-1">Receipt Number</p>
-                <h2 className="text-4xl font-bold mb-2">{lastOrderInfo?.orderNumber}</h2>
-                <h3 className="font-bold text-lg uppercase">Cafe POS</h3>
-                <p className="text-xs text-muted-foreground">Vientiane, Laos</p>
-                <p className="text-xs mt-1">{lastOrderInfo?.date}</p>
-              </div>
-
-              {lastOrderInfo?.beeperNumber && (
-                <div className="flex justify-center font-bold mb-4 text-orange-600 border-2 border-orange-600 p-2 text-center text-xl">
-                  <span>BEEPER: {lastOrderInfo.beeperNumber}</span>
-                </div>
-              )}
-
-              <div className="space-y-2 mb-4">
-                {lastOrderInfo?.items?.map((item: any, i: number) => (
-                  <div key={i} className="flex justify-between">
-                    <span className="flex-1">{item.name} x{item.quantity}</span>
-                    <span>{formatLAK(item.price * item.quantity)}</span>
-                  </div>
-                ))}
-              </div>
-
-              <div className="border-t border-dashed pt-4 space-y-1">
-                <div className="flex justify-between text-xs text-muted-foreground">
-                  <span>Subtotal</span>
-                  <span>{formatLAK(lastOrderInfo?.subtotal)}</span>
-                </div>
-                {lastOrderInfo?.discount > 0 && (
-                  <div className="flex justify-between text-xs text-rose-600">
-                    <span>Discount ({lastOrderInfo?.promo?.name})</span>
-                    <span>-{formatLAK(lastOrderInfo?.discount)}</span>
-                  </div>
-                )}
-                <div className="flex justify-between text-xs text-muted-foreground">
-                  <span>Tax (10%)</span>
-                  <span>{formatLAK(lastOrderInfo?.tax)}</span>
-                </div>
-                <div className="flex justify-between font-bold text-base mt-2 pt-2 border-t border-dashed">
-                  <span>TOTAL</span>
-                  <span>{formatLAK(lastOrderInfo?.total)}</span>
-                </div>
-              </div>
-
-              {lastOrderInfo?.customer && (
-                <div className="mt-4 pt-4 border-t border-dashed text-[10px] text-muted-foreground">
-                  <p>Customer: {lastOrderInfo.customer.name}</p>
-                  <p>Points Earned: +{Math.floor(lastOrderInfo.total / 1000)}</p>
-                  <p>Payment: {lastOrderInfo?.paymentMethod === 'BANK_NOTE' ? 'Cash' : 'Bank Transfer'}</p>
-                </div>
-              )}
-
-              <div className="text-center mt-6 pt-4 border-t border-dashed opacity-50 text-[10px]">
-                {!lastOrderInfo?.customer && <p className="mb-2">Payment: {lastOrderInfo?.paymentMethod === 'BANK_NOTE' ? 'Cash' : 'Bank Transfer'}</p>}
-                <p>THANK YOU FOR YOUR VISIT!</p>
-              </div>
-            </Card>
-
-            <div className="w-full space-y-3 print:hidden">
-              <Button
-                className="w-full bg-blue-600 hover:bg-blue-700 font-bold py-6 text-md"
-                onClick={() => {
-                  if (lastOrderInfo?.id) {
-                    window.open(`/receipt?id=${lastOrderInfo.id}`, '_blank', 'width=450,height=600');
-                  }
-                }}
-              >
-                <Printer className="w-6 h-6 mr-2" />
-                Print Receipt
-              </Button>
-              <Button className="w-full bg-amber-600 hover:bg-amber-700" onClick={() => setIsSuccessOpen(false)}>
-                New Order
-              </Button>
-              <Link href="/orders" className="block w-full">
-                <Button variant="outline" className="w-full">
-                  View Orders
-                </Button>
-              </Link>
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
 
 
       {/* Custom Hold Success Dialog */}
@@ -1280,33 +1395,18 @@ export default function POSPage() {
         </DialogContent>
       </Dialog>
 
-      {/* Open Shift Dialog */}
-      <Dialog open={isShiftModalOpen} onOpenChange={(open) => { if (!open && isShiftOpen) setIsShiftModalOpen(false) }}>
-        <DialogContent className="sm:max-w-md pointer-events-auto" onPointerDownOutside={(e) => e.preventDefault()} onEscapeKeyDown={(e) => e.preventDefault()}>
-          <DialogHeader>
-            <DialogTitle>Open New Shift</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4">
-            <div className="p-4 bg-amber-50 rounded-lg text-amber-900 text-sm">
-              <p className="font-bold">👋 Good Morning!</p>
-              <p>You must open a shift and count the cash drawer before taking orders.</p>
-            </div>
-            <div>
-              <Label>Starting Cash Amount</Label>
-              <Input
-                type="number"
-                placeholder="0"
-                value={startCash}
-                onChange={e => setStartCash(e.target.value)}
-                className="text-lg font-bold"
-              />
-            </div>
-            <Button className="w-full bg-amber-600 hover:bg-amber-700" onClick={handleOpenShift}>
-              Open Shift
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
-    </div>
+
+      {
+        productToCustomize && (
+          <CustomizationDialog
+            isOpen={customizationOpen}
+            onClose={() => { setCustomizationOpen(false); setProductToCustomize(null); }}
+            onConfirm={handleAddToCartWithCustomization}
+            menuName={productToCustomize.name}
+            variations={productToCustomize.variations || []}
+          />
+        )
+      }
+    </div >
   )
 }

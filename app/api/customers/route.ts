@@ -1,21 +1,28 @@
 import { NextResponse } from 'next/server'
-import { getDb } from '@/lib/db'
+import { prisma } from '@/lib/prisma'
 
 export async function GET(request: Request) {
     try {
         const { searchParams } = new URL(request.url)
         const query = searchParams.get('q')
 
-        const db = await getDb()
         let customers
 
         if (query) {
-            customers = await db.all(
-                'SELECT * FROM Customer WHERE name LIKE ? OR phone LIKE ? OR email LIKE ?',
-                `%${query}%`, `%${query}%`, `%${query}%`
-            )
+            customers = await prisma.customer.findMany({
+                where: {
+                    OR: [
+                        { name: { contains: query } },
+                        { phone: { contains: query } },
+                        { email: { contains: query } }
+                    ]
+                }
+            })
         } else {
-            customers = await db.all('SELECT * FROM Customer ORDER BY createdAt DESC LIMIT 50')
+            customers = await prisma.customer.findMany({
+                orderBy: { createdAt: 'desc' },
+                take: 50
+            })
         }
 
         return NextResponse.json(customers)
@@ -31,17 +38,16 @@ export async function POST(request: Request) {
 
         if (!name) return NextResponse.json({ error: 'Name is required' }, { status: 400 })
 
-        const db = await getDb()
-        const crypto = require('crypto'); // Ensure crypto is available
-        const id = crypto.randomUUID()
-        const now = new Date().toISOString()
+        const customer = await prisma.customer.create({
+            data: {
+                name,
+                phone,
+                email,
+                dateOfBirth: dateOfBirth ? new Date(dateOfBirth) : null
+            }
+        })
 
-        await db.run(
-            'INSERT INTO Customer (id, name, phone, email, dateOfBirth, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?, ?, ?)',
-            id, name, phone, email, dateOfBirth || null, now, now
-        )
-
-        return NextResponse.json({ id, name, phone, email }, { status: 201 })
+        return NextResponse.json(customer, { status: 201 })
     } catch (error) {
         console.error(error)
         return NextResponse.json({ error: 'Failed to create customer' }, { status: 500 })

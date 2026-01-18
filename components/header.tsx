@@ -3,35 +3,25 @@
 import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { LayoutDashboard, ShoppingCart, List, Package, Tag, Settings, Wallet, Store, Users, Receipt } from "lucide-react"
+import { LayoutDashboard, ShoppingCart, List, Package, Tag, Settings, Wallet, Store, Users, Receipt, DollarSign } from "lucide-react"
 import Link from "next/link"
 import { useTranslation } from "@/hooks/use-translation"
 import { formatLAK } from "@/lib/currency"
 
+import { ShiftDialog } from "@/components/shift-dialog"
+import { useShift } from "@/components/shift-provider"
+
 export function Header({ title, children }: { title?: string, children?: React.ReactNode }) {
     const { t } = useTranslation()
     const [user, setUser] = useState<any>(null)
-    const [activeShift, setActiveShift] = useState<any>(null)
+    const { status, activeShiftId, startCash, cashPayments } = useShift()
+    const [isShiftDialogOpen, setIsShiftDialogOpen] = useState(false)
 
     useEffect(() => {
         fetch('/api/auth/me')
             .then(res => res.json())
             .then(data => setUser(data.user))
             .catch(() => { })
-
-        const fetchShift = () => {
-            fetch('/api/shifts?status=OPEN')
-                .then(res => res.json())
-                .then(data => {
-                    if (data.length > 0) setActiveShift(data[0])
-                    else setActiveShift(null)
-                })
-                .catch(() => { })
-        }
-
-        fetchShift()
-        const interval = setInterval(fetchShift, 30000) // Update every 30s
-        return () => clearInterval(interval)
     }, [])
 
     const handleLogout = async () => {
@@ -39,7 +29,7 @@ export function Header({ title, children }: { title?: string, children?: React.R
         window.location.href = '/role-select'
     }
 
-    const cashAmount = activeShift ? (activeShift.startCash + activeShift.cashPayments) : 0
+    const currentCash = (startCash || 0) + (cashPayments || 0)
 
     return (
         <header className="border-b bg-white sticky top-0 z-50">
@@ -69,16 +59,26 @@ export function Header({ title, children }: { title?: string, children?: React.R
                 </div>
 
                 <div className="flex items-center gap-4">
-                    {activeShift && (
+                    {status === 'OPEN' && (
                         <div className="flex items-center gap-2 px-3 py-1.5 bg-amber-50 rounded-full border border-amber-200">
                             <Wallet className="w-4 h-4 text-amber-600" />
-                            <span className="text-sm font-bold text-amber-900">{formatLAK(cashAmount)}</span>
-                            {user?.role === 'ADMIN' && (
-                                <Link href="/shifts">
-                                    <Badge variant="outline" className="ml-1 px-1.5 py-0 text-[10px] cursor-pointer hover:bg-amber-100 uppercase tracking-wider">Shift</Badge>
-                                </Link>
-                            )}
+                            <span className="text-sm font-bold text-amber-900">{formatLAK(currentCash)}</span>
+                            <Link href="/shifts">
+                                <Badge variant="outline" className="ml-1 px-1.5 py-0 text-[10px] cursor-pointer hover:bg-amber-100 uppercase tracking-wider">Shift / Close</Badge>
+                            </Link>
                         </div>
+                    )}
+
+                    {status === 'CLOSED' && (
+                        <Button
+                            variant="default"
+                            size="sm"
+                            className="bg-emerald-600 hover:bg-emerald-700 animate-pulse font-bold"
+                            onClick={() => setIsShiftDialogOpen(true)}
+                        >
+                            <DollarSign className="w-4 h-4 mr-2" />
+                            Open Shift
+                        </Button>
                     )}
 
                     <div className="flex items-center gap-3">
@@ -99,6 +99,7 @@ export function Header({ title, children }: { title?: string, children?: React.R
                     </div>
                 </div>
             </div>
-        </header>
+            <ShiftDialog open={isShiftDialogOpen} onOpenChange={setIsShiftDialogOpen} />
+        </header >
     )
 }

@@ -121,7 +121,11 @@ export default function InventoryPage() {
 
   return (
     <div className="min-h-screen bg-background">
-      <Header title={t.inventory_management} />
+      <Header title={t.inventory_management}>
+        <Link href="/inventory/recipes">
+          <Button variant="outline" size="sm">Recipes</Button>
+        </Link>
+      </Header>
 
       <div className="p-6 space-y-6">
         {/* Stats */}

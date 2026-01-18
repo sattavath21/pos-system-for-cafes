@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { getDb } from '@/lib/db'
+import { prisma } from '@/lib/prisma'
 import bcrypt from 'bcryptjs'
 import { cookies } from 'next/headers'
 
@@ -17,11 +17,13 @@ export async function POST(request: Request) {
             return NextResponse.json({ error: 'Invalid data' }, { status: 400 })
         }
 
-        const db = await getDb()
         const hashedPin = await bcrypt.hash(newPin, 10)
 
-        // Update all users with that role (usually 1 admin, 1 cashier in this simple setup)
-        await db.run('UPDATE User SET pin = ? WHERE role = ?', [hashedPin, role])
+        // Update all users with that role
+        await prisma.user.updateMany({
+            where: { role },
+            data: { pin: hashedPin }
+        })
 
         return NextResponse.json({ success: true })
     } catch (error) {

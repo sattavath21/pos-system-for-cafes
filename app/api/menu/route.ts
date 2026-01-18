@@ -1,16 +1,53 @@
 import { NextResponse } from 'next/server'
-import { getDb } from '@/lib/db'
+import { prisma } from '@/lib/prisma'
 
 export async function GET(request: Request) {
     try {
-        const db = await getDb()
-        const products = await db.all(`
-      SELECT p.*, c.name as categoryName 
-      FROM Product p 
-      LEFT JOIN Category c ON p.categoryId = c.id
-    `)
-        return NextResponse.json(products)
+        // Fetch all menus with their variations and sizes
+        const menus = await prisma.menu.findMany({
+            where: { isAvailable: true },
+            include: {
+                category: true,
+                variations: {
+                    where: { isEnabled: true },
+                    include: {
+                        sizes: {
+                            where: { isAvailable: true },
+                            orderBy: { displayOrder: 'asc' }
+                        }
+                    },
+                    orderBy: { displayOrder: 'asc' }
+                }
+            },
+            orderBy: { name: 'asc' }
+        })
+
+        // Transform for frontend compatibility
+        const transformed = menus.map(menu => ({
+            id: menu.id,
+            name: menu.name,
+            description: menu.description,
+            image: menu.image,
+            isAvailable: menu.isAvailable,
+            category: menu.category?.name || "Uncategorized",
+            categoryName: menu.category?.name || "Uncategorized",
+            categoryId: menu.categoryId,
+            variations: menu.variations.map(variation => ({
+                id: variation.id,
+                type: variation.type,
+                isEnabled: variation.isEnabled,
+                sizes: variation.sizes.map(size => ({
+                    id: size.id,
+                    size: size.size,
+                    price: size.price,
+                    isAvailable: size.isAvailable
+                }))
+            }))
+        }))
+
+        return NextResponse.json(transformed)
     } catch (error) {
+        console.error(error)
         return NextResponse.json({ error: 'Failed to fetch menu' }, { status: 500 })
     }
 }
@@ -18,39 +55,69 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
     try {
         const body = await request.json()
-        const { name, description, price, category, image, isAvailable } = body
+        const { name, description, category, image, isAvailable, variations } = body
 
-        if (!name || !price) {
-            return NextResponse.json({ error: 'Name and price are required' }, { status: 400 })
+        if (!name) {
+            return NextResponse.json({ error: 'Name is required' }, { status: 400 })
         }
-
-        const db = await getDb()
-        const crypto = require('crypto') // Ensure crypto is available
 
         // Find or Create Category
-        const now = new Date().toISOString()
-        let categoryId
+        let categoryId: string
         if (category) {
-            const cat = await db.get('SELECT id FROM Category WHERE name = ?', category)
-            if (cat) {
-                categoryId = cat.id
+            const existingCat = await prisma.category.findFirst({
+                where: { name: category }
+            })
+
+            if (existingCat) {
+                categoryId = existingCat.id
             } else {
-                categoryId = crypto.randomUUID()
-                await db.run('INSERT INTO Category (id, name, createdAt, updatedAt) VALUES (?, ?, ?, ?)',
-                    categoryId, category, now, now)
+                const newCat = await prisma.category.create({
+                    data: { name: category }
+                })
+                categoryId = newCat.id
             }
+        } else {
+            const firstCat = await prisma.category.findFirst()
+            if (!firstCat) throw new Error("No categories found. Create a category first.")
+            categoryId = firstCat.id
         }
 
-        const id = crypto.randomUUID()
+        // Create menu with variations and sizes
+        const menu = await prisma.menu.create({
+            data: {
+                name,
+                description,
+                categoryId,
+                image: image || '/placeholder.svg',
+                isAvailable: isAvailable ?? true,
+                variations: {
+                    create: variations?.map((v: any) => ({
+                        type: v.type,
+                        isEnabled: v.isEnabled ?? true,
+                        displayOrder: parseInt(v.displayOrder?.toString() || "0"),
+                        sizes: {
+                            create: v.sizes?.map((s: any) => ({
+                                size: s.size,
+                                price: parseFloat(s.price.toString()),
+                                isAvailable: s.isAvailable ?? true,
+                                displayOrder: parseInt(s.displayOrder?.toString() || "0")
+                            })) || []
+                        }
+                    })) || []
+                }
+            },
+            include: {
+                variations: {
+                    include: {
+                        sizes: true
+                    }
+                }
+            }
+        })
 
-        await db.run(
-            'INSERT INTO Product (id, name, description, price, categoryId, image, isAvailable, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
-            id, name, description, price, categoryId, image || '/placeholder.svg', isAvailable ? 1 : 0, now, now
-        )
-
-        return NextResponse.json({ id, name, price, categoryId }, { status: 201 })
+        return NextResponse.json(menu, { status: 201 })
     } catch (error) {
         console.error(error)
-        return NextResponse.json({ error: 'Failed to create product' }, { status: 500 })
+        return NextResponse.json({ error: 'Failed to create menu' }, { status: 500 })
     }
 }

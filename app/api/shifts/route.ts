@@ -37,8 +37,9 @@ export async function POST(request: Request) {
 
         const shift = await prisma.shift.create({
             data: {
-                userId: body.userId, // Optionally track who opened it
-                startCash: body.startCash || 0,
+                userId: body.userId,
+                startCash: parseFloat(body.startCash.toString()) || 0,
+                responsiblePerson: body.responsiblePerson || null,
                 status: 'OPEN'
             }
         })
@@ -53,7 +54,7 @@ export async function POST(request: Request) {
 export async function PUT(request: Request) {
     try {
         const body = await request.json()
-        const { id, actualCash } = body
+        const { id, actualCash, responsiblePerson } = body
 
         if (!id) return NextResponse.json({ error: "Shift ID required" }, { status: 400 })
 
@@ -61,21 +62,23 @@ export async function PUT(request: Request) {
         if (!shift) return NextResponse.json({ error: "Shift not found" }, { status: 404 })
 
         const expectedCash = shift.startCash + shift.cashPayments
-        const difference = (actualCash || 0) - expectedCash
+        const difference = (parseFloat(actualCash.toString()) || 0) - expectedCash
 
         const updated = await prisma.shift.update({
             where: { id },
             data: {
                 endTime: new Date(),
-                endCash: expectedCash, // Calculated expected cash
-                actualCash,            // What they counted
+                endCash: expectedCash,
+                actualCash: parseFloat(actualCash.toString()) || 0,
                 difference,
+                responsiblePerson: responsiblePerson || shift.responsiblePerson,
                 status: 'CLOSED'
             }
         })
 
         return NextResponse.json(updated)
     } catch (error) {
+        console.error('Shift API PUT error:', error)
         return NextResponse.json({ error: "Error closing shift" }, { status: 500 })
     }
 }

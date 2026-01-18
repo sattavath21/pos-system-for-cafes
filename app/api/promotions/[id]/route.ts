@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { getDb } from '@/lib/db'
+import { prisma } from '@/lib/prisma'
 
 export async function PUT(
     request: Request,
@@ -7,28 +7,27 @@ export async function PUT(
 ) {
     try {
         const { id } = await params
-        const db = await getDb()
         const body = await request.json()
         const { name, description, code, discountType, discountValue, startDate, endDate, isActive } = body
 
-        const now = new Date().toISOString()
-
-        await db.run(`
-            UPDATE Promotion SET
-                name = ?, description = ?, code = ?, discountType = ?, 
-                discountValue = ?, startDate = ?, endDate = ?, 
-                isActive = ?, updatedAt = ?
-            WHERE id = ?
-        `, [
-            name, description, code, discountType,
-            discountValue, startDate, endDate,
-            isActive ? 1 : 0, now, id
-        ])
+        await prisma.promotion.update({
+            where: { id },
+            data: {
+                name,
+                description,
+                code,
+                discountType,
+                discountValue: parseFloat(discountValue.toString()),
+                startDate: new Date(startDate),
+                endDate: new Date(endDate),
+                isActive: isActive ?? true
+            }
+        })
 
         return NextResponse.json({ success: true })
     } catch (error: any) {
         console.error(error)
-        if (error.message?.includes('UNIQUE constraint failed: Promotion.code')) {
+        if (error.code === 'P2002') {
             return NextResponse.json({ error: 'Promo code already exists' }, { status: 400 })
         }
         return NextResponse.json({ error: 'Failed to update promotion' }, { status: 500 })

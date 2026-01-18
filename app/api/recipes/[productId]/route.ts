@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { getDb } from '@/lib/db'
+import { prisma } from '@/lib/prisma'
 
 export async function GET(
     request: Request,
@@ -7,14 +7,26 @@ export async function GET(
 ) {
     try {
         const { productId } = await params
-        const db = await getDb()
-        const recipe = await db.all(`
-            SELECT r.*, i.name as ingredientName, i.unit 
-            FROM Recipe r
-            JOIN Ingredient i ON r.ingredientId = i.id
-            WHERE r.productId = ?
-        `, productId)
-        return NextResponse.json(recipe)
+        const recipes = await prisma.recipe.findMany({
+            where: { menuId: productId },
+            include: {
+                ingredient: {
+                    select: {
+                        name: true,
+                        unit: true
+                    }
+                }
+            }
+        })
+
+        // Format to match old structure
+        const formatted = recipes.map(r => ({
+            ...r,
+            ingredientName: r.ingredient.name,
+            unit: r.ingredient.unit
+        }))
+
+        return NextResponse.json(formatted)
     } catch (error) {
         console.error(error)
         return NextResponse.json({ error: 'Failed to fetch recipe' }, { status: 500 })
@@ -33,20 +45,24 @@ export async function POST(
             return NextResponse.json({ error: 'Ingredient and quantity are required' }, { status: 400 })
         }
 
-        const db = await getDb()
-        const crypto = require('crypto')
-        const id = crypto.randomUUID()
-        const now = new Date().toISOString()
+        const recipe = await prisma.recipe.upsert({
+            where: {
+                menuId_ingredientId: {
+                    menuId: productId,
+                    ingredientId
+                }
+            },
+            update: {
+                quantity: parseFloat(quantity.toString())
+            },
+            create: {
+                menuId: productId,
+                ingredientId,
+                quantity: parseFloat(quantity.toString())
+            }
+        })
 
-        await db.run(`
-            INSERT INTO Recipe (id, productId, ingredientId, quantity, createdAt, updatedAt)
-            VALUES (?, ?, ?, ?, ?, ?)
-            ON CONFLICT(productId, ingredientId) DO UPDATE SET
-                quantity = excluded.quantity,
-                updatedAt = excluded.updatedAt
-        `, id, productId, ingredientId, quantity, now, now)
-
-        return NextResponse.json({ success: true })
+        return NextResponse.json({ success: true, recipe })
     } catch (error) {
         console.error(error)
         return NextResponse.json({ error: 'Failed to update recipe' }, { status: 500 })
@@ -66,8 +82,14 @@ export async function DELETE(
             return NextResponse.json({ error: 'Ingredient ID is required' }, { status: 400 })
         }
 
-        const db = await getDb()
-        await db.run('DELETE FROM Recipe WHERE productId = ? AND ingredientId = ?', productId, ingredientId)
+        await prisma.recipe.delete({
+            where: {
+                menuId_ingredientId: {
+                    menuId: productId,
+                    ingredientId
+                }
+            }
+        })
 
         return NextResponse.json({ success: true })
     } catch (error) {

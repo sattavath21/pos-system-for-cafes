@@ -11,6 +11,7 @@ import { useTranslation } from "@/hooks/use-translation"
 import Link from "next/link"
 import { formatLAK } from "@/lib/currency"
 import { Header } from "@/components/header"
+import { useShift } from "@/components/shift-provider"
 
 export default function DashboardPage() {
   const { t } = useTranslation()
@@ -24,11 +25,8 @@ export default function DashboardPage() {
   const [hasActiveSession, setHasActiveSession] = useState(false)
   const [user, setUser] = useState<any>(null)
 
-  // Shift Management
-  const [isShiftOpen, setIsShiftOpen] = useState(false)
-  const [activeShiftId, setActiveShiftId] = useState<string | null>(null)
-  const [isShiftModalOpen, setIsShiftModalOpen] = useState(false)
-  const [startCash, setStartCash] = useState("")
+  // Shift Management context
+  const { status: shiftStatus } = useShift()
 
   useEffect(() => {
     const fetchUser = async () => {
@@ -42,21 +40,7 @@ export default function DashboardPage() {
     }
     fetchUser()
 
-    const checkShiftStatus = async () => {
-      try {
-        const res = await fetch('/api/shifts?status=OPEN')
-        if (res.ok) {
-          const shifts = await res.json()
-          if (shifts.length > 0) {
-            setIsShiftOpen(true)
-            setActiveShiftId(shifts[0].id)
-          } else {
-            setIsShiftOpen(false)
-            setIsShiftModalOpen(true)
-          }
-        }
-      } catch (e) { console.error(e) }
-    }
+    // checkShiftStatus is handled by global provider now
 
     const fetchStats = async () => {
       try {
@@ -76,29 +60,9 @@ export default function DashboardPage() {
       setHasActiveSession(true)
     }
 
-    checkShiftStatus()
     fetchStats()
   }, [])
 
-  const handleOpenShift = async () => {
-    if (!startCash) return alert("Please enter opening cash amount")
-    try {
-      const res = await fetch('/api/shifts', {
-        method: 'POST',
-        body: JSON.stringify({
-          startCash: Number(startCash)
-        })
-      })
-      if (res.ok) {
-        const shift = await res.json()
-        setActiveShiftId(shift.id)
-        setIsShiftOpen(true)
-        setIsShiftModalOpen(false)
-      } else {
-        alert("Failed to open shift")
-      }
-    } catch (e) { alert("Error opening shift") }
-  }
 
   const quickActions = [
     {
@@ -325,36 +289,6 @@ export default function DashboardPage() {
         }
       </div >
 
-      {/* Open Shift Dialog */}
-      <Dialog open={isShiftModalOpen} onOpenChange={(open) => { if (!open && isShiftOpen) setIsShiftModalOpen(false) }}>
-        <DialogContent className="sm:max-w-md pointer-events-auto" onPointerDownOutside={(e) => e.preventDefault()} onEscapeKeyDown={(e) => e.preventDefault()}>
-          <DialogHeader>
-            <DialogTitle>Open New Shift</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4">
-            <div className="p-4 bg-amber-50 rounded-lg text-amber-900 text-sm">
-              <p className="font-bold">👋 Good Morning!</p>
-              <p>You must open a shift and count the cash drawer before taking orders.</p>
-            </div>
-            <div className="space-y-2">
-              <Label>Starting Cash Amount</Label>
-              <Input
-                type="text"
-                placeholder="0"
-                value={startCash ? Number(startCash).toLocaleString() : ""}
-                onChange={e => {
-                  const val = e.target.value.replace(/\D/g, "")
-                  setStartCash(val)
-                }}
-                className="text-lg font-bold"
-              />
-            </div>
-            <Button className="w-full bg-amber-600 hover:bg-amber-700" onClick={handleOpenShift}>
-              Open Shift
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
     </div >
   )
 }

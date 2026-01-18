@@ -43,3 +43,9 @@ export function calculateChange(total: number, cashReceived: number) {
 export function calculateTax(amount: number, rate: number = 10): number {
     return Math.round(amount * (rate / 100));
 }
+
+export function calculateInclusiveTax(total: number, rate: number = 10): number {
+    if (rate <= 0) return 0;
+    const net = total / (1 + rate / 100);
+    return Math.round(total - net);
+}

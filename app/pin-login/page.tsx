@@ -18,7 +18,7 @@ function PinLoginContent() {
     const { t } = useTranslation()
 
     const handleNumberClick = (num: string) => {
-        if (pin.length < 6) {
+        if (pin.length < 4) {
             setPin(pin + num)
             setError("")
         }

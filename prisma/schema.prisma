@@ -10,8 +10,8 @@ datasource db {
 model User {
   id        String   @id @default(uuid())
   name      String
-  role      String   // ADMIN, CASHIER, KITCHEN, WAITER
-  pin       String   // 4-digit PIN (hashed)
+  role      String
+  pin       String
   isActive  Boolean  @default(true)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -20,32 +20,61 @@ model User {
 model Category {
   id        String    @id @default(uuid())
   name      String
-  products  Product[]
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
+  menus     Menu[]
 }
 
-model Product {
-  id          String      @id @default(uuid())
+// Menu (base item, NO PRICE)
+model Menu {
+  id          String          @id @default(uuid())
   name        String
   description String?
-  price       Float
-  isAvailable Boolean     @default(true)
-  image       String?     @default("/placeholder.svg")
+  isAvailable Boolean         @default(true)
+  image       String?         @default("/placeholder.svg")
   categoryId  String
-  category    Category    @relation(fields: [categoryId], references: [id])
-  type        String?     @default("HOT") // HOT, ICED, NONE
-  size        String?     @default("REGULAR") // S, M, L, REGULAR
-  createdAt   DateTime    @default(now())
-  updatedAt   DateTime    @updatedAt
-  orderItems  OrderItem[]
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+  category    Category        @relation(fields: [categoryId], references: [id])
+  variations  MenuVariation[]
   recipes     Recipe[]
+}
+
+// Variation (HOT/COLD/FRAPPE, NO PRICE)
+model MenuVariation {
+  id        String          @id @default(uuid())
+  menuId    String
+  type      String          // HOT, COLD, FRAPPE
+  isEnabled Boolean         @default(true)
+  createdAt DateTime        @default(now())
+  updatedAt DateTime        @updatedAt
+  menu      Menu            @relation(fields: [menuId], references: [id], onDelete: Cascade)
+  sizes     VariationSize[]
+  displayOrder Int          @default(0)
+
+  @@unique([menuId, type])
+}
+
+// Size (S/M/L with PRICE - only place price is stored)
+model VariationSize {
+  id          String        @id @default(uuid())
+  variationId String
+  size        String        // S, M, L
+  price       Float         // PRICE STORED HERE
+  isAvailable Boolean       @default(true)
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+  variation   MenuVariation @relation(fields: [variationId], references: [id], onDelete: Cascade)
+  orderItems  OrderItem[]
+  displayOrder Int          @default(0)
+
+  @@unique([variationId, size])
 }
 
 model Ingredient {
   id           String   @id @default(uuid())
   name         String
-  unit         String   // kg, L, pcs, etc.
+  unit         String
   currentStock Float
   minStock     Float
   maxStock     Float
@@ -57,15 +86,15 @@ model Ingredient {
 
 model Recipe {
   id           String     @id @default(uuid())
-  productId    String
-  product      Product    @relation(fields: [productId], references: [id])
+  menuId       String
   ingredientId String
-  ingredient   Ingredient @relation(fields: [ingredientId], references: [id])
-  quantity     Float      // Amount of ingredient used per product
+  quantity     Float
   createdAt    DateTime   @default(now())
   updatedAt    DateTime   @updatedAt
+  ingredient   Ingredient @relation(fields: [ingredientId], references: [id])
+  menu         Menu       @relation(fields: [menuId], references: [id])
 
-  @@unique([productId, ingredientId])
+  @@unique([menuId, ingredientId])
 }
 
 model Customer {
@@ -88,36 +117,36 @@ model Promotion {
   name          String
   description   String?
   code          String   @unique
-  discountType  String   // percentage, fixed
+  discountType  String
   discountValue Float
   startDate     DateTime
   endDate       DateTime
   isActive      Boolean  @default(true)
-  orders        Order[]
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
+  orders        Order[]
 }
 
 model Order {
-  id            String      @id @default(uuid())
-  orderNumber   String      // e.g. No. 01
-  status        String      @default("COMPLETED") // PENDING, COMPLETED, HOLD, CANCELLED
-  total         Float
-  subtotal      Float
-  tax           Float
-  discount      Float       @default(0)
-  promoId       String?
-  promotion     Promotion?  @relation(fields: [promoId], references: [id])
-  paymentMethod String      @default("CASH") // BANK_NOTE, QR_CODE
-  customerId    String?
-  customer      Customer?   @relation(fields: [customerId], references: [id])
-  items         OrderItem[]
-  createdAt     DateTime    @default(now())
-  updatedAt     DateTime    @updatedAt
-  cancellationReason String? // Reason for cancellation (if status is CANCELLED)
-  beeperNumber  String?     // Added for consistency
-  pointsRedeemed Int?       @default(0) // Added for consistency
-  taxAmount     Float?      @default(0) // Added for consistency
+  id                 String      @id @default(uuid())
+  orderNumber        String
+  status             String      @default("COMPLETED")
+  total              Float
+  subtotal           Float
+  tax                Float
+  discount           Float       @default(0)
+  promoId            String?
+  paymentMethod      String      @default("CASH")
+  customerId         String?
+  createdAt          DateTime    @default(now())
+  updatedAt          DateTime    @updatedAt
+  cancellationReason String?
+  beeperNumber       String?
+  pointsRedeemed     Int?        @default(0)
+  taxAmount          Float?      @default(0)
+  customer           Customer?   @relation(fields: [customerId], references: [id])
+  promotion          Promotion?  @relation(fields: [promoId], references: [id])
+  items              OrderItem[]
 }
 
 model Setting {
@@ -126,28 +155,36 @@ model Setting {
 }
 
 model Shift {
-  id            String    @id @default(uuid())
-  userId        String?   // User who opened the shift
-  startTime     DateTime  @default(now())
-  endTime       DateTime?
-  startCash     Float     @default(0)
-  endCash       Float?
-  actualCash    Float?    // Actual cash counted at end of shift
-  difference    Float?    // endCash - actualCash
-  cashPayments  Float     @default(0) // Total cash payments received during shift
-  status        String    @default("OPEN") // OPEN, CLOSED
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
+  id                String    @id @default(uuid())
+  userId            String?
+  startTime         DateTime  @default(now())
+  endTime           DateTime?
+  startCash         Float     @default(0)
+  endCash           Float?
+  actualCash        Float?
+  difference        Float?
+  cashPayments      Float     @default(0)
+  status            String    @default("OPEN")
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+  responsiblePerson String?
 }
 
+// OrderItem now references VariationSize (single source of truth)
 model OrderItem {
-  id        String  @id @default(uuid())
-  orderId   String
-  order     Order   @relation(fields: [orderId], references: [id])
-  productId String?
-  product   Product? @relation(fields: [productId], references: [id])
-  name      String  // Snapshot of product name
-  price     Float   // Snapshot of price
-  quantity  Int
-  total     Float
+  id              String         @id @default(uuid())
+  orderId         String
+  variationSizeId String         // FK to VariationSize (required)
+  name            String         // Snapshot: "Cocoa (Hot) - M"
+  price           Float          // Snapshot from VariationSize at order time
+  quantity        Int
+  total           Float
+  
+  // Customizations (sugar/shot remain separate from pricing)
+  sugarLevel String?
+  shotType   String?
+  cupSize    String?
+
+  variationSize VariationSize @relation(fields: [variationSizeId], references: [id])
+  order         Order         @relation(fields: [orderId], references: [id])
 }

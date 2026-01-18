@@ -192,7 +192,10 @@ export const translations = {
         profit: "Profit",
         last_visit: "Last Visit",
         no_items_found: "No Items Found",
-        staff_management: "Staff Management"
+        staff_management: "Staff Management",
+        payment_successful: "Payment Successful",
+        print_receipt: "Print Receipt",
+        pay_exact: "Pay Exact Amount",
 
 
     },
@@ -388,8 +391,10 @@ export const translations = {
         profit: "ກຳໄລ",
         last_visit: "ມາຮ້ານລ່າສຸດ",
         no_items_found: "ບໍ່ພົບລາຍການ",
-        staff_management: "ຈັດການພະນັກງານ"
-
+        staff_management: "ຈັດການພະນັກງານ",
+        payment_successful: "ຊຳລະເງິນສຳເລັດ",
+        print_receipt: "ພິມໃບເກັບເງິນ",
+        pay_exact: "ຮັບເງິນຄົບຈຳນວນ",
 
 
     }

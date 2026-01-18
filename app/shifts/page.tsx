@@ -68,6 +68,9 @@ export default function ShiftsPage() {
             if (res.ok) {
                 setIsEndShiftOpen(false)
                 setActualCash("")
+                const channel = new BroadcastChannel("payment_channel")
+                channel.postMessage({ type: "PAYMENT_COMPLETE" }) // Reuse this as it triggers checkShiftStatus
+                channel.close()
                 fetchShifts()
             }
         } catch (error) {

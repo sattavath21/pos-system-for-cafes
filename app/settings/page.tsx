@@ -5,7 +5,7 @@ import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Store, Receipt, DollarSign, Languages, Key } from "lucide-react"
+import { Store, Receipt, DollarSign, Languages, Key, AlertTriangle, Trash2 } from "lucide-react"
 import { useTranslation } from "@/hooks/use-translation"
 import Link from "next/link"
 import { Header } from "@/components/header"
@@ -30,7 +30,15 @@ export default function SettingsPage() {
         fetch('/api/settings')
       ])
       if (uRes.ok) setUser((await uRes.json()).user)
-      if (sRes.ok) setSettings(await sRes.json())
+      if (sRes.ok) {
+        const data = await sRes.json()
+        setSettings({
+          ...data,
+          taxRate: data.taxRate || data.tax_rate || "",
+          loyaltyRate: data.loyaltyRate || data.loyalty_rate || "",
+          shopName: data.shopName || data.shop_name || "",
+        })
+      }
     } catch (e) {
       console.error(e)
     } finally {
@@ -71,6 +79,25 @@ export default function SettingsPage() {
       }
     } catch (e) {
       alert("Error updating PIN")
+    }
+  }
+
+  const handleWipeData = async () => {
+    if (!confirm("CRITICAL WARNING: This will permanently delete ALL orders, sales, and shifts. This action CANNOT be undone. Are you absolutely sure?")) return
+
+    setIsSaving(true)
+    try {
+      const res = await fetch('/api/admin/wipe', { method: 'POST' })
+      if (res.ok) {
+        alert("System wiped successfully. All transactions have been cleared.")
+        window.location.reload()
+      } else {
+        alert("Failed to wipe data.")
+      }
+    } catch (e) {
+      alert("Error during wipe process.")
+    } finally {
+      setIsSaving(false)
     }
   }
 
@@ -263,6 +290,37 @@ export default function SettingsPage() {
             </Card>
           )
         }
+
+        {/* Danger Zone */}
+        {user?.role === 'ADMIN' && (
+          <Card className="p-6 border-red-500/30 bg-red-50/20 shadow-sm mt-12">
+            <div className="flex items-center gap-3 mb-6">
+              <div className="bg-red-500 p-2 rounded-lg">
+                <AlertTriangle className="w-5 h-5 text-white" />
+              </div>
+              <div>
+                <h2 className="text-xl font-bold text-red-700">Danger Zone</h2>
+                <p className="text-sm text-red-600/60">Destructive actions - use with caution</p>
+              </div>
+            </div>
+
+            <div className="flex flex-col md:flex-row items-center justify-between p-4 border border-red-200 rounded-xl bg-white gap-4">
+              <div>
+                <p className="font-bold text-slate-900">Wipe All Transaction Data</p>
+                <p className="text-sm text-slate-500">Delete all orders, sales history, and shifts. Keeps menu and staff.</p>
+              </div>
+              <Button
+                variant="destructive"
+                className="flex items-center gap-2 px-6"
+                onClick={handleWipeData}
+                disabled={isSaving}
+              >
+                <Trash2 className="w-4 h-4" />
+                Wipe Now
+              </Button>
+            </div>
+          </Card>
+        )}
       </div >
     </div >
   )

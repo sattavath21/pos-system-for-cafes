@@ -10,15 +10,16 @@ import {
 } from "recharts"
 import {
   Calendar as CalendarIcon, Download, TrendingUp, DollarSign, ShoppingBag,
-  CreditCard, TrendingDown, Clock, Tag, Package, AlertTriangle, Search, Filter
+  CreditCard, TrendingDown, Clock, Tag, Package, AlertTriangle, Search, Filter, Target
 } from "lucide-react"
 import Link from "next/link"
 import { formatLAK } from "@/lib/currency"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Calendar } from "@/components/ui/calendar"
-import { format, subDays, startOfDay, endOfDay } from "date-fns"
+import { format, subDays, startOfDay, endOfDay, isSameDay, startOfToday, endOfToday } from "date-fns"
 import { DateRange } from "react-day-picker"
 import { useTranslation } from "@/hooks/use-translation"
+import { Badge } from "@/components/ui/badge"
 
 const COLORS = ['#d97706', '#2563eb', '#16a34a', '#7c3aed', '#db2777', '#4b5563']
 
@@ -77,6 +78,25 @@ export default function ReportsPage() {
     window.open(url, '_blank')
   }
 
+  const getSalesTitle = () => {
+    if (!dateRange?.from || !dateRange?.to) return t.today_sales
+
+    const from = startOfToday()
+    const isToday = isSameDay(dateRange.from, from) && isSameDay(dateRange.to, endOfToday())
+    if (isToday) return "Today's Sales"
+
+    const is7Days = isSameDay(dateRange.from, startOfDay(subDays(new Date(), 7)))
+    if (is7Days) return "This Week Sales"
+
+    const is30Days = isSameDay(dateRange.from, startOfDay(subDays(new Date(), 30)))
+    if (is30Days) return "In 30 Days Sales"
+
+    const is90Days = isSameDay(dateRange.from, startOfDay(subDays(new Date(), 90)))
+    if (is90Days) return "This Quarter Sales"
+
+    return "Selected Period Sales"
+  }
+
   if (isLoading && !data) return <div className="p-10 text-center">Loading Analytics...</div>
 
   return (
@@ -100,18 +120,36 @@ export default function ReportsPage() {
             <p className="text-sm font-medium hidden md:block">{t.timeframe}:</p>
             <div className="flex gap-2">
               <Button
-                variant="outline"
+                variant={dateRange?.from && isSameDay(dateRange.from, startOfDay(new Date())) && dateRange?.to && isSameDay(dateRange.to, endOfDay(new Date())) ? "default" : "outline"}
                 size="sm"
                 onClick={() => setDateRange({ from: startOfDay(new Date()), to: endOfDay(new Date()) })}
+                className={dateRange?.from && isSameDay(dateRange.from, startOfDay(new Date())) && dateRange?.to && isSameDay(dateRange.to, endOfDay(new Date())) ? "bg-amber-600 text-white hover:bg-amber-700" : ""}
               >
                 Today
               </Button>
               <Button
-                variant="outline"
+                variant={dateRange?.from && isSameDay(dateRange.from, startOfDay(subDays(new Date(), 7))) ? "default" : "outline"}
                 size="sm"
-                onClick={() => setDateRange({ from: subDays(new Date(), 7), to: new Date() })}
+                onClick={() => setDateRange({ from: startOfDay(subDays(new Date(), 7)), to: new Date() })}
+                className={dateRange?.from && isSameDay(dateRange.from, startOfDay(subDays(new Date(), 7))) ? "bg-amber-600 text-white hover:bg-amber-700" : ""}
               >
                 7 {t.days}
+              </Button>
+              <Button
+                variant={dateRange?.from && isSameDay(dateRange.from, startOfDay(subDays(new Date(), 30))) ? "default" : "outline"}
+                size="sm"
+                onClick={() => setDateRange({ from: startOfDay(subDays(new Date(), 30)), to: new Date() })}
+                className={dateRange?.from && isSameDay(dateRange.from, startOfDay(subDays(new Date(), 30))) ? "bg-amber-600 text-white hover:bg-amber-700" : ""}
+              >
+                30 {t.days}
+              </Button>
+              <Button
+                variant={dateRange?.from && isSameDay(dateRange.from, startOfDay(subDays(new Date(), 90))) ? "default" : "outline"}
+                size="sm"
+                onClick={() => setDateRange({ from: startOfDay(subDays(new Date(), 90)), to: new Date() })}
+                className={dateRange?.from && isSameDay(dateRange.from, startOfDay(subDays(new Date(), 90))) ? "bg-amber-600 text-white hover:bg-amber-700" : ""}
+              >
+                90 {t.days}
               </Button>
             </div>
 
@@ -152,29 +190,40 @@ export default function ReportsPage() {
         </div>
 
         {/* Global Summary */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          <Card className="border-l-4 border-l-green-500">
-            <CardHeader className="pb-2">
-              <CardDescription>{t.today_sales}</CardDescription>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
+          <Card className="border-l-4 border-l-amber-500">
+            <CardHeader className="p-4">
+              <CardDescription>{getSalesTitle()}</CardDescription>
               <CardTitle className="text-2xl font-bold">{formatLAK(data?.summary.totalRevenue || 0)}</CardTitle>
+              <p className="text-[10px] text-muted-foreground mt-1 uppercase tracking-wider font-semibold">Gross Sales (Tax Incl.)</p>
+            </CardHeader>
+          </Card>
+          <Card className="border-l-4 border-l-emerald-500">
+            <CardHeader className="p-4">
+              <CardDescription>Net Sales</CardDescription>
+              <CardTitle className="text-2xl font-bold">{formatLAK(data?.summary.netSales || 0)}</CardTitle>
+              <p className="text-[10px] text-muted-foreground mt-1 uppercase tracking-wider font-semibold">Revenue before Tax</p>
             </CardHeader>
           </Card>
           <Card className="border-l-4 border-l-blue-500">
-            <CardHeader className="pb-2">
+            <CardHeader className="p-4">
+              <CardDescription>Tax Collected</CardDescription>
+              <CardTitle className="text-2xl font-bold">{formatLAK(data?.summary.taxCollected || 0)}</CardTitle>
+              <p className="text-[10px] text-muted-foreground mt-1 uppercase tracking-wider font-semibold">Estimated VAT/Sales Tax</p>
+            </CardHeader>
+          </Card>
+          <Card className="border-l-4 border-l-purple-500">
+            <CardHeader className="p-4">
               <CardDescription>{t.orders}</CardDescription>
               <CardTitle className="text-2xl font-bold">{data?.summary.totalOrders || 0}</CardTitle>
+              <p className="text-[10px] text-muted-foreground mt-1 uppercase tracking-wider font-semibold">Total completed transactions</p>
             </CardHeader>
           </Card>
           <Card className="border-l-4 border-l-amber-500">
-            <CardHeader className="pb-2">
-              <CardDescription>{t.avg_order_value} (AOV)</CardDescription>
+            <CardHeader className="p-4">
+              <CardDescription>AOV</CardDescription>
               <CardTitle className="text-2xl font-bold">{formatLAK(data?.summary.aov || 0)}</CardTitle>
-            </CardHeader>
-          </Card>
-          <Card className="border-l-4 border-l-rose-500">
-            <CardHeader className="pb-2">
-              <CardDescription>{t.promotions}</CardDescription>
-              <CardTitle className="text-2xl font-bold">{formatLAK(data?.summary.totalDiscounts || 0)}</CardTitle>
+              <p className="text-[10px] text-muted-foreground mt-1 uppercase tracking-wider font-semibold">Average Order Value</p>
             </CardHeader>
           </Card>
         </div>
@@ -244,14 +293,21 @@ export default function ReportsPage() {
                 <CardContent>
                   <div className="space-y-4">
                     {data?.topProducts.map((p: any, i: number) => (
-                      <div key={i} className="flex justify-between items-center p-3 rounded-lg bg-green-50/50">
-                        <div className="flex items-center gap-3">
-                          <span className="font-bold text-green-700">{i + 1}</span>
-                          <p className="font-medium text-amber-900">{p.name}</p>
+                      <div key={i} className="flex justify-between items-center p-4 rounded-xl border bg-white shadow-sm hover:shadow-md transition-shadow">
+                        <div className="flex items-center gap-4">
+                          <div className="w-8 h-8 rounded-full bg-amber-100 flex items-center justify-center font-bold text-amber-900 border border-amber-200">
+                            {i + 1}
+                          </div>
+                          <div>
+                            <p className="font-bold text-slate-900">{p.productName}</p>
+                            <div className="flex gap-1.5 mt-1">
+                              <Badge variant="outline" className="text-[10px] py-0 px-1.5 bg-slate-50 border-slate-200 font-medium text-slate-500 uppercase">{p.variantType}</Badge>
+                            </div>
+                          </div>
                         </div>
                         <div className="text-right">
-                          <p className="font-bold">{p.sold} sold</p>
-                          <p className="text-xs text-muted-foreground">{formatLAK(p.revenue)}</p>
+                          <p className="font-bold text-lg text-emerald-600">{p.sold} <span className="text-[10px] text-muted-foreground uppercase font-normal">sold</span></p>
+                          <p className="text-sm font-semibold text-slate-500">{formatLAK(p.revenue)}</p>
                         </div>
                       </div>
                     ))}
@@ -269,10 +325,12 @@ export default function ReportsPage() {
                   </CardHeader>
                   <CardContent>
                     <div className="space-y-3">
-                      {data?.worstProducts.filter((p: any) => p.sold > 0).map((p: any, i: number) => (
-                        <div key={i} className="flex justify-between items-center text-sm p-2 border-b">
-                          <p>{p.name}</p>
-                          <p className="font-semibold text-rose-600">{p.sold} sales</p>
+                      {data?.worstProducts.map((p: any, i: number) => (
+                        <div key={i} className="flex justify-between items-center text-sm p-3 rounded-lg border bg-slate-50/50">
+                          <div>
+                            <p className="font-semibold">{p.name}</p>
+                          </div>
+                          <p className="font-bold text-rose-600">{p.sold} sales</p>
                         </div>
                       ))}
                     </div>
@@ -280,7 +338,7 @@ export default function ReportsPage() {
                 </Card>
 
                 <Card className="border-rose-200">
-                  <CardHeader className="bg-rose-50">
+                  <CardHeader className="">
                     <CardTitle className="flex items-center gap-2 text-rose-800">
                       <AlertTriangle className="w-5 h-5" />
                       {t.trash_items}
@@ -300,6 +358,58 @@ export default function ReportsPage() {
                   </CardContent>
                 </Card>
               </div>
+            </div>
+
+            {/* Performance by Attributes */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-amber-800 flex items-center gap-2">
+                    <Package className="w-5 h-5" />
+                    Size Performance
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-3">
+                    {data?.sizeStats.map((s: any, i: number) => (
+                      <div key={i} className="flex justify-between items-center p-3 rounded-xl border bg-white shadow-sm">
+                        <div className="flex items-center gap-3">
+                          <Badge className="bg-amber-600 text-white w-8 h-8 rounded-full flex items-center justify-center p-0">{s.name}</Badge>
+                          <span className="font-bold text-slate-700">{s.name} Size</span>
+                        </div>
+                        <div className="text-right">
+                          <p className="font-bold text-slate-900">{s.sold} items</p>
+                          <p className="text-xs text-muted-foreground">{formatLAK(s.revenue)}</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-amber-800 flex items-center gap-2">
+                    <TrendingUp className="w-5 h-5" />
+                    Variation Performance
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-3">
+                    {data?.variationStats.map((v: any, i: number) => (
+                      <div key={i} className="flex justify-between items-center p-3 rounded-xl border bg-white shadow-sm">
+                        <div className="flex items-center gap-3">
+                          <Badge variant="outline" className="border-amber-200 text-amber-700 bg-amber-50 font-bold px-3 py-1 uppercase">{v.name}</Badge>
+                        </div>
+                        <div className="text-right">
+                          <p className="font-bold text-slate-900">{v.sold} items</p>
+                          <p className="text-xs text-muted-foreground">{formatLAK(v.revenue)}</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
             </div>
           </TabsContent>
 

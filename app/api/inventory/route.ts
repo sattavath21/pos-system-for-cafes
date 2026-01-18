@@ -1,10 +1,11 @@
 import { NextResponse } from 'next/server'
-import { getDb } from '@/lib/db'
+import { prisma } from '@/lib/prisma'
 
 export async function GET(request: Request) {
     try {
-        const db = await getDb()
-        const ingredients = await db.all('SELECT * FROM Ingredient ORDER BY name')
+        const ingredients = await prisma.ingredient.findMany({
+            orderBy: { name: 'asc' }
+        })
         return NextResponse.json(ingredients)
     } catch (error) {
         return NextResponse.json({ error: 'Failed to fetch inventory' }, { status: 500 })
@@ -20,16 +21,18 @@ export async function POST(request: Request) {
             return NextResponse.json({ error: 'Name and unit are required' }, { status: 400 })
         }
 
-        const db = await getDb()
-        const crypto = require('crypto')
-        const id = crypto.randomUUID()
+        const ingredient = await prisma.ingredient.create({
+            data: {
+                name,
+                unit,
+                currentStock: parseFloat(currentStock) || 0,
+                minStock: parseFloat(minStock) || 0,
+                maxStock: parseFloat(maxStock) || 0,
+                cost: parseFloat(cost) || 0
+            }
+        })
 
-        await db.run(
-            'INSERT INTO Ingredient (id, name, unit, currentStock, minStock, maxStock, cost, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)',
-            id, name, unit, currentStock || 0, minStock || 0, maxStock || 0, cost || 0
-        )
-
-        return NextResponse.json({ id, name, unit }, { status: 201 })
+        return NextResponse.json(ingredient, { status: 201 })
     } catch (error) {
         console.error(error)
         return NextResponse.json({ error: 'Failed to create ingredient' }, { status: 500 })
