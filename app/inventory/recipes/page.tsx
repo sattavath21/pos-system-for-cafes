@@ -187,7 +187,7 @@ export default function RecipesPage() {
                                     </DialogTrigger>
                                     <DialogContent>
                                         <DialogHeader>
-                                            <DialogTitle>{t.add_ingredient} to {selectedProduct.name}</DialogTitle>
+                                            <DialogTitle>{t.add_ingredient_to} {selectedProduct.name}</DialogTitle>
                                         </DialogHeader>
                                         <div className="space-y-4 py-4">
                                             <div className="space-y-2">
@@ -243,7 +243,7 @@ export default function RecipesPage() {
                                                     </div>
                                                     <div>
                                                         <p className="font-semibold text-lg">{item.ingredientName}</p>
-                                                        <p className="text-sm text-muted-foreground">{t.consumption_per_unit}</p>
+                                                        <p className="text-sm text-muted-foreground">{t.consumption_per_unit || "Consumption per unit produced"}</p>
                                                     </div>
                                                 </div>
                                                 <div className="flex items-center gap-8">

@@ -38,35 +38,37 @@ export function Header({ title, children }: { title?: string, children?: React.R
                     <Link href="/dashboard">
                         <h1 className="text-xl font-bold text-amber-900 flex items-center gap-2">
                             <Store className="w-6 h-6" />
-                            <span className="hidden lg:inline">Cafe POS</span>
+                            <span className="hidden lg:inline">{t.cafe_pos}</span>
                         </h1>
                     </Link>
                     <span className="text-slate-300">|</span>
-                    <h2 className="text-lg font-semibold text-slate-700">{title || t.dashboard}</h2>
+                    <h2 className="text-lg font-semibold text-slate-700 ">{title || t.dashboard}</h2>
                     {children}
 
-                    <nav className="hidden xl:flex items-center gap-1 ml-4 border-l pl-4">
+                    <nav className="hidden xl:flex items-center gap-2 ml-4 border-l pl-4">
                         <Link href="/dashboard">
-                            <Button variant="ghost" size="sm" className="gap-1.5"><LayoutDashboard className="w-4 h-4" /> {t.dashboard}</Button>
+                            <Button variant="outline" size="lg" className="gap-1.5 text-md"><LayoutDashboard className="w-4 h-4" /> {t.dashboard}</Button>
                         </Link>
                         <Link href="/pos">
-                            <Button variant="ghost" size="sm" className="gap-1.5"><ShoppingCart className="w-4 h-4" /> {t.pos}</Button>
+                            <Button variant="outline" size="lg" className="gap-1.5 text-md"><ShoppingCart className="w-4 h-4" /> {t.pos}</Button>
                         </Link>
                         <Link href="/orders">
-                            <Button variant="ghost" size="sm" className="gap-1.5"><Receipt className="w-4 h-4" /> {t.orders}</Button>
+                            <Button variant="outline" size="lg" className="gap-1.5 text-md"><Receipt className="w-4 h-4" /> {t.orders}</Button>
                         </Link>
                     </nav>
                 </div>
 
                 <div className="flex items-center gap-4">
                     {status === 'OPEN' && (
-                        <div className="flex items-center gap-2 px-3 py-1.5 bg-amber-50 rounded-full border border-amber-200">
-                            <Wallet className="w-4 h-4 text-amber-600" />
-                            <span className="text-sm font-bold text-amber-900">{formatLAK(currentCash)}</span>
-                            <Link href="/shifts">
-                                <Badge variant="outline" className="ml-1 px-1.5 py-0 text-[10px] cursor-pointer hover:bg-amber-100 uppercase tracking-wider">Shift / Close</Badge>
-                            </Link>
-                        </div>
+                        <Link href="/shifts">
+
+                            <div className="flex items-center gap-2 px-3 py-1.5 bg-amber-50 hover:bg-amber-100 rounded-full border border-amber-200">
+                                <Wallet className="w-4 h-4 text-amber-600" />
+                                <span className="text-md font-bold text-amber-900">{formatLAK(currentCash)}</span>
+                                <Badge variant="outline" className="ml-1 px-2 py-1.5 text-[14px] cursor-pointer uppercase tracking-wider">Shift</Badge>
+                            </div>
+                        </Link>
+
                     )}
 
                     {status === 'CLOSED' && (
@@ -83,17 +85,20 @@ export function Header({ title, children }: { title?: string, children?: React.R
 
                     <div className="flex items-center gap-3">
                         <div className="text-right hidden sm:block">
-                            <p className="text-sm font-bold leading-none">{user?.name}</p>
-                            <p className="text-[10px] text-muted-foreground mt-1 capitalize">{user?.role?.toLowerCase()}</p>
+                            <p className="text-md font-bold leading-none">{user?.name}</p>
+                            <p className="text-[12px] text-muted-foreground mt-1 capitalize">{user?.role?.toLowerCase()}</p>
                         </div>
                         {user?.role === 'ADMIN' && (
                             <Link href="/settings">
-                                <Button variant="ghost" size="icon" className="h-8 w-8 text-slate-600 hover:bg-slate-50">
-                                    <Settings className="w-5 h-5" />
+                                <Button
+                                    variant="outline"
+                                    className="h-12 w-12 text-slate-600 hover:bg-slate-50"
+                                >
+                                    <Settings className="!w-6 !h-6" />
                                 </Button>
                             </Link>
                         )}
-                        <Button variant="outline" size="sm" onClick={handleLogout} className="text-red-600 border-red-200 hover:bg-red-50 text-xs h-8">
+                        <Button variant="outline" size="lg" onClick={handleLogout} className="bg-red-600 hover:bg-red-700 hover:text-white h-8 text-md h-10 text-white">
                             {t.logout}
                         </Button>
                     </div>

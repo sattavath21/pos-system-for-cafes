@@ -410,7 +410,7 @@ export default function MenuPage() {
                               }
                             }}
                           />
-                          <p className="text-xs text-muted-foreground">Recommended: Square image, max 2MB</p>
+                          <p className="text-xs text-muted-foreground">{t.recommended_image_msg}</p>
                           {formData.image && (
                             <Button
                               type="button"
@@ -419,7 +419,7 @@ export default function MenuPage() {
                               className="text-red-600 h-auto p-0 hover:bg-transparent hover:text-red-700"
                               onClick={() => setFormData({ ...formData, image: "" })}
                             >
-                              Remove image
+                              {t.remove_image}
                             </Button>
                           )}
                         </div>
@@ -439,19 +439,19 @@ export default function MenuPage() {
                   {/* Variations & Pricing Section */}
                   <div className="space-y-4">
                     <div className="flex items-center justify-between">
-                      <h3 className="text-lg font-semibold">Variations & Pricing</h3>
+                      <h3 className="text-lg font-semibold">{t.variations_pricing}</h3>
                     </div>
 
                     {/* Dynamic Variation Adder */}
                     <div className="flex gap-2">
                       <Input
-                        placeholder="New Variation Name (e.g. HOT, BOTTLE)"
+                        placeholder={t.variation_name_placeholder}
                         value={newVariationType}
                         onChange={(e) => setNewVariationType(e.target.value.toUpperCase())}
                         className="max-w-[300px]"
                       />
                       <Button type="button" onClick={addVariationType} disabled={!newVariationType}>
-                        <Plus className="w-4 h-4 mr-2" /> Add Variation Type
+                        <Plus className="w-4 h-4 mr-2" /> {t.add_variation_type}
                       </Button>
                     </div>
 
@@ -470,7 +470,7 @@ export default function MenuPage() {
                               {variation.isEnabled && (
                                 <>
                                   <div className="flex items-center gap-1.5 mr-2">
-                                    <Label className="text-[10px] text-muted-foreground uppercase">Order</Label>
+                                    <Label className="text-[10px] text-muted-foreground uppercase">{t.order_label}</Label>
                                     <Input
                                       type="number"
                                       min={1}
@@ -482,7 +482,7 @@ export default function MenuPage() {
                                     />
                                   </div>
                                   <Button type="button" variant="ghost" size="sm" onClick={() => addSize(vIndex)} className="text-amber-600">
-                                    <Plus className="w-4 h-4 mr-2" /> Add Size
+                                    <Plus className="w-4 h-4 mr-2" /> {t.add_size}
                                   </Button>
                                 </>
                               )}
@@ -520,7 +520,7 @@ export default function MenuPage() {
                                       value={size.size}
                                       onChange={(e) => updateSizeLabel(vIndex, sIndex, e.target.value)}
                                       className="h-9 text-center font-bold"
-                                      placeholder="Size"
+                                      placeholder={t.size_label}
                                     />
                                   </div>
                                   <div className="flex-1">
@@ -590,7 +590,7 @@ export default function MenuPage() {
               </div>
               <div className="flex flex-col items-end gap-2">
                 <div className="text-right">
-                  <p className="text-xs text-muted-foreground">Variations</p>
+                  <p className="text-xs text-muted-foreground">{t.variations}</p>
                   <div className="flex gap-1 flex-wrap justify-end max-w-[200px]">
                     {item.variations && item.variations.length > 0 ? (
                       item.variations
@@ -601,7 +601,7 @@ export default function MenuPage() {
                           </Badge>
                         ))
                     ) : (
-                      <span className="text-sm text-muted-foreground italic">None</span>
+                      <span className="text-sm text-muted-foreground italic">{t.none}</span>
                     )}
                   </div>
                 </div>

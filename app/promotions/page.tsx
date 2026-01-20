@@ -79,10 +79,10 @@ export default function PromotionsPage() {
         fetchPromotions()
       } else {
         const err = await res.json()
-        alert(err.error || t.save + " " + t.inactive)
+        alert(err.error || `${t.save} ${t.inactive}`)
       }
     } catch (e) {
-      alert(t.save + " Error")
+      alert(`${t.save} Error`)
     }
   }
 

@@ -17,6 +17,7 @@ type CartItem = {
     image?: string
     sugar?: string
     shot?: string
+    variation?: string
     size?: string
 }
 
@@ -166,17 +167,28 @@ export default function CustomerViewPage() {
                                                 )}
                                             </div>
                                             <div className="min-w-0 flex-1">
-                                                <h3 className="text-2xl font-semibold text-slate-800 truncate leading-tight">{item.name}</h3>
-                                                {(item.sugar || item.shot || item.size) && (
-                                                    <div className="flex flex-wrap gap-1 mt-1">
-                                                        {item.sugar && item.sugar !== '100%' && <Badge variant="outline" className="text-xs">Sweet: {item.sugar}</Badge>}
-                                                        {item.shot && item.shot !== 'Normal' && <Badge variant="outline" className="text-xs">Shot: {item.shot}</Badge>}
-                                                        {item.size && item.size !== 'M' && <Badge variant="outline" className="text-xs">Size: {item.size}</Badge>}
+                                                <h3 className="text-xl font-bold text-slate-800 leading-tight mb-1">{item.name}</h3>
+                                                <div className="flex flex-wrap gap-1.5 mb-2">
+                                                    {item.variation && (
+                                                        <Badge className="bg-amber-100 text-amber-900 border-amber-200 hover:bg-amber-100 text-xs font-bold uppercase px-2 py-0.5">
+                                                            {item.variation}
+                                                        </Badge>
+                                                    )}
+                                                    {item.size && (
+                                                        <Badge variant="outline" className="bg-slate-50 text-slate-700 border-slate-200 text-xs font-bold px-2 py-0.5">
+                                                            Size: {item.size}
+                                                        </Badge>
+                                                    )}
+                                                </div>
+                                                {(item.sugar || item.shot) && (
+                                                    <div className="flex flex-wrap gap-1 mt-1 opacity-80">
+                                                        {item.sugar && item.sugar !== '100%' && <Badge variant="outline" className="text-[12px] bg-amber-50/50 text-amber-800 border-amber-100">Sweet: {item.sugar}</Badge>}
+                                                        {item.shot && item.shot !== 'Normal' && <Badge variant="outline" className="text-[12px] bg-gray-50/50 text-stone-800 border-stone-100">Shot: {item.shot}</Badge>}
                                                     </div>
                                                 )}
-                                                <div className="flex items-center gap-2 mt-0.5">
-                                                    <Badge variant="secondary" className="bg-slate-100 text-slate-600 px-1.5 py-0 text-md">x{item.quantity}</Badge>
-                                                    <span className="text-base text-slate-400">@ {formatLAK(item.price)}</span>
+                                                <div className="flex items-center gap-2 mt-2">
+                                                    <Badge variant="secondary" className="bg-slate-100 text-slate-600 px-2 py-0.5 text-lg font-bold">x{item.quantity}</Badge>
+                                                    <span className="text-lg text-slate-400 font-medium">@ {formatLAK(item.price)}</span>
                                                 </div>
                                             </div>
                                         </div>

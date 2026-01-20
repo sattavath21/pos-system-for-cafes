@@ -26,6 +26,8 @@ interface CustomizationDialogProps {
         price: number
         sugar: string
         shot: string
+        variation: string
+        size: string
     }) => void
     menuName: string
     variations: MenuVariation[]
@@ -98,14 +100,14 @@ export function CustomizationDialog({
             return
         }
 
-        const composedName = `${menuName} (${selectedVariation}) - ${selectedSizeObj.size}`
-
         onConfirm({
             variationSizeId: selectedSize,
-            name: composedName,
+            name: menuName, // Keep name as the base product name
             price: finalPrice,
             sugar,
-            shot
+            shot,
+            variation: selectedVariation,
+            size: selectedSizeObj.size
         })
         onClose()
     }

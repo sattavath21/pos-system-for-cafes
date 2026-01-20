@@ -180,7 +180,7 @@ export default function CustomersPage() {
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="customerEmail">{t.email} ({t.inactive})</Label>
+                  <Label htmlFor="customerEmail">{t.email} ({t.optional})</Label>
                   <Input
                     id="customerEmail"
                     type="email"
@@ -190,7 +190,7 @@ export default function CustomersPage() {
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="customerDob">{t.date_of_birth} ({t.inactive})</Label>
+                  <Label htmlFor="customerDob">{t.date_of_birth} ({t.optional})</Label>
                   <Input
                     id="customerDob"
                     type="date"
@@ -203,8 +203,8 @@ export default function CustomersPage() {
                 <Button variant="outline" onClick={() => setIsDialogOpen(false)}>
                   {t.cancel}
                 </Button>
-                <Button className="bg-amber-600 hover:bg-amber-700" onClick={handleAddNew} disabled={isLoading}>
-                  {isLoading ? t.using : t.save}
+                <Button className="bg-amber-600 hover:bg-amber-700 font-bold" onClick={handleAddNew} disabled={isLoading}>
+                  {isLoading ? t.processing : t.save}
                 </Button>
               </DialogFooter>
             </DialogContent>
@@ -230,8 +230,8 @@ export default function CustomersPage() {
                       </Badge>
                     </div>
                     <div className="flex gap-4 text-sm text-muted-foreground">
-                      <span>{customer.phone || 'No Phone'}</span>
-                      <span>{customer.email || 'No Email'}</span>
+                      <span>{customer.phone || t.no_phone || "No Phone"}</span>
+                      <span>{customer.email || t.no_email || "No Email"}</span>
                     </div>
                   </div>
                   <div className="flex items-center gap-6">
@@ -244,7 +244,7 @@ export default function CustomersPage() {
                       <p className="font-semibold text-green-600">{formatLAK(customer.totalSpent)}</p>
                     </div>
                     <div className="text-right">
-                      <p className="text-sm text-muted-foreground">{t.last_visit || 'Last Visit'}</p>
+                      <p className="text-sm text-muted-foreground">{t.last_visit}</p>
                       <p className="font-semibold">{customer.lastVisit}</p>
                     </div>
                     <Button variant="outline" size="icon" onClick={() => handleViewDetails(customer)}>

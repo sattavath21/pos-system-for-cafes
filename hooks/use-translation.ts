@@ -24,7 +24,13 @@ export function useTranslation() {
         return () => clearInterval(interval)
     }, [])
 
-    const t = translations[lang]
+    const dict = translations[lang] as Record<string, string>
+
+    const t = new Proxy(dict, {
+        get(target, prop: string) {
+            return target[prop] ?? `⚠️ ${prop}`
+        },
+    })
 
     return { t, lang }
 }

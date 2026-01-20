@@ -83,21 +83,21 @@ export default function ReportsPage() {
 
     const from = startOfToday()
     const isToday = isSameDay(dateRange.from, from) && isSameDay(dateRange.to, endOfToday())
-    if (isToday) return "Today's Sales"
+    if (isToday) return t.today_sales_text
 
     const is7Days = isSameDay(dateRange.from, startOfDay(subDays(new Date(), 7)))
-    if (is7Days) return "This Week Sales"
+    if (is7Days) return t.this_week_sales
 
     const is30Days = isSameDay(dateRange.from, startOfDay(subDays(new Date(), 30)))
-    if (is30Days) return "In 30 Days Sales"
+    if (is30Days) return t.in_30_days_sales
 
     const is90Days = isSameDay(dateRange.from, startOfDay(subDays(new Date(), 90)))
-    if (is90Days) return "This Quarter Sales"
+    if (is90Days) return t.this_quarter_sales
 
-    return "Selected Period Sales"
+    return t.selected_period_sales
   }
 
-  if (isLoading && !data) return <div className="p-10 text-center">Loading Analytics...</div>
+  if (isLoading && !data) return <div className="p-10 text-center">{t.loading_analytics}</div>
 
   return (
     <div className="min-h-screen bg-background">
@@ -125,7 +125,7 @@ export default function ReportsPage() {
                 onClick={() => setDateRange({ from: startOfDay(new Date()), to: endOfDay(new Date()) })}
                 className={dateRange?.from && isSameDay(dateRange.from, startOfDay(new Date())) && dateRange?.to && isSameDay(dateRange.to, endOfDay(new Date())) ? "bg-amber-600 text-white hover:bg-amber-700" : ""}
               >
-                Today
+                {t.today_caps}
               </Button>
               <Button
                 variant={dateRange?.from && isSameDay(dateRange.from, startOfDay(subDays(new Date(), 7))) ? "default" : "outline"}
@@ -195,35 +195,35 @@ export default function ReportsPage() {
             <CardHeader className="p-4">
               <CardDescription>{getSalesTitle()}</CardDescription>
               <CardTitle className="text-2xl font-bold">{formatLAK(data?.summary.totalRevenue || 0)}</CardTitle>
-              <p className="text-[10px] text-muted-foreground mt-1 uppercase tracking-wider font-semibold">Gross Sales (Tax Incl.)</p>
+              <p className="text-[14px] text-muted-foreground mt-1 uppercase tracking-wider font-semibold">{t.gross_sales_tax_incl}</p>
             </CardHeader>
           </Card>
           <Card className="border-l-4 border-l-emerald-500">
             <CardHeader className="p-4">
-              <CardDescription>Net Sales</CardDescription>
+              <CardDescription>{t.net_sales}</CardDescription>
               <CardTitle className="text-2xl font-bold">{formatLAK(data?.summary.netSales || 0)}</CardTitle>
-              <p className="text-[10px] text-muted-foreground mt-1 uppercase tracking-wider font-semibold">Revenue before Tax</p>
+              <p className="text-[14px] text-muted-foreground mt-1 uppercase tracking-wider font-semibold">{t.revenue_before_tax}</p>
             </CardHeader>
           </Card>
           <Card className="border-l-4 border-l-blue-500">
             <CardHeader className="p-4">
-              <CardDescription>Tax Collected</CardDescription>
+              <CardDescription>{t.tax_collected}</CardDescription>
               <CardTitle className="text-2xl font-bold">{formatLAK(data?.summary.taxCollected || 0)}</CardTitle>
-              <p className="text-[10px] text-muted-foreground mt-1 uppercase tracking-wider font-semibold">Estimated VAT/Sales Tax</p>
+              <p className="text-[14px] text-muted-foreground mt-1 uppercase tracking-wider font-semibold">{t.estimated_vat_sales_tax}</p>
             </CardHeader>
           </Card>
           <Card className="border-l-4 border-l-purple-500">
             <CardHeader className="p-4">
               <CardDescription>{t.orders}</CardDescription>
               <CardTitle className="text-2xl font-bold">{data?.summary.totalOrders || 0}</CardTitle>
-              <p className="text-[10px] text-muted-foreground mt-1 uppercase tracking-wider font-semibold">Total completed transactions</p>
+              <p className="text-[14px] text-muted-foreground mt-1 uppercase tracking-wider font-semibold">{t.total_completed_transactions}</p>
             </CardHeader>
           </Card>
           <Card className="border-l-4 border-l-amber-500">
             <CardHeader className="p-4">
-              <CardDescription>AOV</CardDescription>
+              <CardDescription>{t.aov}</CardDescription>
               <CardTitle className="text-2xl font-bold">{formatLAK(data?.summary.aov || 0)}</CardTitle>
-              <p className="text-[10px] text-muted-foreground mt-1 uppercase tracking-wider font-semibold">Average Order Value</p>
+              <p className="text-[14px] text-muted-foreground mt-1 uppercase tracking-wider font-semibold">{t.average_order_value}</p>
             </CardHeader>
           </Card>
         </div>
@@ -288,7 +288,7 @@ export default function ReportsPage() {
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               <Card>
                 <CardHeader>
-                  <CardTitle className="text-green-700">{t.best_sellers}</CardTitle>
+                  <CardTitle className="text-green-700">{t.best_sellers_caps}</CardTitle>
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-4">
@@ -306,7 +306,7 @@ export default function ReportsPage() {
                           </div>
                         </div>
                         <div className="text-right">
-                          <p className="font-bold text-lg text-emerald-600">{p.sold} <span className="text-[10px] text-muted-foreground uppercase font-normal">sold</span></p>
+                          <p className="font-bold text-lg text-emerald-600">{p.sold} <span className="text-[10px] text-muted-foreground uppercase font-normal">{t.sold}</span></p>
                           <p className="text-sm font-semibold text-slate-500">{formatLAK(p.revenue)}</p>
                         </div>
                       </div>
@@ -343,7 +343,7 @@ export default function ReportsPage() {
                       <AlertTriangle className="w-5 h-5" />
                       {t.trash_items}
                     </CardTitle>
-                    <CardDescription>Items that haven't sold at all in this period.</CardDescription>
+                    <CardDescription>{t.trash_items_desc}</CardDescription>
                   </CardHeader>
                   <CardContent className="pt-4">
                     <div className="grid grid-cols-2 gap-2">
@@ -353,7 +353,7 @@ export default function ReportsPage() {
                           <span className="text-muted-foreground">{formatLAK(p.price)}</span>
                         </div>
                       ))}
-                      {data?.zeroSales.length === 0 && <p className="text-sm text-green-600">Great! All items have sales.</p>}
+                      {data?.zeroSales.length === 0 && <p className="text-sm text-green-600">{t.great_all_items_sold}</p>}
                     </div>
                   </CardContent>
                 </Card>
@@ -366,7 +366,7 @@ export default function ReportsPage() {
                 <CardHeader>
                   <CardTitle className="text-amber-800 flex items-center gap-2">
                     <Package className="w-5 h-5" />
-                    Size Performance
+                    {t.size_performance}
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
@@ -391,7 +391,7 @@ export default function ReportsPage() {
                 <CardHeader>
                   <CardTitle className="text-amber-800 flex items-center gap-2">
                     <TrendingUp className="w-5 h-5" />
-                    Variation Performance
+                    {t.variation_performance}
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
@@ -418,7 +418,7 @@ export default function ReportsPage() {
               <Card>
                 <CardHeader>
                   <CardTitle>{t.peak_hours}</CardTitle>
-                  <CardDescription>Peak activity hours.</CardDescription>
+                  <CardDescription>{t.peak_activity_desc || "Peak activity hours."}</CardDescription>
                 </CardHeader>
                 <CardContent className="h-[350px]">
                   <ResponsiveContainer width="100%" height="100%">
@@ -434,8 +434,8 @@ export default function ReportsPage() {
 
               <Card>
                 <CardHeader>
-                  <CardTitle>{t.payment_method} Distribution</CardTitle>
-                  <CardDescription>Revenue split.</CardDescription>
+                  <CardTitle>{t.payment_method_distribution}</CardTitle>
+                  <CardDescription>{t.revenue_split || "Revenue split."}</CardDescription>
                 </CardHeader>
                 <CardContent className="h-[350px]">
                   <ResponsiveContainer width="100%" height="100%">
@@ -466,7 +466,7 @@ export default function ReportsPage() {
             <Card>
               <CardHeader>
                 <CardTitle>{t.promotions_roi}</CardTitle>
-                <CardDescription>Promo efficiency.</CardDescription>
+                <CardDescription>{t.promo_efficiency || "Promo efficiency."}</CardDescription>
               </CardHeader>
               <CardContent>
                 <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -478,21 +478,21 @@ export default function ReportsPage() {
                       </div>
                       <div className="space-y-2">
                         <div className="flex justify-between text-sm">
-                          <span>Times Used:</span>
+                          <span>{t.times_used}:</span>
                           <span className="font-bold">{p.usageCount}</span>
                         </div>
                         <div className="flex justify-between text-sm">
-                          <span>Revenue Gained:</span>
+                          <span>{t.revenue_gained}:</span>
                           <span className="font-bold text-green-600">{formatLAK(p.totalRevenue)}</span>
                         </div>
                         <div className="flex justify-between text-sm">
-                          <span>Total Discount Cost:</span>
+                          <span>{t.total_discount_cost}:</span>
                           <span className="font-bold text-rose-600">-{formatLAK(p.totalDiscount)}</span>
                         </div>
                       </div>
                     </Card>
                   ))}
-                  {data?.promoImpact.length === 0 && <p className="text-center py-10 text-muted-foreground w-full col-span-full italic">No promotion usage data in this period.</p>}
+                  {data?.promoImpact.length === 0 && <p className="text-center py-10 text-muted-foreground w-full col-span-full italic">{t.no_promo_usage}</p>}
                 </div>
               </CardContent>
             </Card>

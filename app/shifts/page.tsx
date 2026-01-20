@@ -10,6 +10,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Label } from "@/components/ui/label"
 import { Input } from "@/components/ui/input"
 import { Header } from "@/components/header"
+import { useTranslation } from "@/hooks/use-translation"
 
 interface Shift {
     id: string
@@ -27,6 +28,7 @@ interface Shift {
 }
 
 export default function ShiftsPage() {
+    const { t } = useTranslation()
     const [shifts, setShifts] = useState<Shift[]>([])
     const [loading, setLoading] = useState(true)
     const [isEndShiftOpen, setIsEndShiftOpen] = useState(false)
@@ -85,7 +87,7 @@ export default function ShiftsPage() {
     }
 
     const getShiftDuration = (start: string, end: string | null) => {
-        if (!end) return 'Ongoing'
+        if (!end) return t.ongoing
         const duration = new Date(end).getTime() - new Date(start).getTime()
         const hours = Math.floor(duration / (1000 * 60 * 60))
         const minutes = Math.floor((duration % (1000 * 60 * 60)) / (1000 * 60))
@@ -94,45 +96,49 @@ export default function ShiftsPage() {
 
     return (
         <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800 p-6">
-            <div className="max-w-7xl mx-auto space-y-6">
-                <Header title="Shift Reports">
-                    {activeShift && (
-                        <Button
-                            variant="destructive"
-                            size="sm"
-                            className="ml-4 bg-red-600 hover:bg-red-700 h-8"
-                            onClick={() => setIsEndShiftOpen(true)}
-                        >
-                            <LogOut className="w-4 h-4 mr-1" />
-                            End Shift
-                        </Button>
-                    )}
-                </Header>
+            <Header title={t.shift_reports}>
+                {activeShift && (
+                    <Button
+                        variant="destructive"
+                        size="sm"
+                        className="ml-4 bg-orange-500 hover:bg-orange-600 h-8 font-bold text-md h-10"
+                        onClick={() => setIsEndShiftOpen(true)}
+                    >
+                        <LogOut className="w-4 h-4 mr-1" />
+                        {t.end_shift}
+                    </Button>
+                )}
+            </Header>
+
+
+
+            <div className="max-w-7xl mt-6 mx-auto space-y-12">
+
 
                 {/* Shifts Table */}
                 <Card className="p-6">
                     {loading ? (
-                        <div className="text-center py-8">Loading shifts...</div>
+                        <div className="text-center py-8">{t.loading_shifts}</div>
                     ) : shifts.length === 0 ? (
                         <div className="text-center py-8 text-muted-foreground">
                             <Calendar className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                            <p>No shifts found</p>
+                            <p>{t.no_shifts_found}</p>
                         </div>
                     ) : (
                         <div className="overflow-x-auto">
                             <table className="w-full">
                                 <thead>
                                     <tr className="border-b">
-                                        <th className="text-left p-3 font-semibold">Date</th>
-                                        <th className="text-left p-3 font-semibold">Start Time</th>
-                                        <th className="text-left p-3 font-semibold">End Time</th>
-                                        <th className="text-right p-3 font-semibold">Duration</th>
-                                        <th className="text-right p-3 font-semibold">Start Cash</th>
-                                        <th className="text-right p-3 font-semibold">Cash Sales</th>
-                                        <th className="text-right p-3 font-semibold">Expected</th>
-                                        <th className="text-right p-3 font-semibold">Actual</th>
-                                        <th className="text-right p-3 font-semibold">Difference</th>
-                                        <th className="text-center p-3 font-semibold">Status</th>
+                                        <th className="text-left p-3 font-semibold">{t.date_label}</th>
+                                        <th className="text-left p-3 font-semibold">{t.start_time_label}</th>
+                                        <th className="text-left p-3 font-semibold">{t.end_time_label}</th>
+                                        <th className="text-right p-3 font-semibold">{t.duration_label}</th>
+                                        <th className="text-right p-3 font-semibold">{t.start_cash_label}</th>
+                                        <th className="text-right p-3 font-semibold">{t.cash_sales_label}</th>
+                                        <th className="text-right p-3 font-semibold">{t.expected_label}</th>
+                                        <th className="text-right p-3 font-semibold">{t.actual_label}</th>
+                                        <th className="text-right p-3 font-semibold">{t.difference_label}</th>
+                                        <th className="text-center p-3 font-semibold">{t.status}</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -161,9 +167,9 @@ export default function ShiftsPage() {
                                                     ) : '-'}
                                                 </td>
                                                 <td className="p-3 text-center">
-                                                    <span className={`px-2 py-1 rounded-full text-xs font-semibold ${shift.status === 'OPEN' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-700'
+                                                    <span className={`px-2 py-1 rounded-full text-xs font-bold ${shift.status === 'OPEN' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-700'
                                                         }`}>
-                                                        {shift.status}
+                                                        {shift.status === 'OPEN' ? t.open_status : t.closed_status}
                                                     </span>
                                                 </td>
                                             </tr>
@@ -179,20 +185,20 @@ export default function ShiftsPage() {
             <Dialog open={isEndShiftOpen} onOpenChange={setIsEndShiftOpen}>
                 <DialogContent>
                     <DialogHeader>
-                        <DialogTitle>End Current Shift</DialogTitle>
+                        <DialogTitle>{t.end_current_shift}</DialogTitle>
                     </DialogHeader>
                     <div className="space-y-4 py-4">
                         <div className="p-4 bg-muted rounded-lg space-y-2">
                             <div className="flex justify-between text-sm">
-                                <span>Starting Cash:</span>
+                                <span>{t.starting_cash_with_colon}</span>
                                 <span>{activeShift ? formatCurrency(activeShift.startCash) : 0} LAK</span>
                             </div>
                             <div className="flex justify-between text-sm">
-                                <span>Cash Sales:</span>
+                                <span>{t.cash_sales_with_colon}</span>
                                 <span>{activeShift ? formatCurrency(activeShift.cashPayments) : 0} LAK</span>
                             </div>
                             <div className="flex justify-between font-bold border-t pt-2">
-                                <span>Expected Cash:</span>
+                                <span>{t.expected_cash_with_colon}</span>
                                 <span className="text-amber-600">
                                     {activeShift ? formatCurrency(activeShift.startCash + activeShift.cashPayments) : 0} LAK
                                 </span>
@@ -200,11 +206,11 @@ export default function ShiftsPage() {
                         </div>
 
                         <div className="space-y-2">
-                            <Label htmlFor="actualCash">Actual Cash Counted</Label>
+                            <Label htmlFor="actualCash">{t.actual_cash_counted}</Label>
                             <Input
                                 id="actualCash"
                                 type="number"
-                                placeholder="Enter total cash in drawer"
+                                placeholder={t.enter_cash_drawer}
                                 value={actualCash}
                                 onChange={e => setActualCash(e.target.value)}
                                 className="text-lg font-bold"
@@ -216,18 +222,19 @@ export default function ShiftsPage() {
                                 ? 'bg-green-50 text-green-700'
                                 : 'bg-red-50 text-red-700'
                                 }`}>
-                                Difference: {formatCurrency(parseFloat(actualCash) - (activeShift.startCash + activeShift.cashPayments))} LAK
+                                {t.difference_label}: {formatCurrency(parseFloat(actualCash) - (activeShift.startCash + activeShift.cashPayments))} LAK
                             </div>
                         )}
                     </div>
                     <DialogFooter>
-                        <Button variant="outline" onClick={() => setIsEndShiftOpen(false)}>Cancel</Button>
+                        <Button variant="outline" onClick={() => setIsEndShiftOpen(false)}>{t.cancel}</Button>
                         <Button
                             variant="destructive"
+                            className="font-bold"
                             disabled={!actualCash || isProcessing}
                             onClick={handleEndShift}
                         >
-                            {isProcessing ? "Ending Shift..." : "Confirm & Close Shift"}
+                            {isProcessing ? t.ending_shift_status : t.confirm_close_shift}
                         </Button>
                     </DialogFooter>
                 </DialogContent>

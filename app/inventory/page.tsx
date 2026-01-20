@@ -123,7 +123,7 @@ export default function InventoryPage() {
     <div className="min-h-screen bg-background">
       <Header title={t.inventory_management}>
         <Link href="/inventory/recipes">
-          <Button variant="outline" size="sm">Recipes</Button>
+          <Button variant="outline" size="lg" className="text-md">{t.recipes}</Button>
         </Link>
       </Header>
 

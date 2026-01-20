@@ -69,16 +69,20 @@ export default function DashboardPage() {
       title: hasActiveSession ? t.resume_order : t.new_order,
       icon: Coffee,
       href: "/pos",
-      color: hasActiveSession ? "bg-orange-600 hover:bg-orange-700" : "bg-amber-600 hover:bg-amber-700"
+      color: hasActiveSession
+        ? "bg-orange-600 hover:bg-orange-700"  // Resume = attention
+        : "bg-emerald-600 hover:bg-emerald-700" // New order = primary action
     },
-    { title: t.orders, icon: Receipt, href: "/orders", color: "bg-green-600 hover:bg-green-700" },
-    { title: t.menu, icon: List, href: "/menu", color: "bg-blue-600 hover:bg-blue-700" },
-    { title: t.inventory, icon: Package, href: "/inventory", color: "bg-orange-600 hover:bg-orange-700" },
-    { title: t.customers, icon: Users, href: "/customers", color: "bg-yellow-600 hover:bg-yellow-700" },
-    { title: t.promotions, icon: Tag, href: "/promotions", color: "bg-rose-600 hover:bg-rose-700" },
-    { title: "Shifts", icon: Calendar, href: "/shifts", color: "bg-indigo-600 hover:bg-indigo-700", adminOnly: true },
-    { title: t.reports, icon: ChartLine, href: "/reports", color: "bg-purple-600 hover:bg-purple-700" },
+    { title: t.orders, icon: Receipt, href: "/orders", color: "bg-sky-600 hover:bg-sky-700" },        // Orders = info/list
+    { title: t.menu, icon: List, href: "/menu", color: "bg-indigo-600 hover:bg-indigo-700" },        // Menu = catalog
+    { title: t.inventory, icon: Package, href: "/inventory", color: "bg-slate-600 hover:bg-slate-700" }, // Inventory = stable/management
+    { title: t.customers, icon: Users, href: "/customers", color: "bg-teal-600 hover:bg-teal-700" },  // Customers = friendly
+    { title: t.promotions, icon: Tag, href: "/promotions", color: "bg-violet-600 hover:bg-violet-700" }, // Promotions = marketing/highlight
+    { title: t.shifts, icon: Calendar, href: "/shifts", color: "bg-amber-600 hover:bg-amber-700", adminOnly: true }, // Shifts = caution/attention
+    { title: t.reports, icon: ChartLine, href: "/reports", color: "bg-red-600 hover:bg-red-700" },    // Reports = analytics/critical insight
   ]
+
+
 
   const statIcons: Record<string, any> = {
     "Today's Sales": DollarSign,
@@ -101,7 +105,7 @@ export default function DashboardPage() {
     "Low Stock Items": "bg-orange-50"
   }
 
-  if (isLoading) return <div className="p-10 text-center">Loading Dashboard...</div>
+  if (isLoading) return <div className="p-10 text-center">{t.loading_dashboard}</div>
 
   return (
     <div className="min-h-screen bg-background">
@@ -236,7 +240,7 @@ export default function DashboardPage() {
                   </div>
                 </div>
               ))}
-              {data?.activeOrders.length === 0 && <p className="text-sm text-muted-foreground py-4 text-center">No active orders</p>}
+              {data?.activeOrders.length === 0 && <p className="text-sm text-muted-foreground py-4 text-center">{t.no_active_orders}</p>}
             </div>
           </Card>
 
@@ -253,13 +257,13 @@ export default function DashboardPage() {
                       </div>
                       <div>
                         <p className="font-medium">{item.name}</p>
-                        <p className="text-sm text-muted-foreground">{item.sold} sold</p>
+                        <p className="text-sm text-muted-foreground">{item.sold} {t.sold}</p>
                       </div>
                     </div>
                     <p className="font-semibold text-green-600">{formatLAK(item.revenue)}</p>
                   </div>
                 ))}
-                {data?.topItems.length === 0 && <p className="text-sm text-muted-foreground py-4 text-center">No sales data yet</p>}
+                {data?.topItems.length === 0 && <p className="text-sm text-muted-foreground py-4 text-center">{t.no_sales_data}</p>}
               </div>
             </Card>
           )}
@@ -278,11 +282,11 @@ export default function DashboardPage() {
                   <div key={item.name} className="p-4 border border-orange-200 bg-orange-50 rounded-lg">
                     <p className="font-semibold mb-1">{item.name}</p>
                     <p className="text-sm text-muted-foreground">
-                      Current: {item.current} {item.unit} (Min: {item.min} {item.unit})
+                      {t.current}: {item.current} {item.unit} ({t.min}: {item.min} {item.unit})
                     </p>
                   </div>
                 ))}
-                {data?.lowStockAlerts.length === 0 && <p className="col-span-full text-sm text-muted-foreground py-4 text-center">All stock levels are healthy</p>}
+                {data?.lowStockAlerts.length === 0 && <p className="col-span-full text-sm text-muted-foreground py-4 text-center">{t.all_stock_healthy}</p>}
               </div>
             </Card>
           )

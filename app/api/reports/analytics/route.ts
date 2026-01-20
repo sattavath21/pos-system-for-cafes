@@ -133,7 +133,7 @@ export async function GET(request: Request) {
 
         const topProducts = Array.from(bestSellerMap.values())
             .sort((a, b) => b.sold - a.sold)
-            .slice(0, 10)
+            .slice(0, 5)
 
         const worstProducts = Array.from(lowPerfMap.values())
             .filter(p => p.sold > 0)

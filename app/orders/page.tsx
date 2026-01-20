@@ -11,6 +11,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Label } from "@/components/ui/label"
 import { Input } from "@/components/ui/input"
 import { Header } from "@/components/header"
+import { useTranslation } from "@/hooks/use-translation"
 
 type Order = {
     id: string
@@ -25,6 +26,7 @@ type Order = {
 }
 
 export default function ActiveOrdersPage() {
+    const { t } = useTranslation()
     const [orders, setOrders] = useState<Order[]>([])
     const [filter, setFilter] = useState<string>("ALL")
     const [printingOrder, setPrintingOrder] = useState<Order | null>(null)
@@ -96,11 +98,11 @@ export default function ActiveOrdersPage() {
         : orders.filter(o => o.status === filter)
 
     const getStatusBadge = (status: string) => {
-        const variants: Record<string, { color: string; icon: any }> = {
-            PENDING: { color: "bg-yellow-100 text-yellow-800", icon: Clock },
-            COMPLETED: { color: "bg-green-100 text-green-800", icon: CheckCircle },
-            HOLD: { color: "bg-orange-100 text-orange-800", icon: Clock },
-            CANCELLED: { color: "bg-red-100 text-red-800", icon: XCircle }
+        const variants: Record<string, { color: string; icon: any; label: string }> = {
+            PENDING: { color: "bg-yellow-100 text-yellow-800", icon: Clock, label: t.pending_status },
+            COMPLETED: { color: "bg-green-100 text-green-800", icon: CheckCircle, label: t.completed_status },
+            HOLD: { color: "bg-orange-100 text-orange-800", icon: Clock, label: t.hold_status },
+            CANCELLED: { color: "bg-red-100 text-red-800", icon: XCircle, label: t.cancelled_status }
         }
 
         const config = variants[status] || variants.PENDING
@@ -109,14 +111,14 @@ export default function ActiveOrdersPage() {
         return (
             <Badge className={`${config.color} flex items-center gap-1`}>
                 <Icon className="w-3 h-3" />
-                {status}
+                {config.label}
             </Badge>
         )
     }
 
     return (
-        <div className="min-h-screen bg-background">
-            <Header title="All Orders" />
+        <div className="min-h-screen bg-background text-foreground">
+            <Header title={t.all_orders} />
 
             <div className="p-6 space-y-6">
                 {/* Filter Tabs */}
@@ -126,9 +128,9 @@ export default function ActiveOrdersPage() {
                             key={status}
                             variant={filter === status ? "default" : "outline"}
                             onClick={() => setFilter(status)}
-                            className={filter === status ? "bg-amber-600 hover:bg-amber-700" : ""}
+                            className={filter === status ? "bg-amber-600 hover:bg-amber-700 font-bold" : ""}
                         >
-                            {status}
+                            {t[status.toLowerCase() + "_status"] || status}
                         </Button>
                     ))}
                 </div>
@@ -149,14 +151,14 @@ export default function ActiveOrdersPage() {
 
                             {order.customerName && (
                                 <p className="text-sm mb-2">
-                                    <span className="font-medium">Customer:</span> {order.customerName}
+                                    <span className="font-medium">{t.customer}:</span> {order.customerName}
                                 </p>
                             )}
 
                             {order.beeperNumber && (
                                 <div className="mb-2">
                                     <Badge variant="outline" className="border-orange-500 text-orange-700 bg-orange-50 font-bold">
-                                        BEEPER: {order.beeperNumber}
+                                        {t.beeper.toUpperCase()}: {order.beeperNumber}
                                     </Badge>
                                 </div>
                             )}
@@ -173,7 +175,7 @@ export default function ActiveOrdersPage() {
                                         onClick={() => window.location.href = `/pos?resumeOrder=${order.id}`}
                                     >
                                         <Play className="w-4 h-4 mr-1" />
-                                        Resume
+                                        {t.resume}
                                     </Button>
                                 )}
 
@@ -182,21 +184,21 @@ export default function ActiveOrdersPage() {
                                         <Button
                                             size="sm"
                                             variant="outline"
-                                            className="border-red-200 text-red-600 hover:bg-red-50"
+                                            className="border-red-200 text-red-600 hover:bg-red-50 font-semibold"
                                             onClick={() => setCancellingOrder(order)}
                                         >
-                                            Cancel
+                                            {t.cancel}
                                         </Button>
                                         <Button
                                             size="sm"
                                             variant="outline"
-                                            className="border-blue-200 text-blue-600 hover:bg-blue-50"
+                                            className="border-blue-200 text-blue-600 hover:bg-blue-50 font-semibold"
                                             onClick={() => {
                                                 window.open(`/receipt?id=${order.id}`, '_blank', 'width=450,height=600');
                                             }}
                                         >
                                             <Printer className="w-4 h-4 mr-1" />
-                                            Print
+                                            {t.print}
                                         </Button>
                                     </div>
                                 )}
@@ -210,25 +212,25 @@ export default function ActiveOrdersPage() {
                     <DialogContent>
                         <div className="space-y-4">
                             <DialogHeader>
-                                <DialogTitle>Cancel Order {cancellingOrder?.orderNumber}</DialogTitle>
+                                <DialogTitle>{t.cancel_order} {cancellingOrder?.orderNumber}</DialogTitle>
                             </DialogHeader>
-                            <p className="text-sm text-muted-foreground">Are you sure you want to cancel this order? This will revert stock and refund cash payments.</p>
+                            <p className="text-sm text-muted-foreground">{t.cancel_order_confirm_msg}</p>
                             <div className="space-y-2">
-                                <Label>Reason for Cancellation</Label>
+                                <Label>{t.cancellation_reason || "Reason for Cancellation"}</Label>
                                 <Input
-                                    placeholder="e.g. Customer changed mind, incorrect item"
+                                    placeholder={t.order_reason_placeholder}
                                     value={cancelReason}
                                     onChange={e => setCancelReason(e.target.value)}
                                 />
                             </div>
                             <div className="flex justify-end gap-2">
-                                <Button variant="outline" onClick={() => setCancellingOrder(null)}>No, keep order</Button>
+                                <Button variant="outline" onClick={() => setCancellingOrder(null)}>{t.keep_order}</Button>
                                 <Button
                                     variant="destructive"
                                     onClick={handleCancelOrder}
                                     disabled={!cancelReason || isProcessing}
                                 >
-                                    {isProcessing ? "Processing..." : "Yes, cancel order"}
+                                    {isProcessing ? `${t.processing}...` : t.yes_cancel_order}
                                 </Button>
                             </div>
                         </div>
@@ -249,7 +251,7 @@ export default function ActiveOrdersPage() {
                 {filteredOrders.length === 0 && (
                     <div className="text-center py-12 text-muted-foreground">
                         <Clock className="w-12 h-12 mx-auto mb-4 opacity-50" />
-                        <p>No {filter.toLowerCase()} orders found</p>
+                        <p>{t.no_orders_found} ({filter})</p>
                     </div>
                 )}
             </div>

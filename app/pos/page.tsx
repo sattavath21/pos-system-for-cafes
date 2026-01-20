@@ -43,6 +43,8 @@ type CartItem = {
   quantity: number
   sugar?: string
   shot?: string
+  variation?: string
+  size?: string
   category?: string
   image?: string
 }
@@ -476,10 +478,12 @@ export default function POSPage() {
     price: number
     sugar: string
     shot: string
+    variation: string
+    size: string
   }) => {
     setCart((prev) => {
       // Unique ID based on variationSizeId + customizations
-      const uniqueId = `${selection.variationSizeId}-${selection.sugar}-${selection.shot}`
+      const uniqueId = `${selection.variationSizeId}-${selection.sugar}-${selection.shot}-${selection.variation}`
 
       // Check existing similar item
       const existing = prev.find((item) => item.id === uniqueId)
@@ -498,6 +502,8 @@ export default function POSPage() {
         quantity: 1,
         sugar: selection.sugar,
         shot: selection.shot,
+        variation: selection.variation,
+        size: selection.size,
         category: productToCustomize?.category || "Other",
         image: productToCustomize?.image
       }]
@@ -538,7 +544,9 @@ export default function POSPage() {
             price: i.price,
             quantity: i.quantity,
             sugarLevel: i.sugar,
-            shotType: i.shot
+            shotType: i.shot,
+            variation: i.variation,
+            size: i.size
           })),
           total,
           subtotal,
@@ -681,12 +689,13 @@ export default function POSPage() {
         <Badge variant="secondary" className="px-3 py-1 text-lg font-mono bg-amber-50 text-amber-900 border-amber-200">
           {orderNumber || "No. --"}
         </Badge>
-        <div className="flex gap-2 ml-4">
+
+        <div className="flex gap-2 ml-4 border-l pl-4">
           <Link href="/inventory">
-            <Button variant="outline" size="sm">Inventory</Button>
+            <Button variant="outline" size="lg" className="text-md">{t.inventory}</Button>
           </Link>
           <Link href="/menu">
-            <Button variant="outline" size="sm">Menu</Button>
+            <Button variant="outline" size="lg" className="text-md">{t.menu}</Button>
           </Link>
         </div>
       </Header>
@@ -709,13 +718,13 @@ export default function POSPage() {
 
           {/* Categories */}
           <div className="p-4 border-b bg-white">
-            <div className="flex gap-2 overflow-x-auto">
+            <div className="flex gap-3 overflow-x-auto">
               {categories.map((category) => (
                 <Button
                   key={category}
                   variant={activeCategory === category ? "default" : "outline"}
                   onClick={() => setActiveCategory(category)}
-                  className={activeCategory === category ? "bg-amber-600 hover:bg-amber-700" : ""}
+                  className={activeCategory === category ? "bg-amber-600 hover:bg-amber-700 text-lg h-10" : "text-lg h-10"}
                 >
                   {category}
                 </Button>
@@ -749,6 +758,7 @@ export default function POSPage() {
               ))}
             </div>
           </div>
+
         </div>
 
         {/* Right Side - Cart */}
@@ -764,28 +774,39 @@ export default function POSPage() {
           </div> */}
 
           {/* Cart Items */}
-          <div className="flex-1 overflow-y-auto p-4">
+          <div className="flex-1 overflow-y-auto p-2">
             {cart.length === 0 ? (
               <div className="h-full flex flex-col items-center justify-center text-muted-foreground">
                 <Clock className="w-12 h-12 mb-2" />
-                <p>No items in {t.cart}</p>
+                <p>{t.no_items_found} in {t.cart}</p>
               </div>
             ) : (
-              <div className="space-y-3">
+              <div className="space-y-2">
                 {cart.map((item) => (
                   <Card key={item.id} className="p-3">
                     <div className="flex items-start justify-between mb-2">
                       <div className="flex-1">
-                        <h4 className="font-semibold">{item.name}</h4>
+                        <h4 className="font-semibold text-slate-800">{item.name}</h4>
+                        <div className="flex flex-wrap gap-1 mt-0.5 mb-1">
+                          {item.variation && (
+                            <span className="text-[10px] bg-amber-50 px-1.5 py-0.5 rounded-full text-amber-700 border border-amber-100 font-bold uppercase">
+                              {item.variation}
+                            </span>
+                          )}
+                          {item.size && (
+                            <span className="text-[10px] bg-slate-100 px-1.5 py-0.5 rounded-full text-slate-600 border border-slate-200 font-bold">
+                              Size: {item.size}
+                            </span>
+                          )}
+                        </div>
                         <p className="text-sm text-muted-foreground">{formatLAK(item.price)} {t.each}</p>
                         <div className="flex flex-wrap gap-1 mt-1">
                           {item.sugar && item.sugar !== "100%" && (
-                            <span className="text-[10px] bg-slate-100 px-1 rounded text-slate-500 border border-slate-200">Sugar: {item.sugar}</span>
+                            <span className="text-[10px] bg-slate-50 px-1 rounded text-slate-500 border border-slate-100">{t.sugar}: {item.sugar}</span>
                           )}
                           {item.shot && item.shot !== "Normal" && (
-                            <span className="text-[10px] bg-slate-100 px-1 rounded text-slate-500 border border-slate-200">Shot: {item.shot}</span>
+                            <span className="text-[10px] bg-slate-50 px-1 rounded text-slate-500 border border-slate-100">{t.shot}: {item.shot}</span>
                           )}
-
                         </div>
                       </div>
                       <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => removeItem(item.id)}>
@@ -822,7 +843,7 @@ export default function POSPage() {
           </div>
 
           {/* Totals */}
-          <div className="p-4 border-t space-y-3">
+          <div className="p-3 border-t space-y-2">
             {selectedCustomer && (
               <div className="flex justify-between text-sm text-amber-600 font-medium">
                 <span>{t.loyalty_points_earning}</span>
@@ -845,7 +866,7 @@ export default function POSPage() {
               <span className="text-muted-foreground">{t.tax} ({sysSettings.tax_rate}%)</span>
               <span className="font-semibold">{formatLAK(tax)}</span>
             </div>
-            <div className="flex justify-between text-lg font-bold pt-2 border-t">
+            <div className="flex justify-between text-md font-bold pt-2 border-t">
               <span>{t.total}</span>
               <span className="text-amber-600">{formatLAK(total)}</span>
             </div>
@@ -855,9 +876,9 @@ export default function POSPage() {
           <AlertDialog open={isResumeWarningOpen} onOpenChange={setIsResumeWarningOpen}>
             <AlertDialogContent>
               <AlertDialogHeader>
-                <AlertDialogTitle>There are active orders</AlertDialogTitle>
+                <AlertDialogTitle>{t.active_orders_warning_title}</AlertDialogTitle>
                 <AlertDialogDescription>
-                  If you continue, the current active order will automatically be put on hold.
+                  {t.active_orders_warning_desc}
                 </AlertDialogDescription>
               </AlertDialogHeader>
               <AlertDialogFooter>
@@ -865,7 +886,7 @@ export default function POSPage() {
                   setPendingResumeId(null)
                   setIsResumeWarningOpen(false)
                 }}>
-                  Cancel
+                  {t.cancel}
                 </AlertDialogCancel>
                 <AlertDialogAction onClick={async () => {
                   if (pendingResumeId) {
@@ -891,7 +912,7 @@ export default function POSPage() {
                     setIsResumeWarningOpen(false)
                   }
                 }}>
-                  Continue
+                  {t.continue_as || "Continue"}
                 </AlertDialogAction>
               </AlertDialogFooter>
             </AlertDialogContent>
@@ -905,21 +926,21 @@ export default function POSPage() {
 
                 </div>
                 <DialogTitle className="text-2xl font-bold">{t.payment_successful}</DialogTitle>
-                <p className="text-muted-foreground">Order completed successfully</p>
+                <p className="text-muted-foreground">{t.order_completed_successfully}</p>
               </div>
 
               {lastOrderInfo && (
                 <div className="border border-dashed border-slate-200 p-4 rounded-lg bg-slate-50 font-mono text-sm leading-relaxed">
                   <div className="text-center border-b border-dashed border-slate-300 pb-3 mb-3">
-                    <p className="text-[10px] uppercase tracking-wider text-slate-500">Order Number</p>
+                    <p className="text-[10px] uppercase tracking-wider text-slate-500">{t.order_no}</p>
                     <p className="text-3xl font-bold">{lastOrderInfo.orderNumber}</p>
-                    <p className="text-lg font-bold uppercase mt-1">{sysSettings?.shopName || 'Cafe POS'}</p>
+                    <p className="text-lg font-bold uppercase mt-1">{sysSettings?.shopName || t.cafe_pos}</p>
                     <p className="text-[10px] mt-1">{lastOrderInfo.date}</p>
                   </div>
 
                   {lastOrderInfo.beeperNumber && (
                     <div className="mb-3 p-2 border-2 border-dashed border-slate-400 text-center font-bold text-xl">
-                      BEEPER: {lastOrderInfo.beeperNumber}
+                      {t.beeper.toUpperCase()}: {lastOrderInfo.beeperNumber}
                     </div>
                   )}
 
@@ -931,8 +952,8 @@ export default function POSPage() {
                           <span>{formatLAK(item.price * item.quantity)}</span>
                         </div>
                         <div className="text-[10px] text-slate-500 pl-2">
-                          {item.sugar && <span>Sugar: {item.sugar} </span>}
-                          {item.shot && <span>Shot: {item.shot} </span>}
+                          {item.sugar && <span>{t.sugar}: {item.sugar} </span>}
+                          {item.shot && <span>{t.shot}: {item.shot} </span>}
                         </div>
                       </div>
                     ))}
@@ -940,34 +961,34 @@ export default function POSPage() {
 
                   <div className="border-t border-dashed border-slate-300 pt-3 space-y-1">
                     <div className="flex justify-between text-xs">
-                      <span>Subtotal</span>
+                      <span>{t.subtotal}</span>
                       <span>{formatLAK(lastOrderInfo.subtotal)}</span>
                     </div>
                     {lastOrderInfo.discount > 0 && (
                       <div className="flex justify-between text-xs text-rose-600">
-                        <span>Discount</span>
+                        <span>{t.promotions}</span>
                         <span>-{formatLAK(lastOrderInfo.discount)}</span>
                       </div>
                     )}
                     <div className="flex justify-between text-xs">
-                      <span>Tax ({sysSettings.taxRate}%)</span>
+                      <span>{t.tax} ({sysSettings.taxRate}%)</span>
                       <span>{formatLAK(lastOrderInfo.tax)}</span>
                     </div>
                     <div className="flex justify-between font-bold text-lg mt-2 pt-2 border-t border-dashed border-slate-300">
-                      <span>TOTAL</span>
+                      <span>{t.total.toUpperCase()}</span>
                       <span>{formatLAK(lastOrderInfo.total)}</span>
                     </div>
                   </div>
 
                   {lastOrderInfo.customer && (
                     <div className="mt-3 pt-3 border-t border-dashed border-slate-300 text-[10px] text-slate-600">
-                      <p>Customer: {lastOrderInfo.customer.name}</p>
-                      <p>Points Earned: +{Math.floor(lastOrderInfo.total / 1000)}</p>
+                      <p>{t.customer}: {lastOrderInfo.customer.name}</p>
+                      <p>{t.points_earned}: +{Math.floor(lastOrderInfo.total / 1000)}</p>
                     </div>
                   )}
                   <div className="text-center mt-3 pt-2 text-[8px] opacity-70">
-                    <p>Payment: {lastOrderInfo?.paymentMethod === 'BANK_NOTE' ? 'Cash' : 'Transfer'}</p>
-                    <p className="font-bold mt-1 uppercase">Thank you for your visit!</p>
+                    <p>{t.payment_method}: {lastOrderInfo?.paymentMethod === 'BANK_NOTE' ? t.cash : t.bank_transfer}</p>
+                    <p className="font-bold mt-1 uppercase">{t.thank_you}</p>
                   </div>
                 </div>
               )}
@@ -980,14 +1001,14 @@ export default function POSPage() {
                   {t.print_receipt}
                 </Button>
                 <Button variant="outline" className="w-full py-6 text-lg font-semibold border-amber-200 text-amber-900 bg-amber-50 hover:bg-amber-100" onClick={() => setIsSuccessOpen(false)}>
-                  {t.new_order || "New Order"}
+                  {t.new_order}
                 </Button>
               </div>
             </DialogContent>
           </Dialog>
 
           {/* Actions */}
-          <div className="p-4 border-t space-y-2">
+          <div className="p-2 border-t space-y-2">
             {selectedCustomer ? (
               <div className="space-y-2">
                 <div className="flex items-center gap-2 w-full">
@@ -1016,7 +1037,7 @@ export default function POSPage() {
                 {pointsRedeemed === 0 && ((selectedCustomer as any).loyaltyPoints || 0) > 0 && (
                   <div className="flex gap-2">
                     <Input
-                      placeholder="Points"
+                      placeholder={t.pts.toUpperCase()}
                       value={manualPoints}
                       onChange={(e) => setManualPoints(e.target.value.replace(/\D/g, ""))}
                       className="h-9"
@@ -1061,12 +1082,10 @@ export default function POSPage() {
               </Button>
             )}
 
-
-
             <div className="grid grid-cols-2 gap-2">
               <Button
                 variant="outline"
-                className="w-full border-red-200 text-red-600 hover:bg-red-50"
+                className="w-full border-red-200 text-red-600 hover:bg-red-50 h-12"
                 disabled={cart.length === 0 || isProcessing}
                 onClick={handleCancelOrderClick}
               >
@@ -1075,7 +1094,7 @@ export default function POSPage() {
               </Button>
               <Button
                 variant="outline"
-                className="w-full"
+                className="w-full h-12 bg-gray-500 hover:bg-gray-500 hover:text-white text-white"
                 disabled={cart.length === 0 || isProcessing}
                 onClick={handleHoldOrder}
               >
@@ -1083,6 +1102,7 @@ export default function POSPage() {
                 {t.hold_order}
               </Button>
             </div>
+
           </div>
 
           <Button
@@ -1091,7 +1111,7 @@ export default function POSPage() {
             disabled={cart.length === 0 || isProcessing}
             onClick={() => {
               if (shiftStatus !== 'OPEN') {
-                alert("Please open a shift first!")
+                alert(t.please_open_shift_first)
                 return
               }
               setIsPaymentOpen(true)
@@ -1171,7 +1191,7 @@ export default function POSPage() {
                           const val = e.target.value.replace(/\D/g, "")
                           setCashReceived(val)
                         }}
-                        placeholder="Enter amount in kips"
+                        placeholder={t.cash_received}
                         className="text-2xl font-bold h-14"
                       />
                     </div>
@@ -1181,9 +1201,9 @@ export default function POSPage() {
                         <span className={`text-xl font-bold ${calculateChange(Number(cashReceived), total).totalChange <= 0 ? 'text-green-600' : 'text-red-500'}`}>
                           {(() => {
                             const change = calculateChange(Number(cashReceived), total).totalChange
-                            if (change === 0) return <span className="text-green-600">Exact Amount</span>
-                            if (change < 0) return `Change: ${formatLAK(Math.abs(change))}`
-                            return `Missing: ${formatLAK(Math.abs(change))}`
+                            if (change === 0) return <span className="text-green-600">{t.exact_amount}</span>
+                            if (change < 0) return `${t.change}: ${formatLAK(Math.abs(change))}`
+                            return `${t.missing_amount}: ${formatLAK(Math.abs(change))}`
                           })()}
                         </span>
                       </div>
@@ -1226,8 +1246,8 @@ export default function POSPage() {
                   <div className="space-y-4">
                     <div className="space-y-2">
                       <Label className={`flex justify-between ${showBeeperError && !beeperNumber ? 'text-rose-500' : ''}`}>
-                        <span>Beeper Number</span>
-                        <span className="text-xs font-bold">{showBeeperError && !beeperNumber ? 'REQUIRED' : '(Required)'}</span>
+                        <span>{t.beeper}</span>
+                        <span className="text-xs font-bold">{showBeeperError && !beeperNumber ? t.required : `(${t.required})`}</span>
                       </Label>
                       <Input
                         placeholder="e.g. 05"
@@ -1239,7 +1259,7 @@ export default function POSPage() {
                         className={`text-lg font-bold ${showBeeperError && !beeperNumber ? 'border-rose-500 bg-rose-50 focus-visible:ring-rose-500' : ''}`}
                       />
                       {showBeeperError && !beeperNumber && (
-                        <p className="text-[10px] text-rose-500 mt-1 font-bold animate-pulse">Please enter a beeper number</p>
+                        <p className="text-[10px] text-rose-500 mt-1 font-bold animate-pulse">{t.please_enter_beeper_number}</p>
                       )}
                     </div>
                     <PaymentQR
@@ -1254,7 +1274,7 @@ export default function POSPage() {
                         disabled={isProcessing}
                       >
                         <Check className="w-4 h-4 mr-2" />
-                        Mark as Paid (Manual)
+                        {t.mark_as_paid_manual}
                       </Button>
                     </div>
                   </div>
@@ -1284,16 +1304,16 @@ export default function POSPage() {
 
       <Dialog open={isPromoOpen} onOpenChange={setIsPromoOpen}>
         <DialogContent className="sm:max-w-md">
-          <DialogHeader><DialogTitle>Apply Promo Code</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle>{t.apply_promo}</DialogTitle></DialogHeader>
           <div className="space-y-4 pt-4">
             <Input
-              placeholder="Enter code (e.g. WELCOME10)"
+              placeholder={t.promo_code}
               value={promoCodeInput}
               onChange={e => setPromoCodeInput(e.target.value.toUpperCase())}
               autoFocus
             />
             <Button className="w-full bg-amber-600 hover:bg-amber-700" onClick={applyPromoCode}>
-              Apply Discount
+              {t.apply_discount}
             </Button>
           </div>
         </DialogContent>
@@ -1302,10 +1322,10 @@ export default function POSPage() {
       {/* Customer Search Dialog */}
       <Dialog open={isCustomerSearchOpen} onOpenChange={setIsCustomerSearchOpen}>
         <DialogContent>
-          <DialogHeader><DialogTitle>Select Customer</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle>{t.select_customer}</DialogTitle></DialogHeader>
           <div className="space-y-4">
             <Input
-              placeholder="Search customer..."
+              placeholder={t.search_customer}
               value={customerQuery}
               onChange={e => setCustomerQuery(e.target.value)}
               autoFocus
@@ -1325,7 +1345,7 @@ export default function POSPage() {
                 </div>
               ))}
               {customerResults.length === 0 && customerQuery.length > 2 && (
-                <div className="text-center text-muted-foreground p-4">No results</div>
+                <div className="text-center text-muted-foreground p-4">{t.no_results}</div>
               )}
             </div>
           </div>
@@ -1336,15 +1356,15 @@ export default function POSPage() {
       <AlertDialog open={isNewOrderConfirmOpen} onOpenChange={setIsNewOrderConfirmOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Start New Order?</AlertDialogTitle>
+            <AlertDialogTitle>{t.start_new_order_title}</AlertDialogTitle>
             <AlertDialogDescription>
-              This will discard the current items in your cart. You cannot undo this action.
+              {t.start_new_order_desc}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogCancel>{t.cancel}</AlertDialogCancel>
             <AlertDialogAction className="bg-amber-600 hover:bg-amber-700" onClick={handleNewOrder}>
-              Discard & Start New
+              {t.discard_start_new}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -1360,12 +1380,12 @@ export default function POSPage() {
             <div className="w-16 h-16 bg-orange-100 rounded-full flex items-center justify-center mb-4">
               <Pause className="w-8 h-8 text-orange-600" />
             </div>
-            <h2 className="text-xl font-bold text-amber-900 mb-2">Order Put on Hold</h2>
+            <h2 className="text-xl font-bold text-amber-900 mb-2">{t.order_put_on_hold_title}</h2>
             <p className="text-muted-foreground mb-6">
-              This order can be resumed later from the <span className="font-semibold text-amber-700">All Orders</span> list.
+              {t.order_put_on_hold_desc}
             </p>
             <Button className="w-full bg-orange-600 hover:bg-orange-700" onClick={() => setIsHoldSuccessOpen(false)}>
-              Back to POS
+              {t.back_to_pos}
             </Button>
           </div>
         </DialogContent>
@@ -1375,20 +1395,20 @@ export default function POSPage() {
       <Dialog open={isCancelConfirmOpen} onOpenChange={setIsCancelConfirmOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Cancel Order</DialogTitle>
+            <DialogTitle>{t.cancel_redemption.replace(/\(.*\)/, '').trim() || t.cancel}</DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
-            <p>Please provide a reason for cancelling this order.</p>
+            <p>{t.please_provide_cancel_reason}</p>
             <Input
-              placeholder="Reason (e.g. Customer changed mind, Out of stock)"
+              placeholder={t.cancel_reason_placeholder}
               value={cancelReason}
               onChange={e => setCancelReason(e.target.value)}
               autoFocus
             />
             <div className="flex justify-end gap-2">
-              <Button variant="outline" onClick={() => setIsCancelConfirmOpen(false)}>Back</Button>
+              <Button variant="outline" onClick={() => setIsCancelConfirmOpen(false)}>{t.back}</Button>
               <Button variant="destructive" onClick={handleCancelOrderConfirm} disabled={!cancelReason}>
-                Confirm Cancel
+                {t.confirm_cancel}
               </Button>
             </div>
           </div>
