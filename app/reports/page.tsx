@@ -189,43 +189,55 @@ export default function ReportsPage() {
           </Button>
         </div>
 
-        {/* Global Summary */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
-          <Card className="border-l-4 border-l-amber-500">
-            <CardHeader className="p-4">
-              <CardDescription>{getSalesTitle()}</CardDescription>
-              <CardTitle className="text-2xl font-bold">{formatLAK(data?.summary.totalRevenue || 0)}</CardTitle>
-              <p className="text-[14px] text-muted-foreground mt-1 uppercase tracking-wider font-semibold">{t.gross_sales_tax_incl}</p>
-            </CardHeader>
-          </Card>
-          <Card className="border-l-4 border-l-emerald-500">
-            <CardHeader className="p-4">
-              <CardDescription>{t.net_sales}</CardDescription>
-              <CardTitle className="text-2xl font-bold">{formatLAK(data?.summary.netSales || 0)}</CardTitle>
-              <p className="text-[14px] text-muted-foreground mt-1 uppercase tracking-wider font-semibold">{t.revenue_before_tax}</p>
-            </CardHeader>
-          </Card>
-          <Card className="border-l-4 border-l-blue-500">
-            <CardHeader className="p-4">
-              <CardDescription>{t.tax_collected}</CardDescription>
-              <CardTitle className="text-2xl font-bold">{formatLAK(data?.summary.taxCollected || 0)}</CardTitle>
-              <p className="text-[14px] text-muted-foreground mt-1 uppercase tracking-wider font-semibold">{t.estimated_vat_sales_tax}</p>
-            </CardHeader>
-          </Card>
-          <Card className="border-l-4 border-l-purple-500">
-            <CardHeader className="p-4">
-              <CardDescription>{t.orders}</CardDescription>
-              <CardTitle className="text-2xl font-bold">{data?.summary.totalOrders || 0}</CardTitle>
-              <p className="text-[14px] text-muted-foreground mt-1 uppercase tracking-wider font-semibold">{t.total_completed_transactions}</p>
-            </CardHeader>
-          </Card>
-          <Card className="border-l-4 border-l-amber-500">
-            <CardHeader className="p-4">
-              <CardDescription>{t.aov}</CardDescription>
-              <CardTitle className="text-2xl font-bold">{formatLAK(data?.summary.aov || 0)}</CardTitle>
-              <p className="text-[14px] text-muted-foreground mt-1 uppercase tracking-wider font-semibold">{t.average_order_value}</p>
-            </CardHeader>
-          </Card>
+        {/* Grouped Summary Section */}
+        <div className="bg-white p-6 rounded-2xl border shadow-sm space-y-4">
+          <div className="flex items-center justify-between border-b pb-4">
+            <h3 className="text-xl font-bold text-slate-800 flex items-center gap-2">
+              <TrendingUp className="w-6 h-6 text-amber-600" />
+              {getSalesTitle()}
+            </h3>
+            <Badge variant="outline" className="text-amber-700 bg-amber-50 border-amber-200 uppercase font-black tracking-widest px-3 py-1">
+              {t.summary_overview || "Summary Overview"}
+            </Badge>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
+            <Card className="border-l-4 border-l-amber-500 shadow-none bg-slate-50/50">
+              <CardHeader className="p-4">
+                <CardDescription>{t.revenue || "Revenue"}</CardDescription>
+                <CardTitle className="text-2xl font-bold">{formatLAK(data?.summary.totalRevenue || 0)}</CardTitle>
+                <p className="text-[14px] text-muted-foreground mt-1 uppercase tracking-wider font-semibold">{t.gross_sales_tax_incl}</p>
+              </CardHeader>
+            </Card>
+            <Card className="border-l-4 border-l-emerald-500 shadow-none bg-slate-50/50">
+              <CardHeader className="p-4">
+                <CardDescription>{t.net_sales}</CardDescription>
+                <CardTitle className="text-2xl font-bold">{formatLAK(data?.summary.netSales || 0)}</CardTitle>
+                <p className="text-[14px] text-muted-foreground mt-1 uppercase tracking-wider font-semibold">{t.revenue_before_tax}</p>
+              </CardHeader>
+            </Card>
+            <Card className="border-l-4 border-l-blue-500 shadow-none bg-slate-50/50">
+              <CardHeader className="p-4">
+                <CardDescription>{t.tax_collected}</CardDescription>
+                <CardTitle className="text-2xl font-bold">{formatLAK(data?.summary.taxCollected || 0)}</CardTitle>
+                <p className="text-[14px] text-muted-foreground mt-1 uppercase tracking-wider font-semibold">{t.estimated_vat_sales_tax}</p>
+              </CardHeader>
+            </Card>
+            <Card className="border-l-4 border-l-purple-500 shadow-none bg-slate-50/50">
+              <CardHeader className="p-4">
+                <CardDescription>{t.orders}</CardDescription>
+                <CardTitle className="text-2xl font-bold">{data?.summary.totalOrders || 0}</CardTitle>
+                <p className="text-[14px] text-muted-foreground mt-1 uppercase tracking-wider font-semibold">{t.total_completed_transactions}</p>
+              </CardHeader>
+            </Card>
+            <Card className="border-l-4 border-l-amber-500 shadow-none bg-slate-50/50">
+              <CardHeader className="p-4">
+                <CardDescription>{t.aov}</CardDescription>
+                <CardTitle className="text-2xl font-bold">{formatLAK(data?.summary.aov || 0)}</CardTitle>
+                <p className="text-[14px] text-muted-foreground mt-1 uppercase tracking-wider font-semibold">{t.average_order_value}</p>
+              </CardHeader>
+            </Card>
+          </div>
         </div>
 
         <Tabs defaultValue="overview" className="space-y-6">

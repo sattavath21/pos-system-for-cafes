@@ -53,9 +53,7 @@ function ReceiptContent() {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center p-4">
         <p className="text-rose-600 mb-4">Error: {error}</p>
-        <Link href="/pos">
-          <Button variant="outline">Back to POS</Button>
-        </Link>
+        <Button variant="outline" onClick={() => window.close()}>Close Window</Button>
       </div>
     )
   }
@@ -95,21 +93,53 @@ function ReceiptContent() {
           )}
 
           <div className="space-y-1 mb-3">
-            {order.items?.map((item: any, i: number) => (
-              <div key={i} className="flex flex-col mb-1 capitalize">
-                <div className="flex justify-between font-bold">
-                  <span className="truncate mr-2">{item.name} x{item.quantity}</span>
-                  <span>{formatLAK(item.price * item.quantity)}</span>
+            {order.items?.map((item: any, i: number) => {
+
+              const getVariation = (name: string) => {
+                const match = name.match(/\(([^)]+)\)/);
+                return match ? match[1] : null;
+              };
+              const getSize = (name: string) => {
+                const parts = name.split('-');
+                return parts[1] ? parts[1].trim() : null;
+              };
+              const cleanName = (name: string) => {
+                return name
+                  .replace(/\([^)]*\)/g, '') // remove (FRAPPE)
+                  .replace(/-.*$/, '')       // remove - M
+                  .trim();
+              };
+
+              const variation = item.variation || getVariation(item.name) || item.variationSize?.variation?.type;
+              const size = item.cupSize || item.size || getSize(item.name) || item.variationSize?.size;
+              const name = cleanName(item.name);
+
+              return (
+                <div key={i} className="flex flex-col mb-1 capitalize">
+                  <div className="flex justify-between font-bold">
+                    <span className="mr-2">{name} x{item.quantity}</span>
+                    <span>{formatLAK(item.price * item.quantity)}</span>
+                  </div>
+
+                  {(variation || size) && (
+                    <div className="text-[10px] text-slate-500 pl-2 font-bold">
+                      {variation}{variation && size ? ' - ' : ''}{size}
+                    </div>
+                  )}
+
+                  <div className="text-[10px] text-slate-500 pl-2">
+                    <span className="italic">Net: {formatLAK((item.price * item.quantity) - calculateInclusiveTax(item.price * item.quantity, settings?.taxRate || 10))} </span>
+                  </div>
+
+                  {((item.sugarLevel && item.sugarLevel !== "100%") || (item.shotType && item.shotType !== "Normal")) && (
+                    <div className="text-[10px] text-slate-500 pl-2">
+                      {item.sugarLevel && item.sugarLevel !== "100%" && `Sugar: ${item.sugarLevel} `}
+                      {item.shotType && item.shotType !== "Normal" && `Shot: ${item.shotType}`}
+                    </div>
+                  )}
                 </div>
-                <div className="text-[10px] text-slate-500 pl-2">
-                  <span className="italic">Net: {formatLAK((item.price * item.quantity) - calculateInclusiveTax(item.price * item.quantity, settings?.taxRate || 10))} </span>
-                </div>
-                <div className="text-[10px] text-slate-500 pl-2">
-                  {item.sugarLevel && <span>Sugar: {item.sugarLevel} </span>}
-                  {item.shotType && <span>Shot: {item.shotType} </span>}
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
 
           <div className="border-t border-dashed border-slate-300 pt-3 space-y-1">
@@ -132,18 +162,18 @@ function ReceiptContent() {
               <span>{formatLAK(order.total)}</span>
             </div>
           </div>
+        </div>
 
-          {order.customer && (
-            <div className="mt-3 pt-3 border-t border-dashed border-slate-300 text-[10px] text-slate-600">
-              <p>Customer: {order.customer.name}</p>
-              <p>Points Earned: +{Math.floor(order.total / 1000)}</p>
-            </div>
-          )}
-
-          <div className="text-center mt-3 pt-2 text-[8px] opacity-70 border-t border-dashed border-slate-300">
-            <p>Payment: {order.paymentMethod === 'BANK_NOTE' ? 'Cash' : 'Transfer'}</p>
-            <p className="font-bold mt-1 uppercase">Thank you for your visit!</p>
+        {order.customer && (
+          <div className="mt-3 pt-3 border-t border-dashed border-slate-300 text-[10px] text-slate-600">
+            <p>Customer: {order.customer.name}</p>
+            <p>Points Earned: +{Math.floor(order.total / 1000)}</p>
           </div>
+        )}
+
+        <div className="text-center mt-3 pt-2 text-[8px] opacity-70 border-t border-dashed border-slate-300">
+          <p>Payment: {order.paymentMethod === 'BANK_NOTE' ? 'Cash' : 'Transfer'}</p>
+          <p className="font-bold mt-1 uppercase">Thank you for your visit!</p>
         </div>
       </Card>
 
@@ -153,12 +183,10 @@ function ReceiptContent() {
           <Printer className="w-4 h-4 mr-2" />
           Re-Print
         </Button>
-        <Link href="/pos">
-          <Button className="bg-amber-600 hover:bg-amber-700">
-            <ArrowLeft className="w-4 h-4 mr-2" />
-            Back to POS
-          </Button>
-        </Link>
+        <Button className="bg-amber-600 hover:bg-amber-700" onClick={() => window.close()}>
+          <ArrowLeft className="w-4 h-4 mr-2" />
+          Close & Back
+        </Button>
       </div>
 
       <style dangerouslySetInnerHTML={{

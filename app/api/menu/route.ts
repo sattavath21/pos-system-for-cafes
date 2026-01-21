@@ -2,17 +2,20 @@ import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 
 export async function GET(request: Request) {
+    const { searchParams } = new URL(request.url)
+    const availableOnly = searchParams.get('availableOnly') === 'true'
+
     try {
         // Fetch all menus with their variations and sizes
         const menus = await prisma.menu.findMany({
-            where: { isAvailable: true },
+            where: availableOnly ? { isAvailable: true } : {},
             include: {
                 category: true,
                 variations: {
-                    where: { isEnabled: true },
+                    where: availableOnly ? { isEnabled: true } : {},
                     include: {
                         sizes: {
-                            where: { isAvailable: true },
+                            where: availableOnly ? { isAvailable: true } : {},
                             orderBy: { displayOrder: 'asc' }
                         }
                     },
@@ -36,11 +39,13 @@ export async function GET(request: Request) {
                 id: variation.id,
                 type: variation.type,
                 isEnabled: variation.isEnabled,
+                displayOrder: variation.displayOrder,
                 sizes: variation.sizes.map(size => ({
                     id: size.id,
                     size: size.size,
                     price: size.price,
-                    isAvailable: size.isAvailable
+                    isAvailable: size.isAvailable,
+                    displayOrder: size.displayOrder
                 }))
             }))
         }))

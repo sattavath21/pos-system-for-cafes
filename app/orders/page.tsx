@@ -12,6 +12,10 @@ import { Label } from "@/components/ui/label"
 import { Input } from "@/components/ui/input"
 import { Header } from "@/components/header"
 import { useTranslation } from "@/hooks/use-translation"
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
+import { Calendar } from "@/components/ui/calendar"
+import { format, startOfDay, endOfDay, isSameDay } from "date-fns"
+import { Calendar as CalendarIcon, Filter } from "lucide-react"
 
 type Order = {
     id: string
@@ -23,6 +27,7 @@ type Order = {
     beeperNumber?: string
     createdAt: string
     items?: any[]
+    cancellationReason?: string
 }
 
 export default function ActiveOrdersPage() {
@@ -33,14 +38,17 @@ export default function ActiveOrdersPage() {
     const [cancellingOrder, setCancellingOrder] = useState<Order | null>(null)
     const [cancelReason, setCancelReason] = useState("")
     const [isProcessing, setIsProcessing] = useState(false)
+    const [selectedDate, setSelectedDate] = useState<Date>(new Date())
 
     useEffect(() => {
         fetchOrders()
-    }, [])
+    }, [selectedDate])
 
     const fetchOrders = async () => {
         try {
-            const res = await fetch('/api/orders')
+            const start = startOfDay(selectedDate).toISOString()
+            const end = endOfDay(selectedDate).toISOString()
+            const res = await fetch(`/api/orders?startDate=${start}&endDate=${end}`)
             if (res.ok) {
                 const data = await res.json()
                 setOrders(data)
@@ -85,6 +93,11 @@ export default function ActiveOrdersPage() {
                 setCancellingOrder(null)
                 setCancelReason("")
                 fetchOrders()
+
+                // Broadcast to update cash drawer
+                const channel = new BroadcastChannel("payment_channel")
+                channel.postMessage({ type: "PAYMENT_COMPLETE" }) // Triggers shift status refresh
+                channel.close()
             }
         } catch (e) {
             console.error(e)
@@ -135,6 +148,43 @@ export default function ActiveOrdersPage() {
                     ))}
                 </div>
 
+                {/* Date and Filter Controls */}
+                <div className="flex flex-col md:flex-row gap-4 justify-between items-start md:items-center bg-white p-4 rounded-xl border shadow-sm">
+                    <div className="flex items-center gap-3">
+                        <Popover>
+                            <PopoverTrigger asChild>
+                                <Button
+                                    variant="outline"
+                                    className="flex items-center gap-2 font-bold border-amber-200 text-amber-900 bg-amber-50 hover:bg-amber-100"
+                                >
+                                    <CalendarIcon className="w-4 h-4" />
+                                    {format(selectedDate, "PPP")}
+                                </Button>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-auto p-0" align="start">
+                                <Calendar
+                                    mode="single"
+                                    selected={selectedDate}
+                                    onSelect={(date) => date && setSelectedDate(date)}
+                                    initialFocus
+                                />
+                            </PopoverContent>
+                        </Popover>
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setSelectedDate(new Date())}
+                            className="text-xs text-amber-700 hover:text-amber-800"
+                        >
+                            {t.today || "Today"}
+                        </Button>
+                    </div>
+
+                    <div className="text-sm font-medium text-slate-500">
+                        {filteredOrders.length} {t.orders || "Orders"} found
+                    </div>
+                </div>
+
                 {/* Orders Grid */}
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                     {filteredOrders.map((order) => (
@@ -181,14 +231,16 @@ export default function ActiveOrdersPage() {
 
                                 {order.status === "COMPLETED" && (
                                     <div className="flex gap-2">
-                                        <Button
-                                            size="sm"
-                                            variant="outline"
-                                            className="border-red-200 text-red-600 hover:bg-red-50 font-semibold"
-                                            onClick={() => setCancellingOrder(order)}
-                                        >
-                                            {t.cancel}
-                                        </Button>
+                                        {isSameDay(new Date(order.createdAt), new Date()) && (
+                                            <Button
+                                                size="sm"
+                                                variant="outline"
+                                                className="border-red-200 text-red-600 hover:bg-red-50 font-semibold"
+                                                onClick={() => setCancellingOrder(order)}
+                                            >
+                                                {t.cancel}
+                                            </Button>
+                                        )}
                                         <Button
                                             size="sm"
                                             variant="outline"
@@ -200,6 +252,12 @@ export default function ActiveOrdersPage() {
                                             <Printer className="w-4 h-4 mr-1" />
                                             {t.print}
                                         </Button>
+                                    </div>
+                                )}
+
+                                {order.status === "CANCELLED" && order.cancellationReason && (
+                                    <div className="mt-2 p-2 bg-red-50 rounded border border-red-100 italic text-xs text-red-700">
+                                        <span className="font-bold not-italic">{t.reason || "Reason"}:</span> {order.cancellationReason}
                                     </div>
                                 )}
                             </div>

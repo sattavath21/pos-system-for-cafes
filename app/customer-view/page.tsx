@@ -34,6 +34,7 @@ export default function CustomerViewPage() {
     const [qrPayment, setQrPayment] = useState<any>(null)
     const [settings, setSettings] = useState<any>(null)
     const [customer, setCustomer] = useState<any>(null)
+    const [successInfo, setSuccessInfo] = useState<{ total: number, cashReceived: number, change: number } | null>(null)
 
     useEffect(() => {
         const posChannel = new BroadcastChannel("pos_channel")
@@ -47,10 +48,21 @@ export default function CustomerViewPage() {
                 setTax(event.data.tax || 0)
                 setDiscount(event.data.discount || 0)
                 setPromoDiscount(event.data.promoDiscount || 0)
-                setLoyaltyDiscount(event.data.loyaltyDiscount || 0)
+                setLoyaltyDiscount(event.data.loyaltyPoints || 0)
                 setPromoName(event.data.promoName || "")
                 setCustomer(event.data.customer || null)
                 setIsIdle(event.data.cart.length === 0)
+                setSuccessInfo(null) // Clear success when cart updates
+            } else if (event.data.type === "PAYMENT_SUCCESS") {
+                setSuccessInfo({
+                    total: event.data.total,
+                    cashReceived: event.data.cashReceived,
+                    change: event.data.change
+                })
+            } else if (event.data.type === "ORDER_RESET") {
+                setSuccessInfo(null)
+                setCart([])
+                setIsIdle(true)
             }
         }
         // ... (rest of the effect)
@@ -99,6 +111,37 @@ export default function CustomerViewPage() {
                     <p className="text-xl text-slate-400">
                         We are not taking orders at the moment. Please check back later.
                     </p>
+                </div>
+            </div>
+        )
+    }
+
+    if (successInfo) {
+        return (
+            <div className="min-h-screen bg-emerald-50 flex flex-col items-center justify-center p-8 text-center animate-in zoom-in duration-500">
+                <div className="max-w-md w-full space-y-8 bg-white p-12 rounded-3xl shadow-2xl border-4 border-emerald-100">
+                    <div className="w-32 h-32 bg-emerald-100 rounded-full flex items-center justify-center mx-auto mb-6">
+                        <span className="text-6xl text-emerald-600">✅</span>
+                    </div>
+                    <h1 className="text-5xl font-black text-emerald-900 tracking-tight">Payment Successful!</h1>
+                    <p className="text-xl text-emerald-700">Thank you for your visit</p>
+
+                    <div className="border-y-2 border-dashed border-emerald-100 py-8 space-y-4">
+                        <div className="flex justify-between items-center text-slate-500">
+                            <span className="text-lg">Total Amount</span>
+                            <span className="text-2xl font-bold">{formatLAK(successInfo.total)}</span>
+                        </div>
+                        <div className="flex justify-between items-center text-slate-500">
+                            <span className="text-lg">Amount Paid</span>
+                            <span className="text-2xl font-bold">{formatLAK(successInfo.cashReceived)}</span>
+                        </div>
+                        <div className="flex justify-between items-center pt-2">
+                            <span className="text-2xl font-bold text-emerald-800">Your Change</span>
+                            <span className="text-4xl font-black text-emerald-600">{formatLAK(successInfo.change)}</span>
+                        </div>
+                    </div>
+
+                    <p className="text-emerald-500 font-bold uppercase tracking-widest pt-4">See you again soon!</p>
                 </div>
             </div>
         )
@@ -238,23 +281,23 @@ export default function CustomerViewPage() {
                         </div>
                     ) : (
                         <div className="space-y-3">
-                            <div className="flex justify-between text-xl text-slate-500">
+                            <div className="flex justify-between text-lg text-slate-500">
                                 <span>Subtotal</span>
                                 <span>{formatLAK(subtotal)}</span>
                             </div>
                             {promoDiscount > 0 && (
-                                <div className="flex justify-between text-xl text-rose-500">
+                                <div className="flex justify-between text-lg text-rose-500">
                                     <span>Promotion {promoName ? `(${promoName})` : ''}</span>
                                     <span>-{formatLAK(promoDiscount)}</span>
                                 </div>
                             )}
                             {loyaltyDiscount > 0 && (
-                                <div className="flex justify-between text-xl text-amber-500">
-                                    <span>Loyalty Points Earning</span>
+                                <div className="flex justify-between text-lg text-amber-500">
+                                    <span>Loyalty Points Redeemed</span>
                                     <span>-{formatLAK(loyaltyDiscount)}</span>
                                 </div>
                             )}
-                            <div className="flex justify-between text-xl text-slate-500">
+                            <div className="flex justify-between text-lg text-slate-500">
                                 <span>Tax</span>
                                 <span>{formatLAK(tax)}</span>
                             </div>

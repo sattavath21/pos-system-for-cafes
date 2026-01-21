@@ -115,20 +115,40 @@ export async function POST(request: Request) {
 
             // 3. Prepare Items (using variationSizeId)
             const preparedItems = items.map((item: any) => {
-                // Validate existence
-                if (!existingVariationSizeIds.has(item.variationSizeId)) {
-                    throw new Error(`Critical race condition: VariationSize ${item.variationSizeId} deleted during transaction`)
+                // 1. Find the DB record for this variationSize
+                const vsRecord = existingVariationSizes.find(v => v.id === item.variationSizeId);
+                const dbVariation = vsRecord?.variation?.type; // e.g. "Hot"
+                const dbSize = vsRecord?.size; // e.g. "M"
+
+                // 2. Resolve Variation & Size (trust payload, fallback to DB)
+                const finalVariation = item.variation || dbVariation;
+                const finalSize = item.size || item.cupSize || dbSize;
+
+                // 3. Construct full descriptive name snapshot
+                // Base: "Latte" -> Result: "Latte (Hot) - M"
+                let fullName = item.name || vsRecord?.variation?.menu?.name || "Item";
+
+                // Only add if not already present in the string
+                if (finalVariation && !fullName.includes(`(${finalVariation})`)) {
+                    // Remove any existing brackets if we are rebuilding
+                    fullName = fullName.replace(/\s*\([^)]*\)/, '');
+                    fullName = `${fullName} (${finalVariation})`;
+                }
+                if (finalSize && !fullName.includes(`- ${finalSize}`)) {
+                    // Remove any existing dashes if we are rebuilding
+                    fullName = fullName.split(' - ')[0];
+                    fullName = `${fullName} - ${finalSize}`;
                 }
 
                 return {
                     variationSizeId: item.variationSizeId,
-                    name: item.name, // Snapshot: "Latte (Hot) - M"
-                    price: parseFloat(item.price), // Snapshot from VariationSize
+                    name: fullName,
+                    price: parseFloat(item.price),
                     quantity: parseInt(item.quantity),
                     total: parseFloat((item.price * item.quantity).toString()),
                     sugarLevel: item.sugarLevel || null,
                     shotType: item.shotType || null,
-                    cupSize: item.cupSize || null
+                    cupSize: finalSize || null
                 }
             })
 
@@ -285,6 +305,8 @@ export async function GET(request: Request) {
     const customerId = searchParams.get('customerId')
     const status = searchParams.get('status')
     const nextNum = searchParams.get('next-number')
+    const startDate = searchParams.get('startDate')
+    const endDate = searchParams.get('endDate')
 
     try {
         if (nextNum) {
@@ -298,6 +320,12 @@ export async function GET(request: Request) {
         const where: any = {}
         if (customerId) where.customerId = customerId
         if (status) where.status = status
+
+        if (startDate || endDate) {
+            where.createdAt = {}
+            if (startDate) where.createdAt.gte = new Date(startDate)
+            if (endDate) where.createdAt.lte = new Date(endDate)
+        }
 
         const orders = await prisma.order.findMany({
             where,

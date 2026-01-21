@@ -11,7 +11,7 @@ import { Header } from "@/components/header"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Switch } from "@/components/ui/switch"
-import { Plus, Edit, Trash2, Search, ImageIcon, X } from "lucide-react"
+import { Plus, Edit, Trash2, Search, ImageIcon, X, Check, Minus } from "lucide-react"
 import { useTranslation } from "@/hooks/use-translation"
 import { PriceInput } from "@/components/ui/PriceInput"
 
@@ -59,6 +59,7 @@ export default function MenuPage() {
   const [isLoading, setIsLoading] = useState(false)
   const [isCategoryDialogOpen, setIsCategoryDialogOpen] = useState(false)
   const [newCategoryName, setNewCategoryName] = useState("")
+  const [editingCategory, setEditingCategory] = useState<{ id: string, name: string } | null>(null)
   const [newVariationType, setNewVariationType] = useState("")
 
   // Form states
@@ -105,11 +106,44 @@ export default function MenuPage() {
       })
       if (res.ok) {
         setNewCategoryName("")
-        setIsCategoryDialogOpen(false)
         fetchCategories()
       }
     } catch (e) {
       console.error("Failed to create category", e)
+    }
+  }
+
+  const handleUpdateCategory = async () => {
+    if (!editingCategory || !editingCategory.name) return
+    try {
+      const res = await fetch(`/api/menu/categories/${editingCategory.id}`, {
+        method: 'PUT',
+        body: JSON.stringify({ name: editingCategory.name }),
+        headers: { 'Content-Type': 'application/json' }
+      })
+      if (res.ok) {
+        setEditingCategory(null)
+        fetchCategories()
+      }
+    } catch (e) {
+      console.error("Failed to update category", e)
+    }
+  }
+
+  const handleDeleteCategory = async (id: string) => {
+    if (!confirm(t.delete + "?")) return
+    try {
+      const res = await fetch(`/api/menu/categories/${id}`, {
+        method: 'DELETE'
+      })
+      if (res.ok) {
+        fetchCategories()
+      } else {
+        const data = await res.json()
+        alert(data.error || "Failed to delete category")
+      }
+    } catch (e) {
+      console.error("Failed to delete category", e)
     }
   }
 
@@ -273,7 +307,7 @@ export default function MenuPage() {
 
   const updateOrder = (type: 'variation' | 'size', vIndex: number, value: string, sIndex?: number) => {
     const next = [...formVariations]
-    const val = parseInt(value) || 0
+    const val = Math.max(1, parseInt(value) || 1)
     if (type === 'variation') {
       next[vIndex].displayOrder = val
     } else if (type === 'size' && sIndex !== undefined) {
@@ -306,17 +340,66 @@ export default function MenuPage() {
                 {t.new_category}
               </Button>
             </DialogTrigger>
-            <DialogContent>
-              <DialogHeader><DialogTitle>{t.new_category}</DialogTitle></DialogHeader>
-              <div className="space-y-4 py-4">
-                <div className="space-y-2">
-                  <Label htmlFor="catName">{t.category_name}</Label>
-                  <Input id="catName" value={newCategoryName} onChange={e => setNewCategoryName(e.target.value)} />
+            <DialogContent className="sm:max-w-md">
+              <DialogHeader>
+                <DialogTitle>{t.manage_categories || "Manage Categories"}</DialogTitle>
+              </DialogHeader>
+              <div className="space-y-6 py-4">
+                {/* Create New */}
+                <div className="space-y-2 border-b pb-4">
+                  <Label htmlFor="catName">{t.add_new_category || "Add New Category"}</Label>
+                  <div className="flex gap-2">
+                    <Input
+                      id="catName"
+                      value={newCategoryName}
+                      onChange={e => setNewCategoryName(e.target.value)}
+                      placeholder={t.category_name}
+                    />
+                    <Button className="bg-amber-600 shrink-0" onClick={handleCreateCategory}>
+                      <Plus className="w-4 h-4" />
+                    </Button>
+                  </div>
+                </div>
+
+                {/* List Existing */}
+                <div className="space-y-3">
+                  <Label>{t.existing_categories || "Existing Categories"}</Label>
+                  <div className="max-h-[300px] overflow-y-auto space-y-2 pr-2">
+                    {categories.map((cat) => (
+                      <div key={cat.id} className="flex items-center gap-2 p-2 rounded-lg border bg-slate-50">
+                        {editingCategory?.id === cat.id ? (
+                          <>
+                            <Input
+                              value={editingCategory.name}
+                              onChange={e => setEditingCategory({ ...editingCategory, name: e.target.value })}
+                              className="h-8"
+                              autoFocus
+                            />
+                            <Button size="sm" variant="ghost" className="text-green-600 h-8 w-8 p-0" onClick={handleUpdateCategory}>
+                              <Check className="w-4 h-4" />
+                            </Button>
+                            <Button size="sm" variant="ghost" className="text-slate-400 h-8 w-8 p-0" onClick={() => setEditingCategory(null)}>
+                              <X className="w-4 h-4" />
+                            </Button>
+                          </>
+                        ) : (
+                          <>
+                            <span className="flex-1 font-medium px-2">{cat.name}</span>
+                            <Button size="sm" variant="ghost" className="text-slate-500 h-8 w-8 p-0" onClick={() => setEditingCategory({ id: cat.id, name: cat.name })}>
+                              <Edit className="w-4 h-4" />
+                            </Button>
+                            <Button size="sm" variant="ghost" className="text-red-500 h-8 w-8 p-0" onClick={() => handleDeleteCategory(cat.id)}>
+                              <Trash2 className="w-4 h-4" />
+                            </Button>
+                          </>
+                        )}
+                      </div>
+                    ))}
+                  </div>
                 </div>
               </div>
               <DialogFooter>
-                <Button variant="outline" onClick={() => setIsCategoryDialogOpen(false)}>{t.cancel}</Button>
-                <Button className="bg-amber-600" onClick={handleCreateCategory}>{t.save_category}</Button>
+                <Button variant="outline" className="w-full" onClick={() => setIsCategoryDialogOpen(false)}>{t.close || "Close"}</Button>
               </DialogFooter>
             </DialogContent>
           </Dialog>
@@ -328,7 +411,7 @@ export default function MenuPage() {
                 {t.add_item}
               </Button>
             </DialogTrigger>
-            <DialogContent className="w-[95vw] max-w-7xl max-h-[95vh] overflow-y-auto" size="lg">
+            <DialogContent className="w-[95vw] max-w-7xl max-h-[95vh] overflow-y-auto" size="xl">
               <form onSubmit={(e) => { e.preventDefault(); handleSubmit(); }}>
                 <DialogHeader>
                   <DialogTitle>{editingItem ? t.edit_menu_item : t.add_menu_item}</DialogTitle>
@@ -446,6 +529,7 @@ export default function MenuPage() {
                     <div className="flex gap-2">
                       <Input
                         placeholder={t.variation_name_placeholder}
+
                         value={newVariationType}
                         onChange={(e) => setNewVariationType(e.target.value.toUpperCase())}
                         className="max-w-[300px]"
@@ -469,17 +553,29 @@ export default function MenuPage() {
                             <div className="flex gap-2 items-center">
                               {variation.isEnabled && (
                                 <>
-                                  <div className="flex items-center gap-1.5 mr-2">
-                                    <Label className="text-[10px] text-muted-foreground uppercase">{t.order_label}</Label>
-                                    <Input
-                                      type="number"
-                                      min={1}
-                                      value={variation.displayOrder}
-                                      onChange={(e) => {
-                                        const value = Math.max(1, Number(e.target.value) || 1).toString()
-                                        updateOrder("variation", vIndex, value)
-                                      }} className="w-12 h-7 text-xs px-1 text-center"
-                                    />
+                                  <div className="flex items-center gap-1">
+                                    <Button
+                                      type="button"
+                                      variant="outline"
+                                      size="sm"
+                                      className="h-8 w-8 p-0 text-amber-600 border-amber-200"
+                                      onClick={() => updateOrder("variation", vIndex, (variation.displayOrder - 1).toString())}
+                                      disabled={variation.displayOrder <= 1}
+                                    >
+                                      <Minus className="w-3 h-3" />
+                                    </Button>
+                                    <div className="w-8 h-8 flex items-center justify-center bg-white border rounded font-bold text-xs">
+                                      {variation.displayOrder}
+                                    </div>
+                                    <Button
+                                      type="button"
+                                      variant="outline"
+                                      size="sm"
+                                      className="h-8 w-8 p-0 text-amber-600 border-amber-200"
+                                      onClick={() => updateOrder("variation", vIndex, (variation.displayOrder + 1).toString())}
+                                    >
+                                      <Plus className="w-3 h-3" />
+                                    </Button>
                                   </div>
                                   <Button type="button" variant="ghost" size="sm" onClick={() => addSize(vIndex)} className="text-amber-600">
                                     <Plus className="w-4 h-4 mr-2" /> {t.add_size}
@@ -502,18 +598,29 @@ export default function MenuPage() {
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                               {variation.sizes.map((size, sIndex) => (
                                 <div key={sIndex} className="flex items-center gap-2 bg-white p-2 rounded border shadow-sm">
-                                  <div className="flex flex-row items-center gap-1">
-                                    <Label className="text-[16px] text-muted-foreground uppercase">#</Label>
-                                    <input
-                                      type="number"
-                                      min={1}
-                                      value={size.displayOrder}
-                                      onChange={(e) => {
-                                        const value = Math.max(1, Number(e.target.value) || 1).toString()
-                                        updateOrder("size", vIndex, value, sIndex)
-                                      }}
-                                      className="w-10 h-9 text-xs px-1 text-center border rounded"
-                                    />
+                                  <div className="flex items-center gap-1">
+                                    <Button
+                                      type="button"
+                                      variant="outline"
+                                      size="sm"
+                                      className="h-8 w-8 p-0 text-slate-500 border-slate-200"
+                                      onClick={() => updateOrder("size", vIndex, (size.displayOrder - 1).toString(), sIndex)}
+                                      disabled={size.displayOrder <= 1}
+                                    >
+                                      <Minus className="w-3 h-3" />
+                                    </Button>
+                                    <div className="w-8 h-8 flex items-center justify-center bg-white border rounded font-bold text-xs">
+                                      {size.displayOrder}
+                                    </div>
+                                    <Button
+                                      type="button"
+                                      variant="outline"
+                                      size="sm"
+                                      className="h-8 w-8 p-0 text-slate-500 border-slate-200"
+                                      onClick={() => updateOrder("size", vIndex, (size.displayOrder + 1).toString(), sIndex)}
+                                    >
+                                      <Plus className="w-3 h-3" />
+                                    </Button>
                                   </div>
                                   <div className="w-20">
                                     <Input

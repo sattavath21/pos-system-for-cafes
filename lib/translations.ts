@@ -309,6 +309,10 @@ export const translations = {
         no_email: "No email",
         no_phone: "No phone",
         no_date_of_birth: "No date of birth",
+        loyalty_points_redeemed: "Loyalty Points Redeemed",
+        summary_overview: "Summary Overview",
+        today: "Today",
+        reason: "Reason"
     },
     lo: {
         dashboard: "ໜ້າຫຼັກ",
@@ -621,7 +625,8 @@ export const translations = {
         no_email: "ບໍ່ມີອີເມວ",
         no_phone: "ບໍ່ມີເບີໂທລະສັບ",
         no_date_of_birth: "ບໍ່ມີວັນເດືອນປີເກີດ",
-
-
+        loyalty_points_redeemed: "ໃຊ້ແຕ້ມລູກຄ້າ",
+        today: "ມື້ນີ້",
+        reason: "ເຫດຜົນ"
     }
 }

@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogTrigger } from "@/components/ui/dialog"
 import { Label } from "@/components/ui/label"
-import { Search, Plus, List, Package, Tag, Clock, X, Minus, Trash2, Pause, User, ArrowLeft, Check, ChevronRight, Printer, CheckCircle } from "lucide-react"
+import { Search, Plus, List, Package, Tag, Clock, X, Minus, Trash2, Pause, User, ArrowLeft, Check, ChevronRight, Printer, CheckCircle, Star, ShoppingCart } from "lucide-react"
 import Link from "next/link"
 import { Badge } from "@/components/ui/badge"
 import { formatLAK, calculateChange, LAK_DENOMINATIONS, calculateTax, calculateInclusiveTax } from "@/lib/currency"
@@ -82,6 +82,7 @@ export default function POSPage() {
   const [isHoldConfirmOpen, setIsHoldConfirmOpen] = useState(false)
   const [beeperNumber, setBeeperNumber] = useState("")
   const [showBeeperError, setShowBeeperError] = useState(false)
+  const [focusedInput, setFocusedInput] = useState<'beeper' | 'cash'>('beeper')
 
   const [sysSettings, setSysSettings] = useState<any>({ taxRate: '10', loyaltyRate: '100' })
   const [pointsRedeemed, setPointsRedeemed] = useState(0)
@@ -105,20 +106,21 @@ export default function POSPage() {
   const [manualPoints, setManualPoints] = useState("")
 
   const calculateTotal = () => {
-    const total = Math.round(cart.reduce((sum, item) => sum + item.price * item.quantity, 0))
+    // Gross subtotal: sum of all items before any reductions
+    const subtotal = Math.round(cart.reduce((sum, item) => sum + item.price * item.quantity, 0))
+
     let promoDiscount = 0
     if (appliedPromo) {
       if (appliedPromo.discountType === 'percentage') {
-        promoDiscount = Math.round(total * (appliedPromo.discountValue / 100))
+        promoDiscount = Math.round(subtotal * (appliedPromo.discountValue / 100))
       } else {
         promoDiscount = appliedPromo.discountValue
       }
     }
 
-    // Final total customer pays
-    const finalTotal = total - promoDiscount - loyaltyDiscount
+    // Final total customer pays (after discounts, tax is inclusive)
+    const finalTotal = subtotal - promoDiscount - loyaltyDiscount
     const tax = calculateInclusiveTax(finalTotal, Number(sysSettings.taxRate) || 0)
-    const subtotal = finalTotal - tax // Net sales
 
     return { subtotal, tax, total: finalTotal, promoDiscount, loyaltyDiscount, discount: promoDiscount + loyaltyDiscount }
   }
@@ -136,7 +138,7 @@ export default function POSPage() {
       total,
       discount,
       promoDiscount,
-      loyaltyDiscount,
+      loyaltyPoints: loyaltyDiscount,
       promoName: appliedPromo?.name,
       customer: selectedCustomer
     })
@@ -252,7 +254,7 @@ export default function POSPage() {
 
   const fetchMenuItems = async () => {
     try {
-      const res = await fetch('/api/menu')
+      const res = await fetch('/api/menu?availableOnly=true')
       if (res.ok) {
         const data = await res.json()
         // Data already in correct hierarchical format from API
@@ -465,6 +467,11 @@ export default function POSPage() {
     setShowBeeperError(false)
     setCashReceived("")
     setIsNewOrderConfirmOpen(false)
+
+    // Also broadcast to customer view to reset success screen
+    const channel = new BroadcastChannel("pos_channel")
+    channel.postMessage({ type: "ORDER_RESET" })
+    channel.close()
   }
 
   const handleClickProduct = (item: MenuItem) => {
@@ -574,14 +581,26 @@ export default function POSPage() {
           subtotal,
           tax,
           discount,
-          items: cart,
+          cashReceived: Number(cashReceived) || 0,
+          items: [...cart], // Clone cart
           customer: selectedCustomer,
           promo: appliedPromo,
-          date: new Date().toLocaleString()
+          date: new Date().toLocaleString(),
+          paymentMethod
         })
-        handleNewOrder() // This resets resumedOrderId
-        setIsPaymentOpen(false) // Close the payment dialog
+        // handleNewOrder() // Removed: Don't clear cart immediately
+        setIsPaymentOpen(false)
         setIsSuccessOpen(true)
+
+        // Broadcast SUCCESS to customer view
+        const posChannel = new BroadcastChannel("pos_channel")
+        posChannel.postMessage({
+          type: "PAYMENT_SUCCESS",
+          total,
+          cashReceived: Number(cashReceived) || 0,
+          change: Math.max(0, (Number(cashReceived) || 0) - total)
+        })
+        posChannel.close()
       } else {
         alert("Failed to create order")
       }
@@ -606,7 +625,9 @@ export default function POSPage() {
             price: i.price,
             quantity: i.quantity,
             sugarLevel: i.sugar,
-            shotType: i.shot
+            shotType: i.shot,
+            variation: i.variation,
+            size: i.size
           })),
           total,
           subtotal,
@@ -699,8 +720,7 @@ export default function POSPage() {
           </Link>
         </div>
       </Header>
-
-      <div className="flex h-[calc(100vh-73px)]">
+      <div className="flex flex-1 overflow-hidden h-[calc(100vh-73px)]">
         {/* Left Side - Menu */}
         <div className="flex-1 flex flex-col border-r">
           {/* Search */}
@@ -762,7 +782,13 @@ export default function POSPage() {
         </div>
 
         {/* Right Side - Cart */}
-        <div className="w-96 flex flex-col bg-white">
+        <div className="w-96 flex flex-col bg-white shadow-xl">
+          <div className="p-4 border-b bg-slate-50 flex items-center justify-between">
+            <h3 className="font-bold text-slate-800 flex items-center gap-2">
+              <ShoppingCart className="w-5 h-5" /> {t.cart}
+            </h3>
+            <Badge variant="secondary" className="bg-amber-100 text-amber-900 font-black px-2">{cart.reduce((sum, i) => sum + i.quantity, 0)}</Badge>
+          </div>
           {/* Table Number */}
           {/* <div className="p-4 border-b">
             <label className="block text-sm font-medium mb-2">Table Number</label>
@@ -774,7 +800,7 @@ export default function POSPage() {
           </div> */}
 
           {/* Cart Items */}
-          <div className="flex-1 overflow-y-auto p-2">
+          <div className="flex-1 overflow-y-auto p-4 space-y-4">
             {cart.length === 0 ? (
               <div className="h-full flex flex-col items-center justify-center text-muted-foreground">
                 <Clock className="w-12 h-12 mb-2" />
@@ -843,7 +869,7 @@ export default function POSPage() {
           </div>
 
           {/* Totals */}
-          <div className="p-3 border-t space-y-2">
+          <div className="p-6 border-t bg-slate-50/50 space-y-4 shadow-[0_-4px_10px_rgba(0,0,0,0.03)]">
             {selectedCustomer && (
               <div className="flex justify-between text-sm text-amber-600 font-medium">
                 <span>{t.loyalty_points_earning}</span>
@@ -859,7 +885,15 @@ export default function POSPage() {
                 <span className="flex items-center gap-1">
                   <Tag className="w-3 h-3" /> {appliedPromo.name}
                 </span>
-                <span>-{formatLAK(discount)}</span>
+                <span>-{formatLAK(promoDiscount)}</span>
+              </div>
+            )}
+            {loyaltyDiscount > 0 && (
+              <div className="flex justify-between text-sm text-amber-600 font-medium">
+                <span className="flex items-center gap-1">
+                  <Star className="w-3 h-3" /> {t.loyalty_points_redeemed || "Points Redeemed"}
+                </span>
+                <span>-{formatLAK(loyaltyDiscount)}</span>
               </div>
             )}
             <div className="flex justify-between text-sm">
@@ -919,7 +953,13 @@ export default function POSPage() {
           </AlertDialog>
 
           <Dialog open={isSuccessOpen} onOpenChange={setIsSuccessOpen}>
-            <DialogContent className="max-w-[400px] max-h-[90vh] overflow-y-auto !transform-none data-[state=open]:animate-none" size="sm">
+            <DialogContent
+              className="max-w-[400px] max-h-[90vh] overflow-y-auto !transform-none data-[state=open]:animate-none"
+              size="sm"
+              showCloseButton={false}
+              onInteractOutside={(e) => e.preventDefault()}
+              onEscapeKeyDown={(e) => e.preventDefault()}
+            >
               <div className="text-center space-y-2 mb-4 pt-4">
                 <div className="flex justify-center mb-4">
                   <CheckCircle className="w-10 h-10 text-green-600" strokeWidth={2.5} />
@@ -978,6 +1018,19 @@ export default function POSPage() {
                       <span>{t.total.toUpperCase()}</span>
                       <span>{formatLAK(lastOrderInfo.total)}</span>
                     </div>
+
+                    {lastOrderInfo.paymentMethod === 'BANK_NOTE' && (
+                      <div className="mt-4 pt-4 border-t border-dashed border-slate-300 space-y-2">
+                        <div className="flex justify-between text-slate-600">
+                          <span>{t.cash_received}</span>
+                          <span>{formatLAK(lastOrderInfo.cashReceived)}</span>
+                        </div>
+                        <div className="flex justify-between font-black text-xl text-green-700">
+                          <span>{t.change}</span>
+                          <span>{formatLAK(Math.max(0, lastOrderInfo.cashReceived - lastOrderInfo.total))}</span>
+                        </div>
+                      </div>
+                    )}
                   </div>
 
                   {lastOrderInfo.customer && (
@@ -1000,7 +1053,14 @@ export default function POSPage() {
                   <Printer className="w-5 h-5 mr-2" />
                   {t.print_receipt}
                 </Button>
-                <Button variant="outline" className="w-full py-6 text-lg font-semibold border-amber-200 text-amber-900 bg-amber-50 hover:bg-amber-100" onClick={() => setIsSuccessOpen(false)}>
+                <Button
+                  variant="outline"
+                  className="w-full py-6 text-lg font-semibold border-amber-200 text-amber-900 bg-amber-50 hover:bg-amber-100"
+                  onClick={() => {
+                    handleNewOrder()
+                    setIsSuccessOpen(false)
+                  }}
+                >
                   {t.new_order}
                 </Button>
               </div>
@@ -1054,8 +1114,8 @@ export default function POSPage() {
                 )}
                 {pointsRedeemed > 0 && (
                   <Button
-                    variant="ghost"
-                    className="w-full text-red-600 hover:bg-red-50"
+                    variant="outline"
+                    className="w-full text-red-600 border-rose-400 hover:text-rose-700 hover:bg-rose-50"
                     onClick={() => {
                       setPointsRedeemed(0)
                       setLoyaltyDiscount(0)
@@ -1077,7 +1137,7 @@ export default function POSPage() {
                 {t.apply_promo}
               </Button>
             ) : (
-              <Button variant="ghost" className="w-full text-rose-600 hover:text-rose-700 hover:bg-rose-50" onClick={() => setAppliedPromo(null)}>
+              <Button variant="outline" className="w-full text-rose-600 border-rose-400 hover:text-rose-700 hover:bg-rose-50" onClick={() => setAppliedPromo(null)}>
                 {t.remove_promo} ({appliedPromo.code})
               </Button>
             )}
@@ -1120,180 +1180,245 @@ export default function POSPage() {
             {t.proceed_to_payment}
           </Button>
 
-          <Dialog open={isPaymentOpen} onOpenChange={setIsPaymentOpen}>
-            <DialogContent className="max-w-md">
-              <DialogHeader>
-                <DialogTitle>{t.checkout}</DialogTitle>
-              </DialogHeader>
-              <div className="space-y-4">
-                <div className="text-center py-4 border-b">
-                  <p className="text-muted-foreground">{t.total_to_pay}</p>
-                  <p className="text-4xl font-bold text-green-600">{formatLAK(total)}</p>
-                </div>
+          <Dialog open={isPaymentOpen} onOpenChange={(open) => {
+            setIsPaymentOpen(open)
+            if (open) setFocusedInput('beeper')
+          }}>
+            <DialogContent
+              showCloseButton={false}
+              onInteractOutside={(e) => e.preventDefault()}
+              onEscapeKeyDown={(e) => e.preventDefault()}
+              className="max-w-2xl bg-slate-50 border-none shadow-2xl p-0 overflow-hidden"
+            >
+              <Button
+                variant="ghost"
+                size="sm"
+                className="absolute top-2 right-2 text-slate-400 hover:text-slate-600 md:hidden"
+                onClick={() => setIsPaymentOpen(false)}
+              >
+                <X className="w-5 h-5" />
+              </Button>
+              <div className="flex flex-col md:flex-row min-h-[500px] max-h-[85vh]">
+                {/* Left Side: Order Summary & Info */}
 
-                <div className="grid grid-cols-2 gap-3">
-                  <Button
-                    variant={paymentMethod === 'BANK_NOTE' ? "default" : "outline"}
-                    onClick={() => setPaymentMethod('BANK_NOTE')}
-                    className={paymentMethod === 'BANK_NOTE' ? 'bg-amber-600 hover:bg-amber-700' : ''}
-                  >
-                    💵 {t.bank_note}
-                  </Button>
-                  <Button
-                    variant={paymentMethod === 'QR_CODE' ? "default" : "outline"}
-                    onClick={() => setPaymentMethod('QR_CODE')}
-                    className={paymentMethod === 'QR_CODE' ? 'bg-blue-600 hover:bg-blue-700' : ''}
-                  >
-                    📱 {t.qr_code}
-                  </Button>
-                </div>
 
-                {paymentMethod === 'BANK_NOTE' && (
-                  <div className="space-y-4">
+                <div className="w-full md:w-80 p-6 bg-white border-r flex flex-col justify-between relative">
 
-                    <div className="space-y-2">
-                      <Label
-                        className={`flex justify-between ${showBeeperError && !beeperNumber ? "text-rose-500" : ""
-                          }`}
-                      >
-                        <span>{t.beeper}</span>
-                        <span className="text-xs font-bold">
-                          {showBeeperError && !beeperNumber ? t.required : `(${t.required})`}
+                  <div>
+                    <h2 className="text-xl font-bold text-slate-800 mb-6">{t.checkout}</h2>
+                    <div className="space-y-4">
+                      <div className="p-4 bg-amber-50 rounded-xl border border-amber-100">
+                        <p className="text-sm text-amber-700 font-medium mb-1">{t.total_to_pay}</p>
+                        <p className="text-3xl font-black text-amber-900">{formatLAK(total)}</p>
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label className="text-xs font-bold uppercase text-slate-400 px-1">{t.payment_method}</Label>
+                        <div className="grid grid-cols-1 gap-2">
+                          <Button
+                            variant={paymentMethod === 'BANK_NOTE' ? "default" : "outline"}
+                            onClick={() => setPaymentMethod('BANK_NOTE')}
+                            className={`h-12 justify-start px-4 text-lg ${paymentMethod === 'BANK_NOTE' ? 'bg-amber-600 hover:bg-amber-700 shadow-md transform scale-[1.02]' : 'hover:bg-amber-50'}`}
+                          >
+                            <span className="mr-3 text-xl">💵</span> {t.bank_note}
+                          </Button>
+                          <Button
+                            variant={paymentMethod === 'QR_CODE' ? "default" : "outline"}
+                            onClick={() => setPaymentMethod('QR_CODE')}
+                            className={`h-12 justify-start px-4 text-lg ${paymentMethod === 'QR_CODE' ? 'bg-blue-600 hover:bg-blue-700 shadow-md transform scale-[1.02]' : 'hover:bg-blue-50'}`}
+                          >
+                            <span className="mr-3 text-xl">📱</span> {t.qr_code}
+                          </Button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {paymentMethod === 'BANK_NOTE' && (
+                    <div className="space-y-3 pt-6 border-t font-medium">
+                      <div className="flex justify-between text-slate-500">
+                        <span>{t.cash_received}</span>
+                        <span>{formatLAK(Number(cashReceived) || 0)}</span>
+                      </div>
+                      <div className="flex justify-between items-center pt-2">
+                        <span className="text-lg font-bold text-slate-800">
+                          {calculateChange(total, Number(cashReceived)).totalChange >= 0 ? t.change : t.missing_amount}
                         </span>
-                      </Label>
-
-                      <Input
-                        placeholder="e.g. 05"
-                        value={beeperNumber}
-                        onChange={e => {
-                          setBeeperNumber(e.target.value)
-                          if (showBeeperError) setShowBeeperError(false)
-                        }}
-                        className={`text-lg font-bold ${showBeeperError && !beeperNumber
-                          ? "border-rose-500 bg-rose-50 focus-visible:ring-rose-500"
-                          : ""
-                          }`}
-                      />
-
-                      {showBeeperError && !beeperNumber && (
-                        <p className="text-[10px] text-rose-500 mt-1 font-bold animate-pulse">
-                          {t.please_enter_beeper_number}
-                        </p>
-                      )}
-                    </div>
-
-                    <div className="bg-muted p-4 rounded-lg space-y-2">
-                      <Label>{t.cash_received}</Label>
-                      <Input
-                        type="text"
-                        value={cashReceived ? Number(cashReceived).toLocaleString() : ""}
-                        onChange={e => {
-                          const val = e.target.value.replace(/\D/g, "")
-                          setCashReceived(val)
-                        }}
-                        placeholder={t.cash_received}
-                        className="text-2xl font-bold h-14"
-                      />
-                    </div>
-                    <div>
-                      <div className="flex justify-between items-center mb-2">
-                        <Label></Label>
-                        <span className={`text-xl font-bold ${calculateChange(Number(cashReceived), total).totalChange <= 0 ? 'text-green-600' : 'text-red-500'}`}>
-                          {(() => {
-                            const change = calculateChange(Number(cashReceived), total).totalChange
-                            if (change === 0) return <span className="text-green-600">{t.exact_amount}</span>
-                            if (change < 0) return `${t.change}: ${formatLAK(Math.abs(change))}`
-                            return `${t.missing_amount}: ${formatLAK(Math.abs(change))}`
-                          })()}
+                        <span className={`text-2xl font-black ${calculateChange(total, Number(cashReceived)).totalChange >= 0 ? 'text-green-600' : 'text-rose-500'}`}>
+                          {formatLAK(Math.abs(calculateChange(total, Number(cashReceived)).totalChange))}
                         </span>
                       </div>
                     </div>
-                    <div className="grid grid-cols-4 gap-2">
-                      {LAK_DENOMINATIONS.map(denom => (
-                        <Button
-                          key={denom}
-                          variant="outline"
-                          size="lg"
-                          onClick={() => setCashReceived(prev => String(Number(prev || 0) + denom))}
-                          className="text-md"
+                  )}
+                </div>
+
+                {/* Right Side: Interactive Input */}
+                <div className="flex-1 p-6 flex flex-col relative overflow-y-auto">
+
+
+                  {paymentMethod === 'BANK_NOTE' ? (
+                    <div className="flex flex-col min-h-full space-y-6">
+                      {/* Inputs Section */}
+                      <div className="grid grid-cols-2 gap-4">
+                        <div
+                          className={`p-3 rounded-xl border-2 transition-all cursor-pointer ${focusedInput === 'beeper' ? 'border-amber-600 bg-white ring-4 ring-amber-100 shadow-lg' : 'border-slate-200 bg-slate-50'}`}
+                          onClick={() => setFocusedInput('beeper')}
                         >
-                          +{formatLAK(denom)}
+                          <Label className={`text-xs font-bold uppercase mb-1 block ${focusedInput === 'beeper' ? 'text-amber-600' : 'text-slate-400'}`}>
+                            {t.beeper} {showBeeperError && !beeperNumber && <span className="text-rose-500">*</span>}
+                          </Label>
+                          <div className="text-2xl font-black text-slate-800 h-8 flex items-center">
+                            {beeperNumber || <span className="text-slate-300 font-normal italic text-lg">Enter No.</span>}
+                          </div>
+                        </div>
+
+                        <div
+                          className={`p-3 rounded-xl border-2 transition-all cursor-pointer ${focusedInput === 'cash' ? 'border-amber-600 bg-white ring-4 ring-amber-100 shadow-lg' : 'border-slate-200 bg-slate-50'}`}
+                          onClick={() => setFocusedInput('cash')}
+                        >
+                          <Label className={`text-xs font-bold uppercase mb-1 block ${focusedInput === 'cash' ? 'text-amber-600' : 'text-slate-400'}`}>
+                            {t.cash_received}
+                          </Label>
+                          <div className="text-2xl font-black text-slate-800 h-8 flex items-center">
+                            {cashReceived ? Number(cashReceived).toLocaleString() : <span className="text-slate-300 font-normal italic text-lg">0</span>}
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Primary Numpad */}
+                      <div className="flex-1 flex flex-col justify-center max-w-sm mx-auto w-full">
+                        <div className="grid grid-cols-3 gap-3">
+                          {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((num) => (
+                            <Button
+                              key={num}
+                              variant="outline"
+                              className="h-16 text-3xl font-black border-2 hover:bg-amber-50 hover:border-amber-400 transition-all rounded-2xl shadow-sm"
+                              onClick={() => {
+                                if (focusedInput === 'beeper') setBeeperNumber(prev => (prev + num).slice(0, 4))
+                                if (focusedInput === 'cash') setCashReceived(prev => prev + num)
+                              }}
+                            >
+                              {num}
+                            </Button>
+                          ))}
+                          <Button
+                            variant="outline"
+                            className="h-16 text-xl font-bold border-2 text-rose-500 hover:bg-rose-50 hover:border-rose-400 rounded-2xl"
+                            onClick={() => {
+                              if (focusedInput === 'beeper') setBeeperNumber("")
+                              if (focusedInput === 'cash') setCashReceived("")
+                            }}
+                          >
+                            CLR
+                          </Button>
+                          <Button
+                            variant="outline"
+                            className="h-16 text-3xl font-black border-2 hover:bg-amber-50 hover:border-amber-400 rounded-2xl shadow-sm"
+                            onClick={() => {
+                              if (focusedInput === 'beeper') setBeeperNumber(prev => (prev + '0').slice(0, 4))
+                              if (focusedInput === 'cash') setCashReceived(prev => prev + '0')
+                            }}
+                          >
+                            0
+                          </Button>
+                          <Button
+                            variant="outline"
+                            className="h-16 text-xl font-bold border-2 text-slate-600 hover:bg-slate-100 rounded-2xl"
+                            onClick={() => {
+                              if (focusedInput === 'beeper') setBeeperNumber(prev => prev.slice(0, -1))
+                              if (focusedInput === 'cash') setCashReceived(prev => prev.slice(0, -1))
+                            }}
+                          >
+                            DEL
+                          </Button>
+                        </div>
+                      </div>
+
+                      {/* Bank Note Quick Actions */}
+                      <div className="space-y-3">
+                        <div className="flex justify-between items-center px-1">
+                          <Label className="text-xs font-bold uppercase text-slate-400">{t.bank_note} Quick Add</Label>
+                          <Button
+                            variant="link"
+                            size="sm"
+                            className="text-xs h-auto p-0 text-amber-600 font-bold"
+                            onClick={() => setCashReceived(total.toString())}
+                          >
+                            {t.pay_exact}
+                          </Button>
+                        </div>
+                        <div className="grid grid-cols-4 gap-2">
+                          {[500, 1000, 2000, 5000, 10000, 20000, 50000, 100000].map(denom => (
+                            <Button
+                              key={denom}
+                              variant="outline"
+                              size="sm"
+                              className="h-10 text-xs font-bold border-amber-100 bg-amber-50/50 hover:bg-amber-100 hover:border-amber-300 rounded-lg text-amber-900"
+                              onClick={() => setCashReceived(prev => String(Number(prev || 0) + denom))}
+                            >
+                              +{denom.toLocaleString()}₭
+                            </Button>
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* Actions */}
+                      <div className="flex gap-3 pt-4">
+                        <Button variant="outline" className="flex-1 h-14 text-lg font-bold border-2 rounded-xl" onClick={() => setIsPaymentOpen(false)}>
+                          {t.cancel}
                         </Button>
-                      ))}
-
-                      <Button
-                        variant="ghost"
-                        size="lg"
-                        onClick={() => setCashReceived("")}
-                        className="text-md text-red-500 hover:bg-red-50 col-start-3"
-                      >
-                        {t.clear}
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="lg"
-                        onClick={() => setCashReceived(total.toString())}
-                        className="text-md bg-green-50 text-green-700 border-green-200 hover:bg-green-100"
-                      >
-                        {t.pay_exact}
-                      </Button>
-
+                        <Button
+                          className="flex-[2] h-14 text-lg font-black bg-green-600 hover:bg-green-700 shadow-lg shadow-green-200 rounded-xl"
+                          disabled={isProcessing || !beeperNumber || !cashReceived || Number(cashReceived) < total}
+                          onClick={handleCheckout}
+                        >
+                          {isProcessing ? t.processing : t.complete_order}
+                        </Button>
+                      </div>
                     </div>
-                  </div>
-                )}
+                  ) : (
+                    <div className="flex flex-col h-full">
+                      <div className="flex-1">
+                        <div className="space-y-2 mb-6">
+                          <Label className={`flex justify-between font-bold ${showBeeperError && !beeperNumber ? 'text-rose-500' : 'text-slate-600'}`}>
+                            <span>{t.beeper}</span>
+                            <span className="text-xs">{showBeeperError && !beeperNumber ? t.required : `(${t.required})`}</span>
+                          </Label>
+                          <Input
+                            placeholder="e.g. 05"
+                            value={beeperNumber}
+                            onChange={e => {
+                              setBeeperNumber(e.target.value)
+                              if (showBeeperError) setShowBeeperError(false)
+                            }}
+                            className={`text-2xl font-black h-16 rounded-xl border-2 transition-all ${showBeeperError && !beeperNumber ? 'border-rose-500 bg-rose-50' : 'border-slate-200 focus:border-blue-500 focus:ring-4 focus:ring-blue-100'}`}
+                          />
+                        </div>
 
-                {paymentMethod === 'QR_CODE' && (
-                  <div className="space-y-4">
-                    <div className="space-y-2">
-                      <Label className={`flex justify-between ${showBeeperError && !beeperNumber ? 'text-rose-500' : ''}`}>
-                        <span>{t.beeper}</span>
-                        <span className="text-xs font-bold">{showBeeperError && !beeperNumber ? t.required : `(${t.required})`}</span>
-                      </Label>
-                      <Input
-                        placeholder="e.g. 05"
-                        value={beeperNumber}
-                        onChange={e => {
-                          setBeeperNumber(e.target.value)
-                          if (showBeeperError) setShowBeeperError(false)
-                        }}
-                        className={`text-lg font-bold ${showBeeperError && !beeperNumber ? 'border-rose-500 bg-rose-50 focus-visible:ring-rose-500' : ''}`}
-                      />
-                      {showBeeperError && !beeperNumber && (
-                        <p className="text-[10px] text-rose-500 mt-1 font-bold animate-pulse">{t.please_enter_beeper_number}</p>
-                      )}
+                        <PaymentQR
+                          amount={total}
+                          orderNumber={orderNumber || `ORD-${Date.now().toString().slice(-6)}`}
+                          onComplete={handleCheckout}
+                        />
+                      </div>
+
+                      <div className="pt-6 border-t flex gap-3">
+                        <Button variant="outline" className="flex-1 h-14 text-lg font-bold border-2 rounded-xl" onClick={() => setIsPaymentOpen(false)}>
+                          {t.cancel}
+                        </Button>
+                        <Button
+                          className="flex-[2] h-14 text-lg font-black bg-blue-600 hover:bg-blue-700 shadow-lg shadow-blue-200 rounded-xl"
+                          onClick={handleCheckout}
+                          disabled={isProcessing || !beeperNumber}
+                        >
+                          <Check className="w-5 h-5 mr-3" />
+                          {t.mark_as_paid_manual}
+                        </Button>
+                      </div>
                     </div>
-                    <PaymentQR
-                      amount={total}
-                      orderNumber={orderNumber || `ORD-${Date.now().toString().slice(-6)}`}
-                      onComplete={handleCheckout}
-                    />
-                    <div className="pt-4 border-t">
-                      <Button
-                        className="w-full bg-blue-600 hover:bg-blue-700 text-white"
-                        onClick={handleCheckout}
-                        disabled={isProcessing}
-                      >
-                        <Check className="w-4 h-4 mr-2" />
-                        {t.mark_as_paid_manual}
-                      </Button>
-                    </div>
-                  </div>
-                )}
+                  )}
+                </div>
               </div>
-
-              {paymentMethod === 'BANK_NOTE' && (
-                <DialogFooter>
-                  <Button variant="outline" size="lg" onClick={() => setIsPaymentOpen(false)}>{t.cancel}</Button>
-                  <Button
-                    className="bg-green-600 hover:bg-green-700"
-                    onClick={handleCheckout}
-                    size="lg"
-                    disabled={isProcessing || !cashReceived || Number(cashReceived) < total}
-                  >
-                    {isProcessing ? t.processing : t.complete_order}
-                  </Button>
-                </DialogFooter>
-              )}
             </DialogContent>
           </Dialog>
 
