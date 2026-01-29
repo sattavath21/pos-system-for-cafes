@@ -312,7 +312,14 @@ export const translations = {
         loyalty_points_redeemed: "Loyalty Points Redeemed",
         summary_overview: "Summary Overview",
         today: "Today",
-        reason: "Reason"
+        reason: "Reason",
+        shift_open: "Shift Opened",
+        shift_closed: "Shift Closed",
+        cash_in_drawer: "Cash In Drawer",
+        hourly_sales: "Hourly Sales",
+        dashboard_welcome: "Welcome to Cafe POS",
+        view_all_orders: "View All Orders",
+        shift_history: "Shift History",
     },
     lo: {
         dashboard: "ໜ້າຫຼັກ",
@@ -627,6 +634,13 @@ export const translations = {
         no_date_of_birth: "ບໍ່ມີວັນເດືອນປີເກີດ",
         loyalty_points_redeemed: "ໃຊ້ແຕ້ມລູກຄ້າ",
         today: "ມື້ນີ້",
-        reason: "ເຫດຜົນ"
+        reason: "ເຫດຜົນ",
+        shift_open: "ເປີດກະແລ້ວ",
+        shift_closed: "ປິດກະແລ້ວ",
+        cash_in_drawer: "ເງິນໃນລິ້ນຊັກ",
+        hourly_sales: "ຍອດຂາຍຕາມຊົ່ວໂມງ",
+        dashboard_welcome: "ຍິນດີຕ້ອນຮັບເຂົ້າສູ່ລະບົບ POS",
+        view_all_orders: "ເບິ່ງອໍເດີ້ທັງໝົດ",
+        shift_history: "ປະຫວັດກະເຮັດວຽກ",
     }
 }

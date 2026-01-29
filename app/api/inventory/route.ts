@@ -15,7 +15,7 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
     try {
         const body = await request.json()
-        const { name, unit, currentStock, minStock, maxStock, cost } = body
+        const { name, unit, mainStock, subStock, minStock, maxStock, cost } = body
 
         if (!name || !unit) {
             return NextResponse.json({ error: 'Name and unit are required' }, { status: 400 })
@@ -25,7 +25,8 @@ export async function POST(request: Request) {
             data: {
                 name,
                 unit,
-                currentStock: parseFloat(currentStock) || 0,
+                mainStock: parseFloat(mainStock) || 0,
+                subStock: parseFloat(subStock) || 0,
                 minStock: parseFloat(minStock) || 0,
                 maxStock: parseFloat(maxStock) || 0,
                 cost: parseFloat(cost) || 0

@@ -9,8 +9,33 @@ export async function GET(request: Request) {
         const startDateStr = searchParams.get('startDate')
         const endDateStr = searchParams.get('endDate')
 
-        const startDate = startDateStr ? new Date(startDateStr) : new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)
-        const endDate = endDateStr ? new Date(endDateStr) : new Date()
+        let startDate: Date
+        let endDate: Date
+
+        if (startDateStr) {
+            startDate = new Date(startDateStr)
+            if (isNaN(startDate.getTime())) {
+                const [y, m, d] = startDateStr.split('-').map(Number)
+                startDate = new Date(y, m - 1, d, 0, 0, 0, 0)
+            } else if (!startDateStr.includes('T')) {
+                startDate.setHours(0, 0, 0, 0)
+            }
+        } else {
+            startDate = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)
+            startDate.setHours(0, 0, 0, 0)
+        }
+
+        if (endDateStr) {
+            endDate = new Date(endDateStr)
+            if (isNaN(endDate.getTime())) {
+                const [y, m, d] = endDateStr.split('-').map(Number)
+                endDate = new Date(y, m - 1, d, 23, 59, 59, 999)
+            } else if (!endDateStr.includes('T')) {
+                endDate.setHours(23, 59, 59, 999)
+            }
+        } else {
+            endDate = new Date()
+        }
 
         // 1. Daily Trend
         const orders = await prisma.order.findMany({
@@ -19,7 +44,8 @@ export async function GET(request: Request) {
                     gte: startDate,
                     lte: endDate
                 },
-                status: 'COMPLETED'
+                status: 'COMPLETED',
+                isReportable: true
             },
             select: {
                 total: true,
@@ -45,7 +71,8 @@ export async function GET(request: Request) {
             where: {
                 order: {
                     createdAt: { gte: startDate, lte: endDate },
-                    status: 'COMPLETED'
+                    status: 'COMPLETED',
+                    isReportable: true
                 }
             },
             include: {
@@ -90,7 +117,8 @@ export async function GET(request: Request) {
         const methodOrders = await prisma.order.findMany({
             where: {
                 createdAt: { gte: startDate, lte: endDate },
-                status: 'COMPLETED'
+                status: 'COMPLETED',
+                isReportable: true
             },
             select: { paymentMethod: true, total: true, discount: true }
         })
@@ -185,6 +213,7 @@ export async function GET(request: Request) {
             where: {
                 createdAt: { gte: startDate, lte: endDate },
                 status: 'COMPLETED',
+                isReportable: true,
                 promoId: { not: null }
             },
             include: { promotion: true }
@@ -210,7 +239,8 @@ export async function GET(request: Request) {
         const summaryStats = await prisma.order.aggregate({
             where: {
                 createdAt: { gte: startDate, lte: endDate },
-                status: 'COMPLETED'
+                status: 'COMPLETED',
+                isReportable: true
             },
             _sum: { total: true, discount: true, tax: true },
             _count: true,
@@ -218,7 +248,7 @@ export async function GET(request: Request) {
         })
 
         // Final verification check for the user in logs
-        if (summaryStats._count === 0) {
+        if ((summaryStats._count as any) === 0) {
             const lastOrder = await prisma.order.findFirst({ orderBy: { createdAt: 'desc' } })
             console.log("Analytics Diagnostic: No orders in range. Last order in DB:", lastOrder?.createdAt)
         }
@@ -235,12 +265,12 @@ export async function GET(request: Request) {
             variationStats,
             promoImpact,
             summary: {
-                totalRevenue: summaryStats._sum.total || 0,
-                netSales: (summaryStats._sum.total || 0) - (summaryStats._sum.tax || 0),
-                taxCollected: summaryStats._sum.tax || 0,
-                totalOrders: summaryStats._count || 0,
-                aov: summaryStats._avg.total || 0,
-                totalDiscounts: summaryStats._sum.discount || 0,
+                totalRevenue: summaryStats._sum?.total || 0,
+                netSales: (summaryStats._sum?.total || 0) - (summaryStats._sum?.tax || 0),
+                taxCollected: summaryStats._sum?.tax || 0,
+                totalOrders: (summaryStats._count as any) || 0,
+                aov: summaryStats._avg?.total || 0,
+                totalDiscounts: summaryStats._sum?.discount || 0,
                 periodCount: dailyTrend.length
             }
         })

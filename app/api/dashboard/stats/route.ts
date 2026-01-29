@@ -35,7 +35,7 @@ export async function GET() {
 
         // 4. Low Stock items detailed
         const allIngredients = await prisma.ingredient.findMany()
-        const lowStockItemsDetailed = allIngredients.filter(i => i.currentStock <= i.minStock)
+        const lowStockItemsDetailed = allIngredients.filter(i => i.subStock <= i.minStock)
         const lowStockCountNum = lowStockItemsDetailed.length
 
         // 5. Active Orders
@@ -137,7 +137,7 @@ export async function GET() {
             topItems: formattedTopItems,
             lowStockAlerts: lowStockItemsDetailed.slice(0, 10).map(i => ({
                 name: i.name,
-                current: i.currentStock,
+                current: i.subStock,
                 unit: i.unit,
                 min: i.minStock
             }))

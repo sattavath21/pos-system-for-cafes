@@ -4,6 +4,14 @@ import { Label } from "@/components/ui/label"
 import { useState, useEffect } from "react"
 import { useTranslation } from "@/hooks/use-translation"
 import { formatLAK } from "@/lib/currency"
+import {
+    Droplet,
+    Droplets,
+    CandyOff,
+    Candy,
+    Coffee,
+    Minus
+} from "lucide-react"
 
 interface MenuVariation {
     id: string
@@ -33,6 +41,7 @@ interface CustomizationDialogProps {
     variations: MenuVariation[]
 }
 
+
 export function CustomizationDialog({
     isOpen,
     onClose,
@@ -41,7 +50,7 @@ export function CustomizationDialog({
     variations
 }: CustomizationDialogProps) {
     const { t } = useTranslation()
-    const [sugar, setSugar] = useState("100%")
+    const [sugar, setSugar] = useState("Normal")
     const [shot, setShot] = useState("Normal")
     const [selectedVariation, setSelectedVariation] = useState<string>("")
     const [selectedSize, setSelectedSize] = useState<string>("")
@@ -49,7 +58,7 @@ export function CustomizationDialog({
     // Reset defaults when opening
     useEffect(() => {
         if (isOpen && variations.length > 0) {
-            setSugar("100%")
+            setSugar("Normal")
             setShot("Normal")
 
             // Set default variation (first available)
@@ -62,8 +71,18 @@ export function CustomizationDialog({
         }
     }, [isOpen, variations])
 
-    const sugarOptions = ["0%", "25%", "50%", "75%", "100%", "125%"]
-    const shotOptions = ["Reduced", "Normal", "Double"]
+    const sugarOptions = [
+        { label: "No Sweet", icon: CandyOff },
+        { label: "Less Sweet", icon: Droplet },
+        { label: "Normal", icon: Droplets },
+        { label: "Extra Sweet", icon: Candy }
+
+    ]
+    const shotOptions = [
+        { label: "Reduced", level: 0.5 },
+        { label: "Normal", level: 1 },
+        { label: "Double", level: 2 }
+    ]
 
     // Get current variation object
     const currentVariation = variations.find(v => v.type === selectedVariation)
@@ -96,7 +115,7 @@ export function CustomizationDialog({
 
     const handleConfirm = () => {
         if (!selectedSize || !selectedSizeObj) {
-            alert("Please select a size")
+            alert("Please select a customization")
             return
         }
 
@@ -118,7 +137,7 @@ export function CustomizationDialog({
                 <DialogHeader>
                     <DialogTitle>{menuName}</DialogTitle>
                     <DialogDescription>
-                        Customize your drink - {formatLAK(finalPrice)}
+                        Customization - {formatLAK(finalPrice)}
                     </DialogDescription>
                 </DialogHeader>
                 <div className="grid gap-6 py-4">
@@ -144,7 +163,7 @@ export function CustomizationDialog({
 
                     {/* Size Selection */}
                     <div className="space-y-2">
-                        <Label>Size</Label>
+                        <Label>Choice</Label>
                         <div className="flex flex-wrap gap-2">
                             {[...(currentVariation?.sizes || [])]
                                 .sort((a, b) => (a.displayOrder || 0) - (b.displayOrder || 0))
@@ -167,32 +186,42 @@ export function CustomizationDialog({
                     {/* Sugar Level */}
                     <div className="space-y-2">
                         <Label>Sugar Level</Label>
-                        <div className="flex flex-wrap gap-2">
-                            {sugarOptions.map((opt) => (
+                        <div className="grid grid-cols-4 gap-2">
+                            {sugarOptions.map(({ label, icon: Icon }) => (
                                 <Button
-                                    key={opt}
-                                    variant={sugar === opt ? "default" : "outline"}
-                                    onClick={() => setSugar(opt)}
-                                    className="flex-1 min-w-[3rem]"
+                                    key={label}
+                                    variant={sugar === label ? "default" : "outline"}
+                                    onClick={() => setSugar(label)}
+                                    className="h-16 flex flex-col items-center justify-center gap-1"
                                 >
-                                    {opt}
+                                    <Icon className="h-5 w-5" />
+                                    <span className="text-xs">{label}</span>
                                 </Button>
                             ))}
                         </div>
                     </div>
 
+
                     {/* Shot Type */}
                     <div className="space-y-2">
                         <Label>Shot Type</Label>
-                        <div className="flex flex-wrap gap-2">
-                            {shotOptions.map((opt) => (
+                        <div className="grid grid-cols-3 gap-2">
+                            {shotOptions.map(({ label, level }) => (
                                 <Button
-                                    key={opt}
-                                    variant={shot === opt ? "default" : "outline"}
-                                    onClick={() => setShot(opt)}
-                                    className="flex-1"
+                                    key={label}
+                                    variant={shot === label ? "default" : "outline"}
+                                    onClick={() => setShot(label)}
+                                    className="h-14 flex flex-col items-center justify-center gap-1"
                                 >
-                                    {opt}
+                                    <div className="flex gap-1 items-center">
+                                        {level === 0.5 && <div className="flex gap-1 items-center"><Minus className="h-4 w-4" /> <Coffee className="h-4 w-4" /></div>}
+
+                                        {level >= 1 &&
+                                            Array.from({ length: Math.floor(level) }).map((_, i) => (
+                                                <Coffee key={i} className="h-4 w-4" />
+                                            ))}
+                                    </div>
+                                    <span className="text-xs">{label}</span>
                                 </Button>
                             ))}
                         </div>

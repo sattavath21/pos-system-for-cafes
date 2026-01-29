@@ -121,17 +121,13 @@ export default function RecipesPage() {
             <header className="border-b bg-white sticky top-0 z-10">
                 <div className="flex items-center justify-between p-4">
                     <div className="flex items-center gap-4">
-                        <Link href="/inventory" className="text-amber-900 hover:text-amber-700">
-                            <h1 className="text-2xl font-bold">{t.inventory}</h1>
+                        <Link href="/menu" className="text-amber-900 hover:text-amber-700">
+                            <h1 className="text-2xl font-bold">{t.menu_management}</h1>
                         </Link>
                         <ChevronRight className="w-5 h-4 text-muted-foreground" />
                         <h1 className="text-2xl font-bold text-amber-900">{t.recipes}</h1>
                     </div>
-                    <div className="flex items-center gap-4">
-                        <Link href="/dashboard">
-                            <Button variant="outline" size="sm">{t.dashboard}</Button>
-                        </Link>
-                    </div>
+
                 </div>
             </header>
 

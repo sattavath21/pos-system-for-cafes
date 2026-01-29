@@ -3,6 +3,9 @@ import { Geist, Geist_Mono, Noto_Sans_Lao } from 'next/font/google'
 import { Analytics } from '@vercel/analytics/next'
 import './globals.css'
 import { ShiftProvider } from '@/components/shift-provider'
+import { ClientLayout } from '@/components/client-layout'
+import { SidebarProvider } from '@/components/sidebar-provider'
+import { LanguageProvider } from '@/components/language-provider'
 
 const _geist = Geist({ subsets: ["latin"] });
 const _geistMono = Geist_Mono({ subsets: ["latin"] });
@@ -46,9 +49,15 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className={notoLaos.className}>
-        <ShiftProvider>
-          {children}
-        </ShiftProvider>
+        <LanguageProvider>
+          <ShiftProvider>
+            <SidebarProvider>
+              <ClientLayout>
+                {children}
+              </ClientLayout>
+            </SidebarProvider>
+          </ShiftProvider>
+        </LanguageProvider>
         <Analytics />
       </body>
     </html>

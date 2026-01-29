@@ -12,7 +12,7 @@ export async function POST(request: Request) {
             id, items, total, subtotal, tax, discount,
             promoId, customerId, paymentMethod, status,
             beeperNumber, cancellationReason,
-            pointsRedeemed, taxAmount
+            pointsRedeemed, taxAmount, isReportable
         } = body
 
         // --- VALIDATION PHASE (Fail Fast) ---
@@ -40,8 +40,11 @@ export async function POST(request: Request) {
         const missingIds = variationSizeIds.filter(id => !existingVariationSizeIds.has(id))
 
         if (missingIds.length > 0) {
+            console.error("Order Validation Failed: Stale IDs detected", missingIds)
             return NextResponse.json({
-                error: `Foreign Key Violation: VariationSizes with IDs [${missingIds.join(', ')}] do not exist.`
+                error: `Foreign Key Violation: VariationSizes with IDs [${missingIds.join(', ')}] do not exist. Please refresh the menu or clear your cart.`,
+                code: 'STALE_ID_VIOLATION',
+                missingIds
             }, { status: 400 })
         }
 
@@ -49,7 +52,10 @@ export async function POST(request: Request) {
         if (customerId) {
             const customer = await prisma.customer.findUnique({ where: { id: customerId } })
             if (!customer) {
-                return NextResponse.json({ error: `Customer ${customerId} not found` }, { status: 400 })
+                return NextResponse.json({
+                    error: `Customer ${customerId} not found. They may have been deleted or the database was re-seeded.`,
+                    code: 'STALE_CUSTOMER_VIOLATION'
+                }, { status: 400 })
             }
         }
 
@@ -110,6 +116,7 @@ export async function POST(request: Request) {
                 beeperNumber: beeperNumber || null,
                 cancellationReason: status === 'CANCELLED' ? cancellationReason : null,
                 pointsRedeemed: pointsRedeemed ? parseInt(pointsRedeemed) : 0,
+                isReportable: isReportable !== undefined ? isReportable : true,
                 updatedAt: new Date()
             }
 
@@ -206,7 +213,7 @@ export async function POST(request: Request) {
                         for (const recipe of recipes) {
                             await tx.ingredient.update({
                                 where: { id: recipe.ingredientId },
-                                data: { currentStock: { decrement: recipe.quantity * item.quantity } }
+                                data: { subStock: { decrement: recipe.quantity * item.quantity } }
                             })
                         }
                     }
@@ -253,7 +260,7 @@ export async function POST(request: Request) {
                         for (const recipe of recipes) {
                             await tx.ingredient.update({
                                 where: { id: recipe.ingredientId },
-                                data: { currentStock: { increment: recipe.quantity * item.quantity } }
+                                data: { subStock: { increment: recipe.quantity * item.quantity } }
                             })
                         }
                     }

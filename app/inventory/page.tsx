@@ -16,7 +16,8 @@ type Ingredient = {
   id: string
   name: string
   unit: string
-  currentStock: number
+  mainStock: number
+  subStock: number
   minStock: number
   maxStock: number
   cost: number
@@ -29,10 +30,16 @@ export default function InventoryPage() {
   const [ingredients, setIngredients] = useState<Ingredient[]>([])
   const [isDialogOpen, setIsDialogOpen] = useState(false)
   const [editingItem, setEditingItem] = useState<Ingredient | null>(null)
+  const [activeTab, setActiveTab] = useState<"SUB" | "MAIN">("SUB")
+  const [isTransferOpen, setIsTransferOpen] = useState(false)
+  const [transferItem, setTransferItem] = useState<Ingredient | null>(null)
+  const [transferQty, setTransferQty] = useState("")
+
   const [formData, setFormData] = useState({
     name: "",
     unit: "kg",
-    currentStock: 0,
+    mainStock: 0,
+    subStock: 0,
     minStock: 0,
     maxStock: 0,
     cost: 0
@@ -79,12 +86,37 @@ export default function InventoryPage() {
     setFormData({
       name: item.name,
       unit: item.unit,
-      currentStock: item.currentStock,
+      mainStock: item.mainStock,
+      subStock: item.subStock,
       minStock: item.minStock,
       maxStock: item.maxStock,
       cost: item.cost
     })
     setIsDialogOpen(true)
+  }
+
+  const handleTransfer = async () => {
+    if (!transferItem || !transferQty) return
+    try {
+      // Record transaction
+      const res = await fetch('/api/stock-transactions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          ingredientId: transferItem.id,
+          type: 'TRANSFER',
+          quantity: parseFloat(transferQty),
+          fromStore: 'MAIN',
+          toStore: 'SUB'
+        })
+      })
+
+      if (res.ok) {
+        setIsTransferOpen(false)
+        setTransferQty("")
+        fetchInventory()
+      }
+    } catch (e) { console.error(e) }
   }
 
   const handleDelete = async (id: string) => {
@@ -103,7 +135,8 @@ export default function InventoryPage() {
     setFormData({
       name: "",
       unit: "kg",
-      currentStock: 0,
+      mainStock: 0,
+      subStock: 0,
       minStock: 0,
       maxStock: 0,
       cost: 0
@@ -111,9 +144,10 @@ export default function InventoryPage() {
   }
 
   const getStockStatus = (item: Ingredient) => {
-    if (item.currentStock <= item.minStock) {
+    const stock = activeTab === "SUB" ? item.subStock : item.mainStock
+    if (stock <= item.minStock) {
       return { label: t.low_stock, color: "bg-red-100 text-red-800" }
-    } else if (item.currentStock >= item.maxStock) {
+    } else if (stock >= item.maxStock) {
       return { label: t.overstock, color: "bg-yellow-100 text-yellow-800" }
     }
     return { label: t.normal, color: "bg-green-100 text-green-800" }
@@ -121,11 +155,8 @@ export default function InventoryPage() {
 
   return (
     <div className="min-h-screen bg-background">
-      <Header title={t.inventory_management}>
-        <Link href="/inventory/recipes">
-          <Button variant="outline" size="lg" className="text-md">{t.recipes}</Button>
-        </Link>
-      </Header>
+      <Header title={t.inventory_management} />
+
 
       <div className="p-6 space-y-6">
         {/* Stats */}
@@ -135,15 +166,15 @@ export default function InventoryPage() {
             <p className="text-3xl font-bold">{ingredients.length}</p>
           </Card>
           <Card className="p-6">
-            <p className="text-sm text-muted-foreground mb-1">{t.low_stock}</p>
+            <p className="text-sm text-muted-foreground mb-1">{t.low_stock} ({activeTab === "SUB" ? "Shop" : "Whse"})</p>
             <p className="text-3xl font-bold text-red-600">
-              {ingredients.filter(i => i.currentStock <= i.minStock).length}
+              {ingredients.filter(i => (activeTab === "SUB" ? i.subStock : i.mainStock) <= i.minStock).length}
             </p>
           </Card>
           <Card className="p-6">
-            <p className="text-sm text-muted-foreground mb-1">{t.total_value}</p>
+            <p className="text-sm text-muted-foreground mb-1">{t.total_value} ({activeTab === "SUB" ? "Shop" : "Whse"})</p>
             <p className="text-2xl font-bold text-green-600">
-              {formatLAK(ingredients.reduce((sum, i) => sum + (i.currentStock * i.cost), 0))}
+              {formatLAK(ingredients.reduce((sum, i) => sum + ((activeTab === "SUB" ? i.subStock : i.mainStock) * i.cost), 0))}
             </p>
           </Card>
           <Card className="p-6 flex items-center justify-center">
@@ -173,8 +204,12 @@ export default function InventoryPage() {
                       />
                     </div>
                     <div className="space-y-2">
-                      <Label>{t.stock}</Label>
-                      <Input type="text" value={formData.currentStock} onChange={e => setFormData({ ...formData, currentStock: Number(e.target.value) })} />
+                      <Label>Warehouse Stock</Label>
+                      <Input type="text" value={formData.mainStock} onChange={e => setFormData({ ...formData, mainStock: Number(e.target.value) })} />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Shop Stock</Label>
+                      <Input type="text" value={formData.subStock} onChange={e => setFormData({ ...formData, subStock: Number(e.target.value) })} />
                     </div>
                   </div>
                   <div className="grid grid-cols-2 gap-4">
@@ -218,12 +253,21 @@ export default function InventoryPage() {
                       <Badge className={status.color}>{status.label}</Badge>
                     </div>
                     <div className="flex gap-6 text-sm text-muted-foreground ml-8">
-                      <span>{t.stock}: {item.currentStock} {item.unit}</span>
+                      <span>{t.stock}: {activeTab === "SUB" ? item.subStock : item.mainStock} {item.unit}</span>
                       <span>{t.min_stock}: {item.minStock} {item.unit}</span>
                       <span>{t.cost}: {formatLAK(item.cost)}/{item.unit}</span>
                     </div>
                   </div>
                   <div className="flex gap-2">
+                    {activeTab === "MAIN" && (
+                      <Button
+                        variant="outline"
+                        className="border-amber-200 text-amber-700 bg-amber-50 hover:bg-amber-100"
+                        onClick={() => { setTransferItem(item); setIsTransferOpen(true); }}
+                      >
+                        Transfer to Shop
+                      </Button>
+                    )}
                     <Button variant="outline" size="icon" onClick={() => handleEdit(item)}>
                       <Edit className="w-4 h-4" />
                     </Button>

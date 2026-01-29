@@ -49,14 +49,14 @@ async function main() {
 
     console.log("Seeding ingredients...")
     const ingredientsData = [
-        { name: "Coffee Beans", unit: "kg", currentStock: 50, minStock: 5, maxStock: 100, cost: 150000 },
-        { name: "Fresh Milk", unit: "L", currentStock: 100, minStock: 10, maxStock: 200, cost: 25000 },
-        { name: "Sugar Syrup", unit: "L", currentStock: 20, minStock: 2, maxStock: 50, cost: 35000 },
-        { name: "Matcha Powder", unit: "kg", currentStock: 5, minStock: 1, maxStock: 10, cost: 450000 },
-        { name: "Flour", unit: "kg", currentStock: 50, minStock: 10, maxStock: 100, cost: 20000 },
-        { name: "Butter", unit: "kg", currentStock: 20, minStock: 5, maxStock: 40, cost: 180000 },
-        { name: "Cocoa Powder", unit: "kg", currentStock: 10, minStock: 2, maxStock: 20, cost: 200000 },
-        { name: "Orange Juice", unit: "L", currentStock: 30, minStock: 5, maxStock: 60, cost: 30000 }
+        { name: "Coffee Beans", unit: "kg", mainStock: 100, subStock: 50, minStock: 5, maxStock: 200, cost: 150000 },
+        { name: "Fresh Milk", unit: "L", mainStock: 200, subStock: 100, minStock: 10, maxStock: 400, cost: 25000 },
+        { name: "Sugar Syrup", unit: "L", mainStock: 50, subStock: 20, minStock: 2, maxStock: 100, cost: 35000 },
+        { name: "Matcha Powder", unit: "kg", mainStock: 10, subStock: 5, minStock: 1, maxStock: 20, cost: 450000 },
+        { name: "Flour", unit: "kg", mainStock: 100, subStock: 50, minStock: 10, maxStock: 200, cost: 20000 },
+        { name: "Butter", unit: "kg", mainStock: 40, subStock: 20, minStock: 5, maxStock: 80, cost: 180000 },
+        { name: "Cocoa Powder", unit: "kg", mainStock: 20, subStock: 10, minStock: 2, maxStock: 40, cost: 200000 },
+        { name: "Orange Juice", unit: "L", mainStock: 60, subStock: 30, minStock: 5, maxStock: 120, cost: 30000 }
     ]
 
     const ingredients = {}
@@ -82,7 +82,8 @@ async function main() {
                 data: {
                     menuId: menu.id,
                     type: varData.type,
-                    isEnabled: varData.isEnabled !== false
+                    isEnabled: varData.isEnabled !== false,
+                    displayOrder: varData.displayOrder || 0
                 }
             })
 
@@ -92,7 +93,8 @@ async function main() {
                     data: {
                         variationId: variation.id,
                         size: sizeData.size,
-                        price: sizeData.price
+                        price: sizeData.price,
+                        displayOrder: sizeData.displayOrder || 0
                     }
                 })
             }
@@ -106,26 +108,29 @@ async function main() {
         {
             type: "HOT",
             sizes: [
-                { size: "S", price: 28000 },
-                { size: "M", price: 35000 },
-                { size: "L", price: 42000 }
-            ]
+                { size: "S", price: 28000, displayOrder: 1 },
+                { size: "M", price: 35000, displayOrder: 2 },
+                { size: "L", price: 42000, displayOrder: 3 }
+            ],
+            displayOrder: 1
         },
         {
             type: "COLD",
             sizes: [
-                { size: "S", price: 30000 },
-                { size: "M", price: 38000 },
-                { size: "L", price: 46000 }
-            ]
+                { size: "S", price: 30000, displayOrder: 1 },
+                { size: "M", price: 38000, displayOrder: 2 },
+                { size: "L", price: 46000, displayOrder: 3 }
+            ],
+            displayOrder: 2
         },
         {
             type: "FRAPPE",
             sizes: [
-                { size: "S", price: 35000 },
-                { size: "M", price: 45000 },
-                { size: "L", price: 55000 }
-            ]
+                { size: "S", price: 35000, displayOrder: 1 },
+                { size: "M", price: 45000, displayOrder: 2 },
+                { size: "L", price: 55000, displayOrder: 3 }
+            ],
+            displayOrder: 3
         }
     ])
 
@@ -134,18 +139,20 @@ async function main() {
         {
             type: "HOT",
             sizes: [
-                { size: "S", price: 28000 },
-                { size: "M", price: 35000 },
-                { size: "L", price: 42000 }
-            ]
+                { size: "S", price: 28000, displayOrder: 1 },
+                { size: "M", price: 35000, displayOrder: 2 },
+                { size: "L", price: 42000, displayOrder: 3 }
+            ],
+            displayOrder: 1
         },
         {
             type: "COLD",
             sizes: [
-                { size: "S", price: 30000 },
-                { size: "M", price: 38000 },
-                { size: "L", price: 46000 }
-            ]
+                { size: "S", price: 30000, displayOrder: 1 },
+                { size: "M", price: 38000, displayOrder: 2 },
+                { size: "L", price: 46000, displayOrder: 3 }
+            ],
+            displayOrder: 2
         }
     ])
 
@@ -154,26 +161,29 @@ async function main() {
         {
             type: "HOT",
             sizes: [
-                { size: "S", price: 32000 },
-                { size: "M", price: 40000 },
-                { size: "L", price: 48000 }
-            ]
+                { size: "S", price: 32000, displayOrder: 1 },
+                { size: "M", price: 40000, displayOrder: 2 },
+                { size: "L", price: 48000, displayOrder: 3 }
+            ],
+            displayOrder: 1
         },
         {
             type: "COLD",
             sizes: [
-                { size: "S", price: 35000 },
-                { size: "M", price: 44000 },
-                { size: "L", price: 53000 }
-            ]
+                { size: "S", price: 35000, displayOrder: 1 },
+                { size: "M", price: 44000, displayOrder: 2 },
+                { size: "L", price: 53000, displayOrder: 3 }
+            ],
+            displayOrder: 2
         },
         {
             type: "FRAPPE",
             sizes: [
-                { size: "S", price: 40000 },
-                { size: "M", price: 52000 },
-                { size: "L", price: 64000 }
-            ]
+                { size: "S", price: 40000, displayOrder: 1 },
+                { size: "M", price: 52000, displayOrder: 2 },
+                { size: "L", price: 64000, displayOrder: 3 }
+            ],
+            displayOrder: 3
         }
     ])
 
@@ -182,26 +192,29 @@ async function main() {
         {
             type: "HOT",
             sizes: [
-                { size: "S", price: 30000 },
-                { size: "M", price: 38000 },
-                { size: "L", price: 46000 }
-            ]
+                { size: "S", price: 30000, displayOrder: 1 },
+                { size: "M", price: 38000, displayOrder: 2 },
+                { size: "L", price: 46000, displayOrder: 3 }
+            ],
+            displayOrder: 1
         },
         {
             type: "COLD",
             sizes: [
-                { size: "S", price: 33000 },
-                { size: "M", price: 42000 },
-                { size: "L", price: 51000 }
-            ]
+                { size: "S", price: 33000, displayOrder: 1 },
+                { size: "M", price: 42000, displayOrder: 2 },
+                { size: "L", price: 51000, displayOrder: 3 }
+            ],
+            displayOrder: 2
         },
         {
             type: "FRAPPE",
             sizes: [
-                { size: "S", price: 38000 },
-                { size: "M", price: 50000 },
-                { size: "L", price: 62000 }
-            ]
+                { size: "S", price: 38000, displayOrder: 1 },
+                { size: "M", price: 50000, displayOrder: 2 },
+                { size: "L", price: 62000, displayOrder: 3 }
+            ],
+            displayOrder: 3
         }
     ])
 
@@ -210,26 +223,29 @@ async function main() {
         {
             type: "HOT",
             sizes: [
-                { size: "S", price: 35000 },
-                { size: "M", price: 45000 },
-                { size: "L", price: 55000 }
-            ]
+                { size: "S", price: 35000, displayOrder: 1 },
+                { size: "M", price: 45000, displayOrder: 2 },
+                { size: "L", price: 55000, displayOrder: 3 }
+            ],
+            displayOrder: 1
         },
         {
             type: "COLD",
             sizes: [
-                { size: "S", price: 38000 },
-                { size: "M", price: 50000 },
-                { size: "L", price: 62000 }
-            ]
+                { size: "S", price: 38000, displayOrder: 1 },
+                { size: "M", price: 50000, displayOrder: 2 },
+                { size: "L", price: 62000, displayOrder: 3 }
+            ],
+            displayOrder: 2
         },
         {
             type: "FRAPPE",
             sizes: [
-                { size: "S", price: 43000 },
-                { size: "M", price: 58000 },
-                { size: "L", price: 73000 }
-            ]
+                { size: "S", price: 43000, displayOrder: 1 },
+                { size: "M", price: 58000, displayOrder: 2 },
+                { size: "L", price: 73000, displayOrder: 3 }
+            ],
+            displayOrder: 3
         }
     ])
 
@@ -238,18 +254,20 @@ async function main() {
         {
             type: "HOT",
             sizes: [
-                { size: "S", price: 24000 },
-                { size: "M", price: 30000 },
-                { size: "L", price: 36000 }
-            ]
+                { size: "S", price: 24000, displayOrder: 1 },
+                { size: "M", price: 30000, displayOrder: 2 },
+                { size: "L", price: 36000, displayOrder: 3 }
+            ],
+            displayOrder: 1
         },
         {
             type: "COLD",
             sizes: [
-                { size: "S", price: 26000 },
-                { size: "M", price: 33000 },
-                { size: "L", price: 40000 }
-            ]
+                { size: "S", price: 26000, displayOrder: 1 },
+                { size: "M", price: 33000, displayOrder: 2 },
+                { size: "L", price: 40000, displayOrder: 3 }
+            ],
+            displayOrder: 2
         }
     ])
 
@@ -258,9 +276,10 @@ async function main() {
         {
             type: "HOT",
             sizes: [
-                { size: "S", price: 20000 },
-                { size: "M", price: 25000 }
-            ]
+                { size: "S", price: 20000, displayOrder: 1 },
+                { size: "M", price: 25000, displayOrder: 2 }
+            ],
+            displayOrder: 1
         }
     ])
 
@@ -269,8 +288,9 @@ async function main() {
         {
             type: "HOT",
             sizes: [
-                { size: "M", price: 25000 }
-            ]
+                { size: "M", price: 25000, displayOrder: 1 }
+            ],
+            displayOrder: 1
         }
     ])
 
@@ -279,8 +299,9 @@ async function main() {
         {
             type: "HOT",
             sizes: [
-                { size: "M", price: 55000 }
-            ]
+                { size: "M", price: 55000, displayOrder: 1 }
+            ],
+            displayOrder: 1
         }
     ])
 
@@ -316,9 +337,10 @@ async function main() {
 
     console.log("Seeding customers...")
     const customersData = [
-        { name: "John Doe", phone: "020 5555 1234", email: "john@example.com", loyaltyPoints: 150, totalSpent: 450000, visitCount: 15 },
-        { name: "Jane Smith", phone: "020 5555 5678", loyaltyPoints: 80, totalSpent: 240000, visitCount: 8 },
-        { name: "Bob Wilson", phone: "020 5555 9012", loyaltyPoints: 200, totalSpent: 600000, visitCount: 20 }
+        { name: "John Doe", phone: "020 5555 1234", email: "john@example.com", loyaltyPoints: 150, totalSpent: 450000, visitCount: 15, type: "NORMAL" },
+        { name: "Jane Smith", phone: "020 5555 5678", loyaltyPoints: 80, totalSpent: 240000, visitCount: 8, type: "NORMAL" },
+        { name: "Bob Wilson", phone: "020 5555 9012", loyaltyPoints: 200, totalSpent: 600000, visitCount: 20, type: "NORMAL" },
+        { name: "Owner VIP", phone: "000 000 0000", loyaltyPoints: 0, totalSpent: 0, visitCount: 0, type: "COMPLIMENTARY" }
     ]
 
     const customers = []
@@ -356,7 +378,7 @@ async function main() {
     }
 
     // ========== SEED ORDERS ==========
-    console.log("Seeding ~200 orders for the last 30 days...")
+    console.log("Seeding ~400 orders for the last 90 days...")
     const allSizes = await prisma.variationSize.findMany({
         include: {
             variation: {
@@ -365,10 +387,10 @@ async function main() {
         }
     })
 
-    const users = await prisma.user.findMany()
+    const ordersData = []
 
-    for (let i = 0; i < 200; i++) {
-        // Random date in last 30 days
+    for (let i = 0; i < 400; i++) {
+        // Random date in last 90 days
         const orderDate = subDays(now, getRandomInt(0, 90))
         const hour = getRandomInt(8, 20)
         const minute = getRandomInt(0, 59)
@@ -389,29 +411,50 @@ async function main() {
                 name: `${size.variation.menu.name} (${size.variation.type}) - ${size.size}`,
                 price: size.price,
                 quantity: qty,
-                total: itemTotal, // Snapshot total
-                sugarLevel: getRandomItem(["100%", "50%", "Normal"]),
-                shotType: getRandomItem(["Normal", "Extra Shot"])
+                total: itemTotal,
+                sugarLevel: getRandomItem(["Normal", "Less Sweet", "No Sweet", "Extra Sweet"]),
+                shotType: getRandomItem(["Normal", "Double", "Reduced"])
             })
         }
 
         const tax = Math.round(subtotal * 0.1)
         const total = subtotal + tax
-        const orderNum = `ORD-${finalDate.getTime().toString().slice(-6)}-${i}`
+
+        ordersData.push({
+            finalDate,
+            subtotal,
+            tax,
+            total,
+            itemsToCreate
+        })
+    }
+
+    // Sort by date to assign sequential numbers correctly
+    ordersData.sort((a, b) => a.finalDate - b.finalDate)
+
+    const dailyCounters = {}
+
+    for (const order of ordersData) {
+        const dayKey = order.finalDate.toISOString().split('T')[0]
+        if (!dailyCounters[dayKey]) dailyCounters[dayKey] = 0
+        dailyCounters[dayKey]++
+
+        const orderNum = `No. ${dailyCounters[dayKey]}`
 
         await prisma.order.create({
             data: {
                 orderNumber: orderNum,
                 status: 'COMPLETED',
-                subtotal,
-                tax,
-                total,
-                taxAmount: tax,
-                createdAt: finalDate,
-                updatedAt: finalDate,
+                subtotal: order.subtotal,
+                tax: order.tax,
+                total: order.total,
+                taxAmount: order.tax,
+                createdAt: order.finalDate,
+                updatedAt: order.finalDate,
+                isReportable: true,
                 paymentMethod: getRandomItem(['CASH', 'TRANSFER']),
                 items: {
-                    create: itemsToCreate
+                    create: order.itemsToCreate
                 }
             }
         })

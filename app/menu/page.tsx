@@ -12,6 +12,7 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Switch } from "@/components/ui/switch"
 import { Plus, Edit, Trash2, Search, ImageIcon, X, Check, Minus } from "lucide-react"
+import Link from "next/link"
 import { useTranslation } from "@/hooks/use-translation"
 import { PriceInput } from "@/components/ui/PriceInput"
 
@@ -319,7 +320,12 @@ export default function MenuPage() {
   return (
     <div className="min-h-screen bg-background pb-20">
       {/* Header */}
-      <Header title={t.menu_management} />
+
+      <Header title={t.menu_management}>
+        <Link href="/menu/recipes">
+          <Button variant="outline" size="lg" className="text-md">{t.recipes}</Button>
+        </Link>
+      </Header>
 
       <div className="p-6 space-y-6">
         {/* Search and Add */}

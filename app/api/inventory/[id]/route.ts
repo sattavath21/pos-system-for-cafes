@@ -5,14 +5,15 @@ export async function PUT(request: Request, { params }: { params: { id: string }
     try {
         const { id } = await params
         const body = await request.json()
-        const { name, unit, currentStock, minStock, maxStock, cost } = body
+        const { name, unit, mainStock, subStock, minStock, maxStock, cost } = body
 
         const ingredient = await prisma.ingredient.update({
             where: { id },
             data: {
                 name,
                 unit,
-                currentStock: parseFloat(currentStock.toString()),
+                mainStock: parseFloat(mainStock.toString()),
+                subStock: parseFloat(subStock.toString()),
                 minStock: parseFloat(minStock.toString()),
                 maxStock: parseFloat(maxStock.toString()),
                 cost: parseFloat(cost.toString())

@@ -105,11 +105,7 @@ export default function ReportsPage() {
       <header className="border-b bg-white sticky top-0 z-10">
         <div className="flex items-center justify-between p-4">
           <h1 className="text-2xl font-bold text-amber-900">{t.advanced_analytics}</h1>
-          <div className="flex items-center gap-4">
-            <Link href="/dashboard">
-              <Button variant="outline" size="sm">{t.dashboard}</Button>
-            </Link>
-          </div>
+
         </div>
       </header>
 

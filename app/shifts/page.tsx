@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { ArrowLeft, Calendar, LogOut } from "lucide-react"
+import { ArrowLeft, Calendar, ChevronRight, LogOut } from "lucide-react"
 import Link from "next/link"
 import { format24Hour, formatDateTime24 } from "@/lib/utils"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
@@ -96,23 +96,29 @@ export default function ShiftsPage() {
 
     return (
         <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800 p-6">
-            <Header title={t.shift_reports}>
-                {activeShift && (
-                    <Button
-                        variant="destructive"
-                        size="sm"
-                        className="ml-4 bg-orange-500 hover:bg-orange-600 h-8 font-bold text-md h-10"
-                        onClick={() => setIsEndShiftOpen(true)}
-                    >
-                        <LogOut className="w-4 h-4 mr-1" />
-                        {t.end_shift}
-                    </Button>
-                )}
-            </Header>
+            <header className="border-b bg-white sticky top-0 z-10">
+                <div className="flex items-center justify-between p-4">
+                    <div className="flex items-center gap-4">
+                        <Link href="/dashboard" className="text-amber-900 hover:text-amber-700">
+                            <h1 className="text-2xl font-bold">{t.dashboard}</h1>
+                        </Link>
+                        <ChevronRight className="w-5 h-4 text-muted-foreground" />
+                        <h1 className="text-2xl font-bold text-amber-900">{t.shift_reports}</h1>
+                    </div>
+                    <div className="flex items-center gap-4">
+                        <Link href="/dashboard">
+                            <Button variant="outline" size="sm">{t.dashboard}</Button>
+                        </Link>
+                    </div>
+                </div>
+            </header>
 
 
-
-            <div className="max-w-7xl mt-6 mx-auto space-y-12">
+            <div className="max-w-7xl mt-6 mx-auto space-y-12 h-[calc(100vh-120px)] overflow-y-auto no-scrollbar pb-10">
+                {/* Shifts Summary Card or Stats could go here if needed */}
+                <div className="flex items-center justify-between px-2">
+                    <h3 className="text-xl font-bold text-slate-800">{t.shift_history || "Shift History"}</h3>
+                </div>
 
 
                 {/* Shifts Table */}

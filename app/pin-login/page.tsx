@@ -19,8 +19,15 @@ function PinLoginContent() {
 
     const handleNumberClick = (num: string) => {
         if (pin.length < 4) {
-            setPin(pin + num)
+            const newPin = pin + num
+            setPin(newPin)
             setError("")
+            if (newPin.length === 4) {
+                // Use a small timeout to allow UI to update before submitting
+                setTimeout(() => {
+                    document.getElementById('pin-submit-btn')?.click()
+                }, 100)
+            }
         }
     }
 
@@ -173,6 +180,7 @@ function PinLoginContent() {
                         {t.delete}
                     </Button>
                     <Button
+                        id="pin-submit-btn"
                         className="h-12 bg-amber-600 hover:bg-amber-700"
                         onClick={handleSubmit}
                         disabled={isLoading || pin.length < 4}
