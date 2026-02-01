@@ -227,7 +227,7 @@ export function Sidebar() {
                 {/* User Info Snippet */}
                 {user && !isCollapsed && (
                     <div className="px-4 py-2.5 mb-2 bg-slate-50 rounded-xl border border-slate-100 flex items-center gap-3">
-                        <div className="w-80 h-8 rounded-full bg-white flex items-center justify-center text-amber-900 border border-amber-100 shadow-sm shrink-0">
+                        <div className="w-8 h-8 rounded-full bg-white flex items-center justify-center text-amber-900 border border-amber-100 shadow-sm shrink-0">
                             {user.role === 'ADMIN' || user.role === 'MANAGER' ? <ShieldCheck className="w-5 h-5" /> : <UserCircle className="w-5 h-5" />}
                         </div>
                         <div className="min-w-0">
