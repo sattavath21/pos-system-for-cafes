@@ -233,6 +233,7 @@ export default function ReportsPage() {
                 <p className="text-[14px] text-muted-foreground mt-1 uppercase tracking-wider font-semibold">{t.average_order_value}</p>
               </CardHeader>
             </Card>
+
           </div>
         </div>
 
@@ -240,6 +241,8 @@ export default function ReportsPage() {
           <TabsList className="bg-muted p-1 rounded-lg">
             <TabsTrigger value="overview">{t.overview}</TabsTrigger>
             <TabsTrigger value="products">{t.product_performance}</TabsTrigger>
+            <TabsTrigger value="customers">Customers & Loyalty</TabsTrigger>
+            <TabsTrigger value="inventory">Inventory</TabsTrigger>
             <TabsTrigger value="operations">{t.operations_payments}</TabsTrigger>
             <TabsTrigger value="promotions">{t.promotions_roi}</TabsTrigger>
           </TabsList>
@@ -287,6 +290,46 @@ export default function ReportsPage() {
                       <Tooltip formatter={(v) => formatLAK(v as number)} />
                     </PieChart>
                   </ResponsiveContainer>
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* Complimentary Orders Section */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <Card className="border-l-4 border-l-rose-500">
+                <CardHeader>
+                  <CardTitle>Complimentary Orders</CardTitle>
+                  <CardDescription>Owner / Friends - Not in Revenue</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-4">
+                    <div className="flex justify-between items-center p-4 bg-rose-50 rounded-lg border border-rose-100">
+                      <div>
+                        <p className="text-sm text-muted-foreground">Total Orders</p>
+                        <p className="text-3xl font-bold text-rose-700">{data?.summary.complimentaryOrders || 0}</p>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-sm text-muted-foreground">Total Value</p>
+                        <p className="text-2xl font-bold text-orange-600">{formatLAK(data?.summary.complimentaryValue || 0)}</p>
+                      </div>
+                    </div>
+                    {data?.complimentaryDetails?.length > 0 ? (
+                      <div className="space-y-2">
+                        <p className="text-sm font-semibold text-slate-700">Complimentary Customers:</p>
+                        {data.complimentaryDetails.map((c: any, i: number) => (
+                          <div key={i} className="flex justify-between items-center p-3 bg-white rounded-lg border">
+                            <div>
+                              <p className="font-semibold text-slate-900">{c.customerName}</p>
+                              <p className="text-xs text-muted-foreground">{c.orderCount} orders</p>
+                            </div>
+                            <p className="font-bold text-rose-600">{formatLAK(c.totalValue)}</p>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="text-sm text-center text-muted-foreground py-4">No complimentary orders in this period</p>
+                    )}
+                  </div>
                 </CardContent>
               </Card>
             </div>
@@ -370,30 +413,6 @@ export default function ReportsPage() {
 
             {/* Performance by Attributes */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-amber-800 flex items-center gap-2">
-                    <Package className="w-5 h-5" />
-                    {t.size_performance}
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-3">
-                    {data?.sizeStats.map((s: any, i: number) => (
-                      <div key={i} className="flex justify-between items-center p-3 rounded-xl border bg-white shadow-sm">
-                        <div className="flex items-center gap-3">
-                          <Badge className="bg-amber-600 text-white w-8 h-8 rounded-full flex items-center justify-center p-0">{s.name}</Badge>
-                          <span className="font-bold text-slate-700">{s.name} Size</span>
-                        </div>
-                        <div className="text-right">
-                          <p className="font-bold text-slate-900">{s.sold} items</p>
-                          <p className="text-xs text-muted-foreground">{formatLAK(s.revenue)}</p>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
 
               <Card>
                 <CardHeader>
@@ -415,6 +434,139 @@ export default function ReportsPage() {
                         </div>
                       </div>
                     ))}
+                  </div>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-amber-800 flex items-center gap-2">
+                    <Package className="w-5 h-5" />
+                    {t.choice_performance}
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-3">
+                    {data?.sizeStats.map((s: any, i: number) => (
+                      <div key={i} className="flex justify-between items-center p-3 rounded-xl border bg-white shadow-sm">
+                        <div className="flex items-center gap-3">
+                          <Badge className="bg-amber-600 text-white w-8 h-8 rounded-full flex items-center justify-center p-0">{s.name}</Badge>
+                          <span className="font-bold text-slate-700">{s.name} Size</span>
+                        </div>
+                        <div className="text-right">
+                          <p className="font-bold text-slate-900">{s.sold} items</p>
+                          <p className="text-xs text-muted-foreground">{formatLAK(s.revenue)}</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+
+            </div>
+          </TabsContent>
+
+          <TabsContent value="customers" className="space-y-6">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Member vs Guest Orders</CardTitle>
+                  <CardDescription>Order distribution by customer type</CardDescription>
+                </CardHeader>
+                <CardContent className="h-[350px]">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie
+                        data={data?.customerStats?.memberVsGuest || []}
+                        dataKey="count"
+                        nameKey="type"
+                        innerRadius={60}
+                        outerRadius={100}
+                        paddingAngle={5}
+                        label
+                      >
+                        {(data?.customerStats?.memberVsGuest || []).map((entry: any, index: number) => (
+                          <Cell key={`cell-${index}`} fill={index === 0 ? '#16a34a' : '#94a3b8'} />
+                        ))}
+                      </Pie>
+                      <Tooltip />
+                      <Legend />
+                    </PieChart>
+                  </ResponsiveContainer>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle>Revenue: Member vs Guest</CardTitle>
+                  <CardDescription>Revenue contribution by customer type</CardDescription>
+                </CardHeader>
+                <CardContent className="h-[350px]">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={data?.customerStats?.memberVsGuest || []}>
+                      <XAxis dataKey="type" />
+                      <YAxis fontSize={11} tickFormatter={(v) => `${(v / 1000)}k`} />
+                      <Tooltip formatter={(v) => formatLAK(v as number)} />
+                      <Bar dataKey="revenue" fill="#16a34a" radius={[4, 4, 0, 0]} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </CardContent>
+              </Card>
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Target className="w-5 h-5 text-amber-600" />
+                    Top Customers by Loyalty Points
+                  </CardTitle>
+                  <CardDescription>Highest loyalty point holders</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-3">
+                    {(data?.customerStats?.topLoyalty || []).map((c: any, i: number) => (
+                      <div key={i} className="flex justify-between items-center p-3 rounded-xl border bg-white shadow-sm">
+                        <div className="flex items-center gap-3">
+                          <div className="w-8 h-8 rounded-full bg-amber-100 flex items-center justify-center font-bold text-amber-900 border border-amber-200">
+                            {i + 1}
+                          </div>
+                          <div>
+                            <p className="font-bold text-slate-900">{c.name}</p>
+                            <p className="text-xs text-muted-foreground">{c.visitCount} visits</p>
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <p className="font-bold text-amber-600">{c.loyaltyPoints} pts</p>
+                          <p className="text-xs text-muted-foreground">{formatLAK(c.totalSpent)}</p>
+                        </div>
+                      </div>
+                    ))}
+                    {(!data?.customerStats?.topLoyalty || data.customerStats.topLoyalty.length === 0) && (
+                      <p className="text-sm text-center text-muted-foreground py-4">No customer data available</p>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle>Loyalty Points Overview</CardTitle>
+                  <CardDescription>Points earned and redeemed</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-4">
+                    <div className="p-4 bg-green-50 rounded-lg border border-green-100">
+                      <p className="text-sm text-muted-foreground">Total Points Earned</p>
+                      <p className="text-3xl font-bold text-green-700">{data?.customerStats?.totalPointsEarned || 0}</p>
+                    </div>
+                    <div className="p-4 bg-blue-50 rounded-lg border border-blue-100">
+                      <p className="text-sm text-muted-foreground">Total Points Redeemed</p>
+                      <p className="text-3xl font-bold text-blue-700">{data?.customerStats?.totalPointsRedeemed || 0}</p>
+                    </div>
+                    <div className="p-4 bg-amber-50 rounded-lg border border-amber-100">
+                      <p className="text-sm text-muted-foreground">Active Members</p>
+                      <p className="text-3xl font-bold text-amber-700">{data?.customerStats?.activeMembers || 0}</p>
+                    </div>
                   </div>
                 </CardContent>
               </Card>
@@ -469,6 +621,164 @@ export default function ReportsPage() {
               </Card>
             </div>
           </TabsContent>
+
+          <TabsContent value="inventory" className="space-y-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+              <Card className="p-4 border-l-4 border-l-blue-500">
+                <div className="flex items-center gap-3">
+                  <div className="bg-blue-100 p-2 rounded-lg">
+                    <ArrowRightLeft className="w-5 h-5 text-blue-600" />
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground uppercase font-bold">{t.transfers_caps}</p>
+                    <p className="text-xl font-bold">{data?.inventoryStats?.transactionTypes?.transfers || 0}</p>
+                  </div>
+                </div>
+              </Card>
+              <Card className="p-4 border-l-4 border-l-green-500">
+                <div className="flex items-center gap-3">
+                  <div className="bg-green-100 p-2 rounded-lg">
+                    <ShoppingCart className="w-5 h-5 text-green-600" />
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground uppercase font-bold">{t.purchases_caps}</p>
+                    <p className="text-xl font-bold">{data?.inventoryStats?.transactionTypes?.purchases || 0}</p>
+                  </div>
+                </div>
+              </Card>
+              <Card className="p-4 border-l-4 border-l-amber-500">
+                <div className="flex items-center gap-3">
+                  <div className="bg-amber-100 p-2 rounded-lg">
+                    <History className="w-5 h-5 text-amber-600" />
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground uppercase font-bold">{t.adjustments_caps}</p>
+                    <p className="text-xl font-bold">{data?.inventoryStats?.transactionTypes?.adjustments || 0}</p>
+                  </div>
+                </div>
+              </Card>
+              <Card className="p-4 border-l-4 border-l-rose-500">
+                <div className="flex items-center gap-3">
+                  <div className="bg-rose-100 p-2 rounded-lg">
+                    <Package className="w-5 h-5 text-rose-600" />
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground uppercase font-bold">{t.total_usage_caps}</p>
+                    <p className="text-xl font-bold">{data?.inventoryStats?.transactionTypes?.usage || 0}</p>
+                  </div>
+                </div>
+              </Card>
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <TrendingUp className="w-5 h-5 text-orange-500" />
+                    {t.most_added_warehouse}
+                  </CardTitle>
+                  <CardDescription>Top ingredients by added quantity</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-4">
+                    {data?.inventoryStats?.mostAdded?.map((item: any, i: number) => (
+                      <div key={i} className="flex items-center justify-between border-b pb-2 last:border-0 last:pb-0">
+                        <div className="flex items-center gap-3">
+                          <Badge variant="outline" className="w-6 h-6 rounded-full flex items-center justify-center p-0">{i + 1}</Badge>
+                          <div>
+                            <p className="font-bold text-slate-800">{item.name}</p>
+                            <p className="text-xs text-muted-foreground">{item.transactions} transactions</p>
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <p className="font-black text-amber-600">{item.quantity} {item.unit}</p>
+                        </div>
+                      </div>
+                    ))}
+                    {(!data?.inventoryStats?.mostAdded || data.inventoryStats.mostAdded.length === 0) && (
+                      <p className="text-center py-10 text-muted-foreground italic">No data recorded for this period.</p>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <ArrowRightLeft className="w-5 h-5 text-blue-500" />
+                    {t.most_transferred_shop}
+                  </CardTitle>
+                  <CardDescription>Top items moving from Warehouse to Shop</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-4">
+                    {data?.inventoryStats?.mostTransferred?.map((item: any, i: number) => (
+                      <div key={i} className="flex items-center justify-between border-b pb-2 last:border-0 last:pb-0">
+                        <div className="flex items-center gap-3">
+                          <Badge variant="outline" className="w-6 h-6 rounded-full flex items-center justify-center p-0">{i + 1}</Badge>
+                          <div>
+                            <p className="font-bold text-slate-800">{item.name}</p>
+                            <p className="text-xs text-muted-foreground">{item.transactions} transactions</p>
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <p className="font-black text-blue-600">{item.quantity} {item.unit}</p>
+                        </div>
+                      </div>
+                    ))}
+                    {(!data?.inventoryStats?.mostTransferred || data.inventoryStats.mostTransferred.length === 0) && (
+                      <p className="text-center py-10 text-muted-foreground italic">No data recorded for this period.</p>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+
+            <Card>
+              <CardHeader>
+                <CardTitle>{t.recent_inventory_tx}</CardTitle>
+                <CardDescription>{t.latest_20_movements}</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b bg-muted/30 text-slate-500 font-bold">
+                        <th className="py-2 px-3 text-left">Date</th>
+                        <th className="py-2 px-3 text-left">Type</th>
+                        <th className="py-2 px-3 text-left">Item</th>
+                        <th className="py-2 px-3 text-right">Qty</th>
+                        <th className="py-2 px-3 text-left">From</th>
+                        <th className="py-2 px-3 text-left">To</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {data?.inventoryStats?.recentTransactions?.map((tx: any) => (
+                        <tr key={tx.id} className="border-b hover:bg-muted/20">
+                          <td className="py-2 px-3 text-muted-foreground">{new Date(tx.createdAt).toLocaleDateString()}</td>
+                          <td className="py-2 px-3">
+                            <Badge variant={tx.type === 'TRANSFER' ? 'default' : tx.type === 'PURCHASE' ? 'outline' : 'secondary'} className="text-[10px] font-bold">
+                              {tx.type}
+                            </Badge>
+                          </td>
+                          <td className="py-2 px-3 font-medium">{tx.ingredientName}</td>
+                          <td className="py-2 px-3 text-right font-bold">{tx.quantity} {tx.unit}</td>
+                          <td className="py-2 px-3 text-xs text-muted-foreground">{tx.fromStore || '-'}</td>
+                          <td className="py-2 px-3 text-xs text-muted-foreground">{tx.toStore || '-'}</td>
+                        </tr>
+                      ))}
+                      {(!data?.inventoryStats?.recentTransactions || data.inventoryStats.recentTransactions.length === 0) && (
+                        <tr>
+                          <td colSpan={6} className="py-10 text-center text-muted-foreground italic">No transactions found.</td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
 
           <TabsContent value="promotions" className="space-y-6">
             <Card>

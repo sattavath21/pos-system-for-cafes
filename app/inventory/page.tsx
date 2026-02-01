@@ -112,11 +112,17 @@ export default function InventoryPage() {
       })
 
       if (res.ok) {
+        alert(`✅ ${t.transfer_success} ${transferQty} ${transferItem.unit} of ${transferItem.name} ${t.to_shop}`)
         setIsTransferOpen(false)
         setTransferQty("")
         fetchInventory()
+      } else {
+        alert('❌ Transfer failed. Please try again.')
       }
-    } catch (e) { console.error(e) }
+    } catch (e) {
+      console.error(e)
+      alert('❌ Transfer failed. Please try again.')
+    }
   }
 
   const handleDelete = async (id: string) => {
@@ -159,6 +165,24 @@ export default function InventoryPage() {
 
 
       <div className="p-6 space-y-6">
+        {/* Inventory View Tabs */}
+        <div className="flex gap-3">
+          <Button
+            variant={activeTab === "SUB" ? "default" : "outline"}
+            onClick={() => setActiveTab("SUB")}
+            className={activeTab === "SUB" ? "bg-amber-600 hover:bg-amber-700" : ""}
+          >
+            🏪 Shop Inventory
+          </Button>
+          <Button
+            variant={activeTab === "MAIN" ? "default" : "outline"}
+            onClick={() => setActiveTab("MAIN")}
+            className={activeTab === "MAIN" ? "bg-amber-600 hover:bg-amber-700" : ""}
+          >
+            🏭 Warehouse
+          </Button>
+        </div>
+
         {/* Stats */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
           <Card className="p-6">
@@ -177,65 +201,68 @@ export default function InventoryPage() {
               {formatLAK(ingredients.reduce((sum, i) => sum + ((activeTab === "SUB" ? i.subStock : i.mainStock) * i.cost), 0))}
             </p>
           </Card>
-          <Card className="p-6 flex items-center justify-center">
-            <Dialog open={isDialogOpen} onOpenChange={(open) => { setIsDialogOpen(open); if (!open) resetForm(); }}>
-              <DialogTrigger asChild>
-                <Button className="w-full bg-amber-600 hover:bg-amber-700">
-                  <Plus className="w-4 h-4 mr-2" />
-                  {t.add_ingredient}
-                </Button>
-              </DialogTrigger>
-              <DialogContent>
-                <DialogHeader>
-                  <DialogTitle>{editingItem ? t.edit : t.add_item} {t.inventory}</DialogTitle>
-                </DialogHeader>
-                <div className="space-y-4">
-                  <div className="space-y-2">
-                    <Label>{t.name}</Label>
-                    <Input value={formData.name} onChange={e => setFormData({ ...formData, name: e.target.value })} />
-                  </div>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label>{t.unit}</Label>
-                      <Input
-                        placeholder="e.g. kg, L, pcs"
-                        value={formData.unit}
-                        onChange={e => setFormData({ ...formData, unit: e.target.value })}
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label>Warehouse Stock</Label>
-                      <Input type="text" value={formData.mainStock} onChange={e => setFormData({ ...formData, mainStock: Number(e.target.value) })} />
-                    </div>
-                    <div className="space-y-2">
-                      <Label>Shop Stock</Label>
-                      <Input type="text" value={formData.subStock} onChange={e => setFormData({ ...formData, subStock: Number(e.target.value) })} />
-                    </div>
-                  </div>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label>{t.min_stock}</Label>
-                      <Input type="text" value={formData.minStock} onChange={e => setFormData({ ...formData, minStock: Number(e.target.value) })} />
-                    </div>
-                    <div className="space-y-2">
-                      <Label>{t.max_stock}</Label>
-                      <Input type="text" value={formData.maxStock} onChange={e => setFormData({ ...formData, maxStock: Number(e.target.value) })} />
-                    </div>
-                  </div>
-                  <div className="space-y-2">
-                    <Label>{t.cost_per_unit} (LAK)</Label>
-                    <Input type="text" value={formData.cost} onChange={e => setFormData({ ...formData, cost: Number(e.target.value) })} />
-                  </div>
-                </div>
-                <DialogFooter>
-                  <Button variant="outline" onClick={() => setIsDialogOpen(false)}>{t.cancel}</Button>
-                  <Button className="bg-amber-600 hover:bg-amber-700" onClick={handleSubmit}>
-                    {editingItem ? t.update : t.save}
+          {(activeTab == "MAIN") ?
+            <Card className="p-6 flex items-center justify-center">
+              <Dialog open={isDialogOpen} onOpenChange={(open) => { setIsDialogOpen(open); if (!open) resetForm(); }}>
+                <DialogTrigger asChild>
+
+                  <Button className="w-full bg-amber-600 hover:bg-amber-700">
+                    <Plus className="w-4 h-4 mr-2" />
+                    {t.add_ingredient}
                   </Button>
-                </DialogFooter>
-              </DialogContent>
-            </Dialog>
-          </Card>
+                </DialogTrigger>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>{editingItem ? t.edit : t.add_item} {t.inventory}</DialogTitle>
+                  </DialogHeader>
+                  <div className="space-y-4">
+                    <div className="space-y-2">
+                      <Label>{t.name}</Label>
+                      <Input value={formData.name} onChange={e => setFormData({ ...formData, name: e.target.value })} />
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label>{t.unit}</Label>
+                        <Input
+                          placeholder="e.g. kg, L, pcs"
+                          value={formData.unit}
+                          onChange={e => setFormData({ ...formData, unit: e.target.value })}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Warehouse Stock</Label>
+                        <Input type="text" value={formData.mainStock} onChange={e => setFormData({ ...formData, mainStock: Number(e.target.value) })} />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Shop Stock</Label>
+                        <Input type="text" value={formData.subStock} onChange={e => setFormData({ ...formData, subStock: Number(e.target.value) })} />
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label>{t.min_stock}</Label>
+                        <Input type="text" value={formData.minStock} onChange={e => setFormData({ ...formData, minStock: Number(e.target.value) })} />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>{t.max_stock}</Label>
+                        <Input type="text" value={formData.maxStock} onChange={e => setFormData({ ...formData, maxStock: Number(e.target.value) })} />
+                      </div>
+                    </div>
+                    <div className="space-y-2">
+                      <Label>{t.cost_per_unit} (LAK)</Label>
+                      <Input type="text" value={formData.cost} onChange={e => setFormData({ ...formData, cost: Number(e.target.value) })} />
+                    </div>
+                  </div>
+                  <DialogFooter>
+                    <Button variant="outline" onClick={() => setIsDialogOpen(false)}>{t.cancel}</Button>
+                    <Button className="bg-amber-600 hover:bg-amber-700" onClick={handleSubmit}>
+                      {editingItem ? t.update : t.save}
+                    </Button>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
+            </Card>
+            : null}
         </div>
 
         {/* Inventory List */}
@@ -286,6 +313,41 @@ export default function InventoryPage() {
             )}
           </div>
         </Card>
+
+        {/* Stock Transfer Dialog */}
+        <Dialog open={isTransferOpen} onOpenChange={setIsTransferOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Transfer Stock: {transferItem?.name}</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4">
+              <p className="text-sm text-muted-foreground">
+                Move stock from Warehouse to Shop for daily operations
+              </p>
+              <div className="space-y-2">
+                <Label>Available in Warehouse: {transferItem?.mainStock} {transferItem?.unit}</Label>
+                <Label>Quantity to Transfer</Label>
+                <Input
+                  type="number"
+                  placeholder="Enter quantity"
+                  value={transferQty}
+                  onChange={e => setTransferQty(e.target.value)}
+                  max={transferItem?.mainStock}
+                />
+              </div>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setIsTransferOpen(false)}>{t.cancel}</Button>
+              <Button
+                className="bg-amber-600 hover:bg-amber-700"
+                onClick={handleTransfer}
+                disabled={!transferQty || parseFloat(transferQty) <= 0 || parseFloat(transferQty) > (transferItem?.mainStock || 0)}
+              >
+                Transfer to Shop
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
     </div >
   )

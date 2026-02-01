@@ -166,8 +166,8 @@ export async function POST(request: Request) {
                     data: {
                         id: orderId,
                         ...orderData,
-                        customer: customerId ? { connect: { id: customerId } } : undefined,
-                        promotion: promoId ? { connect: { id: promoId } } : undefined,
+                        ...(customerId && { customer: { connect: { id: customerId } } }),
+                        ...(promoId && { promotion: { connect: { id: promoId } } }),
                         items: {
                             create: preparedItems
                         }

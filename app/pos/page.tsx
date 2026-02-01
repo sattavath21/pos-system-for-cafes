@@ -858,7 +858,7 @@ export default function POSPage() {
                         )}
                         {item.size && (
                           <span className="text-[10px] bg-slate-100 px-1.5 py-0.5 rounded-full text-slate-600 border border-slate-200 font-bold">
-                            Size: {item.size}
+                            {t.choice}: {item.size}
                           </span>
                         )}
                       </div>
@@ -1222,6 +1222,16 @@ export default function POSPage() {
               alert(t.please_open_shift_first)
               return
             }
+            // Complimentary mode requires customer selection
+            if (isComplimentary && !selectedCustomer) {
+              alert('Please select a customer for complimentary orders')
+              return
+            }
+            // Auto-set payment for complimentary mode
+            if (isComplimentary) {
+              setPaymentMethod('BANK_NOTE')
+              setCashReceived(total.toString())
+            }
             setIsPaymentOpen(true)
           }}
         >
@@ -1236,7 +1246,7 @@ export default function POSPage() {
             showCloseButton={false}
             onInteractOutside={(e) => e.preventDefault()}
             onEscapeKeyDown={(e) => e.preventDefault()}
-            className="max-w-2xl bg-slate-50 border-none shadow-2xl p-0 overflow-hidden"
+            className="max-w-4xl bg-slate-50 border-none shadow-2xl p-0 overflow-hidden"
           >
             <Button
               variant="ghost"
@@ -1266,6 +1276,7 @@ export default function POSPage() {
                         <Button
                           variant={paymentMethod === 'BANK_NOTE' ? "default" : "outline"}
                           onClick={() => setPaymentMethod('BANK_NOTE')}
+                          disabled={isComplimentary}
                           className={`h-12 justify-start px-4 text-lg ${paymentMethod === 'BANK_NOTE' ? 'bg-amber-600 hover:bg-amber-700 shadow-md transform scale-[1.02]' : 'hover:bg-amber-50'}`}
                         >
                           <span className="mr-3 text-xl">💵</span> {t.bank_note}
@@ -1273,7 +1284,8 @@ export default function POSPage() {
                         <Button
                           variant={paymentMethod === 'QR_CODE' ? "default" : "outline"}
                           onClick={() => setPaymentMethod('QR_CODE')}
-                          className={`h-12 justify-start px-4 text-lg ${paymentMethod === 'QR_CODE' ? 'bg-blue-600 hover:bg-blue-700 shadow-md transform scale-[1.02]' : 'hover:bg-blue-50'}`}
+                          disabled={isComplimentary}
+                          className={`h-12 justify-start px-4 text-lg ${isComplimentary ? 'opacity-50 cursor-not-allowed' : paymentMethod === 'QR_CODE' ? 'bg-blue-600 hover:bg-blue-700 shadow-md transform scale-[1.02]' : 'hover:bg-blue-50'}`}
                         >
                           <span className="mr-3 text-xl">📱</span> {t.qr_code}
                         </Button>
@@ -1384,15 +1396,15 @@ export default function POSPage() {
 
                     {/* Bank Note Quick Actions */}
                     <div className="space-y-3">
-                      <div className="flex justify-between items-center px-1">
+                      <div className="flex justify-between items-center px-1 mb-2">
                         <Label className="text-xs font-bold uppercase text-slate-400">{t.bank_note} Quick Add</Label>
                         <Button
-                          variant="link"
-                          size="sm"
-                          className="text-xs h-auto p-0 text-amber-600 font-bold"
+                          variant="default"
+                          size="lg"
+                          className="h-16 px-8 bg-green-600 hover:bg-green-700 text-white font-bold text-xl shadow-md"
                           onClick={() => setCashReceived(total.toString())}
                         >
-                          {t.pay_exact}
+                          💰 {t.pay_exact}
                         </Button>
                       </div>
                       <div className="grid grid-cols-4 gap-2">
@@ -1400,8 +1412,8 @@ export default function POSPage() {
                           <Button
                             key={denom}
                             variant="outline"
-                            size="sm"
-                            className="h-10 text-xs font-bold border-amber-100 bg-amber-50/50 hover:bg-amber-100 hover:border-amber-300 rounded-lg text-amber-900"
+                            size="lg"
+                            className="h-16 text-lg font-bold border-amber-200 bg-amber-50 hover:bg-amber-100 hover:border-amber-400 rounded-lg text-amber-900 shadow-sm"
                             onClick={() => setCashReceived(prev => String(Number(prev || 0) + denom))}
                           >
                             +{denom.toLocaleString()}₭
@@ -1416,7 +1428,7 @@ export default function POSPage() {
                         {t.cancel}
                       </Button>
                       <Button
-                        className="flex-[2] h-14 text-lg font-black bg-green-600 hover:bg-green-700 shadow-lg shadow-green-200 rounded-xl"
+                        className="flex-[2] h-16 text-xl font-black bg-green-600 hover:bg-green-700 shadow-lg shadow-green-200 rounded-xl"
                         disabled={isProcessing || !beeperNumber || !cashReceived || Number(cashReceived) < total}
                         onClick={handleCheckout}
                       >

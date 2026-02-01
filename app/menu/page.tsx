@@ -584,7 +584,7 @@ export default function MenuPage() {
                                     </Button>
                                   </div>
                                   <Button type="button" variant="ghost" size="sm" onClick={() => addSize(vIndex)} className="text-amber-600">
-                                    <Plus className="w-4 h-4 mr-2" /> {t.add_size}
+                                    <Plus className="w-4 h-4 mr-2" /> {t.add_choice}
                                   </Button>
                                 </>
                               )}

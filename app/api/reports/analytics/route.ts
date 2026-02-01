@@ -253,6 +253,141 @@ export async function GET(request: Request) {
             console.log("Analytics Diagnostic: No orders in range. Last order in DB:", lastOrder?.createdAt)
         }
 
+        // Complimentary Orders Stats
+        const complimentaryStats = await prisma.order.aggregate({
+            where: {
+                createdAt: { gte: startDate, lte: endDate },
+                status: 'COMPLETED',
+                isReportable: false
+            },
+            _sum: { total: true },
+            _count: true
+        })
+
+        // Complimentary Orders by Customer
+        const complimentaryOrders = await prisma.order.findMany({
+            where: {
+                createdAt: { gte: startDate, lte: endDate },
+                status: 'COMPLETED',
+                isReportable: false,
+                customerId: { not: null }
+            },
+            include: { customer: true }
+        })
+
+        const complimentaryMap = new Map()
+        complimentaryOrders.forEach(o => {
+            const name = o.customer?.name || "Unknown"
+            if (!complimentaryMap.has(name)) {
+                complimentaryMap.set(name, { customerName: name, orderCount: 0, totalValue: 0 })
+            }
+            const entry = complimentaryMap.get(name)
+            entry.orderCount += 1
+            entry.totalValue += o.total
+        })
+        const complimentaryDetails = Array.from(complimentaryMap.values()).sort((a, b) => b.totalValue - a.totalValue)
+
+        // Customer Statistics
+        const memberOrders = await prisma.order.findMany({
+            where: {
+                createdAt: { gte: startDate, lte: endDate },
+                status: 'COMPLETED',
+                isReportable: true,
+                customerId: { not: null }
+            },
+            select: { total: true, pointsRedeemed: true }
+        })
+
+        const guestOrders = await prisma.order.findMany({
+            where: {
+                createdAt: { gte: startDate, lte: endDate },
+                status: 'COMPLETED',
+                isReportable: true,
+                customerId: null
+            },
+            select: { total: true }
+        })
+
+        const memberVsGuest = [
+            {
+                type: "Member",
+                count: memberOrders.length,
+                revenue: memberOrders.reduce((sum, o) => sum + o.total, 0)
+            },
+            {
+                type: "Guest",
+                count: guestOrders.length,
+                revenue: guestOrders.reduce((sum, o) => sum + o.total, 0)
+            }
+        ]
+
+        // Top Loyalty Customers
+        const topLoyalty = await prisma.customer.findMany({
+            orderBy: { loyaltyPoints: 'desc' },
+            take: 10,
+            select: {
+                name: true,
+                loyaltyPoints: true,
+                totalSpent: true,
+                visitCount: true
+            }
+        })
+
+        // Loyalty Points Stats
+        const allCustomers = await prisma.customer.findMany({
+            select: { loyaltyPoints: true }
+        })
+        const totalPointsEarned = allCustomers.reduce((sum, c) => sum + c.loyaltyPoints, 0)
+        const totalPointsRedeemed = memberOrders.reduce((sum, o) => sum + (o.pointsRedeemed || 0), 0)
+        const activeMembers = allCustomers.filter(c => c.loyaltyPoints > 0).length
+
+        // Inventory Transaction Stats
+        const inventoryTransactions = await prisma.stockTransaction.findMany({
+            where: {
+                createdAt: { gte: startDate, lte: endDate }
+            },
+            include: { ingredient: true },
+            orderBy: { createdAt: 'desc' }
+        })
+
+        // Most Added to Warehouse (PURCHASE/ADJUSTMENT with positive quantity)
+        const addedMap = new Map()
+        inventoryTransactions
+            .filter(t => (t.type === 'PURCHASE' || t.type === 'ADJUSTMENT') && t.quantity > 0)
+            .forEach(t => {
+                const name = t.ingredient.name
+                if (!addedMap.has(name)) {
+                    addedMap.set(name, { name, quantity: 0, unit: t.ingredient.unit, transactions: 0 })
+                }
+                const entry = addedMap.get(name)
+                entry.quantity += t.quantity
+                entry.transactions += 1
+            })
+        const mostAdded = Array.from(addedMap.values()).sort((a, b) => b.quantity - a.quantity).slice(0, 10)
+
+        // Most Transferred to Shop
+        const transferMap = new Map()
+        inventoryTransactions
+            .filter(t => t.type === 'TRANSFER')
+            .forEach(t => {
+                const name = t.ingredient.name
+                if (!transferMap.has(name)) {
+                    transferMap.set(name, { name, quantity: 0, unit: t.ingredient.unit, transactions: 0 })
+                }
+                const entry = transferMap.get(name)
+                entry.quantity += t.quantity
+                entry.transactions += 1
+            })
+        const mostTransferred = Array.from(transferMap.values()).sort((a, b) => b.quantity - a.quantity).slice(0, 10)
+
+        // Transaction type breakdown
+        const transactionTypes = {
+            transfers: inventoryTransactions.filter(t => t.type === 'TRANSFER').length,
+            purchases: inventoryTransactions.filter(t => t.type === 'PURCHASE').length,
+            adjustments: inventoryTransactions.filter(t => t.type === 'ADJUSTMENT').length,
+            usage: inventoryTransactions.filter(t => t.type === 'USAGE').length
+        }
+
         return NextResponse.json({
             dailyTrend,
             categoryShare,
@@ -264,6 +399,29 @@ export async function GET(request: Request) {
             sizeStats,
             variationStats,
             promoImpact,
+            complimentaryDetails,
+            customerStats: {
+                memberVsGuest,
+                topLoyalty,
+                totalPointsEarned,
+                totalPointsRedeemed,
+                activeMembers
+            },
+            inventoryStats: {
+                mostAdded,
+                mostTransferred,
+                transactionTypes,
+                recentTransactions: inventoryTransactions.slice(0, 20).map(t => ({
+                    id: t.id,
+                    type: t.type,
+                    ingredientName: t.ingredient.name,
+                    quantity: t.quantity,
+                    unit: t.ingredient.unit,
+                    fromStore: t.fromStore,
+                    toStore: t.toStore,
+                    createdAt: t.createdAt
+                }))
+            },
             summary: {
                 totalRevenue: summaryStats._sum?.total || 0,
                 netSales: (summaryStats._sum?.total || 0) - (summaryStats._sum?.tax || 0),
@@ -271,7 +429,9 @@ export async function GET(request: Request) {
                 totalOrders: (summaryStats._count as any) || 0,
                 aov: summaryStats._avg?.total || 0,
                 totalDiscounts: summaryStats._sum?.discount || 0,
-                periodCount: dailyTrend.length
+                periodCount: dailyTrend.length,
+                complimentaryOrders: (complimentaryStats._count as any) || 0,
+                complimentaryValue: complimentaryStats._sum?.total || 0
             }
         })
 

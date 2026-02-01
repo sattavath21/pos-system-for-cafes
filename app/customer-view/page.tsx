@@ -219,13 +219,13 @@ export default function CustomerViewPage() {
                                                     )}
                                                     {item.size && (
                                                         <Badge variant="outline" className="bg-slate-50 text-slate-700 border-slate-200 text-xs font-bold px-2 py-0.5">
-                                                            Size: {item.size}
+                                                            {item.size}
                                                         </Badge>
                                                     )}
                                                 </div>
                                                 {(item.sugar || item.shot) && (
                                                     <div className="flex flex-wrap gap-1 mt-1 opacity-80">
-                                                        {item.sugar && item.sugar !== '100%' && <Badge variant="outline" className="text-[12px] bg-amber-50/50 text-amber-800 border-amber-100">Sweet: {item.sugar}</Badge>}
+                                                        {item.sugar && item.sugar !== '100%' && <Badge variant="outline" className="text-[12px] bg-amber-50/50 text-amber-800 border-amber-100">{item.sugar}</Badge>}
                                                         {item.shot && item.shot !== 'Normal' && <Badge variant="outline" className="text-[12px] bg-gray-50/50 text-stone-800 border-stone-100">Shot: {item.shot}</Badge>}
                                                     </div>
                                                 )}

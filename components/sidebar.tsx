@@ -119,7 +119,7 @@ export function Sidebar() {
                 onClick={() => !isCollapsed && router.push('/dashboard')}
             >
                 <div className="flex items-center gap-2 overflow-hidden">
-                    <div className="w-10 h-10 bg-amber-800 rounded-lg flex items-center justify-center text-white shrink-0">
+                    <div className="w-8 h-8 bg-amber-800 rounded-lg flex items-center justify-center text-white shrink-0">
                         <Store className="w-6 h-6" />
                     </div>
                     {!isCollapsed && <span className="text-xl font-bold text-amber-900 tracking-tight whitespace-nowrap">{t.cafe_pos || "CAFE POS"}</span>}
@@ -174,7 +174,7 @@ export function Sidebar() {
 
             {/* Main Navigation */}
             <nav className={cn(
-                "flex-1 py-4 space-y-1.5 overflow-y-auto no-scrollbar px-3",
+                "flex-1 py-2 space-y-1.5 overflow-y-auto no-scrollbar px-3",
                 isCollapsed && "px-2"
             )}>
                 {filteredNavItems.map((item) => {
@@ -188,7 +188,7 @@ export function Sidebar() {
                             title={isCollapsed ? item.name : ""}
                             className={cn(
                                 "flex items-center gap-4 rounded-xl transition-all duration-200 group relative overflow-hidden",
-                                isCollapsed ? "justify-center h-14" : "px-4 h-16",
+                                isCollapsed ? "justify-center h-12" : "px-4 h-15",
                                 isActive
                                     ? "bg-amber-800 text-white shadow-md shadow-amber-900/10"
                                     : "text-slate-600 hover:bg-amber-50 hover:text-amber-900"
@@ -223,7 +223,7 @@ export function Sidebar() {
             <Separator className="bg-amber-100" />
 
             {/* System Actions Section */}
-            <div className={cn("p-3 space-y-1.5", isCollapsed && "px-2")}>
+            <div className={cn("p-2 space-y-0.5", isCollapsed && "px-2")}>
                 {/* User Info Snippet */}
                 {user && !isCollapsed && (
                     <div className="px-4 py-2.5 mb-2 bg-slate-50 rounded-xl border border-slate-100 flex items-center gap-3">
@@ -240,7 +240,7 @@ export function Sidebar() {
                 <button
                     onClick={toggleLanguage}
                     className={cn(
-                        "w-full flex items-center gap-4 rounded-xl text-amber-800 hover:bg-amber-50 transition-all font-semibold mb-1",
+                        "w-full flex items-center gap-4 rounded-xl text-amber-800 hover:bg-amber-50 transition-all font-semibold",
                         isCollapsed ? "justify-center h-12" : "px-4 h-14"
                     )}
                 >
