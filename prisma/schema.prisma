@@ -29,6 +29,7 @@ model Category {
 model Menu {
   id          String          @id @default(uuid())
   name        String
+  localName   String?         // Lao name support
   description String?
   isAvailable Boolean         @default(true)
   image       String?         @default("/placeholder.svg")
@@ -89,11 +90,13 @@ model Ingredient {
 model StockTransaction {
   id           String     @id @default(uuid())
   ingredientId String
-  type         String     // TRANSFER, ADD_MAIN, WASTE
+  type         String     // TRANSFER, DEPOSIT, WITHDRAW, SHOP_ADJUST, USAGE
   quantity     Float
   fromStore    String?    // MAIN, SUB
   toStore      String?    // MAIN, SUB
   notes        String?
+  reason       String?    // For WITHDRAW and SHOP_ADJUST
+  cost         Float?     // For DEPOSIT to track purchase cost
   userId       String?
   createdAt    DateTime   @default(now())
   ingredient   Ingredient @relation(fields: [ingredientId], references: [id])

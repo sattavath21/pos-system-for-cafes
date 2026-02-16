@@ -10,7 +10,7 @@ import {
 } from "recharts"
 import {
   Calendar as CalendarIcon, Download, TrendingUp, DollarSign, ShoppingBag,
-  CreditCard, TrendingDown, Clock, Tag, Package, AlertTriangle, Search, Filter, Target
+  CreditCard, TrendingDown, Clock, Tag, Package, AlertTriangle, Search, Filter, Target, ArrowRightLeft, ShoppingCart, History
 } from "lucide-react"
 import Link from "next/link"
 import { formatLAK } from "@/lib/currency"
@@ -75,6 +75,14 @@ export default function ReportsPage() {
     const start = startOfDay(dateRange.from).toISOString()
     const end = endOfDay(dateRange.to).toISOString()
     const url = `/api/reports/export?startDate=${start}&endDate=${end}`
+    window.open(url, '_blank')
+  }
+
+  const handleExportInventory = async () => {
+    if (!dateRange?.from || !dateRange?.to) return
+    const start = startOfDay(dateRange.from).toISOString()
+    const end = endOfDay(dateRange.to).toISOString()
+    const url = `/api/reports/export-inventory?startDate=${start}&endDate=${end}`
     window.open(url, '_blank')
   }
 
@@ -623,7 +631,7 @@ export default function ReportsPage() {
           </TabsContent>
 
           <TabsContent value="inventory" className="space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
               <Card className="p-4 border-l-4 border-l-blue-500">
                 <div className="flex items-center gap-3">
                   <div className="bg-blue-100 p-2 rounded-lg">
@@ -641,26 +649,37 @@ export default function ReportsPage() {
                     <ShoppingCart className="w-5 h-5 text-green-600" />
                   </div>
                   <div>
-                    <p className="text-xs text-muted-foreground uppercase font-bold">{t.purchases_caps}</p>
-                    <p className="text-xl font-bold">{data?.inventoryStats?.transactionTypes?.purchases || 0}</p>
-                  </div>
-                </div>
-              </Card>
-              <Card className="p-4 border-l-4 border-l-amber-500">
-                <div className="flex items-center gap-3">
-                  <div className="bg-amber-100 p-2 rounded-lg">
-                    <History className="w-5 h-5 text-amber-600" />
-                  </div>
-                  <div>
-                    <p className="text-xs text-muted-foreground uppercase font-bold">{t.adjustments_caps}</p>
-                    <p className="text-xl font-bold">{data?.inventoryStats?.transactionTypes?.adjustments || 0}</p>
+                    <p className="text-xs text-muted-foreground uppercase font-bold">DEPOSITS</p>
+                    <p className="text-xl font-bold">{data?.inventoryStats?.transactionTypes?.deposits || 0}</p>
                   </div>
                 </div>
               </Card>
               <Card className="p-4 border-l-4 border-l-rose-500">
                 <div className="flex items-center gap-3">
                   <div className="bg-rose-100 p-2 rounded-lg">
-                    <Package className="w-5 h-5 text-rose-600" />
+                    <History className="w-5 h-5 text-rose-600" />
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground uppercase font-bold">WITHDRAWALS</p>
+                    <p className="text-xl font-bold">{data?.inventoryStats?.transactionTypes?.withdrawals || 0}</p>
+                  </div>
+                </div>
+              </Card>
+              <Card className="p-4 border-l-4 border-l-amber-500">
+                <div className="flex items-center gap-3">
+                  <div className="bg-amber-100 p-2 rounded-lg">
+                    <Package className="w-5 h-5 text-amber-600" />
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground uppercase font-bold">SHOP ADJUSTS</p>
+                    <p className="text-xl font-bold">{data?.inventoryStats?.transactionTypes?.shopAdjustments || 0}</p>
+                  </div>
+                </div>
+              </Card>
+              <Card className="p-4 border-l-4 border-l-purple-500">
+                <div className="flex items-center gap-3">
+                  <div className="bg-purple-100 p-2 rounded-lg">
+                    <Package className="w-5 h-5 text-purple-600" />
                   </div>
                   <div>
                     <p className="text-xs text-muted-foreground uppercase font-bold">{t.total_usage_caps}</p>
@@ -735,9 +754,15 @@ export default function ReportsPage() {
             </div>
 
             <Card>
-              <CardHeader>
-                <CardTitle>{t.recent_inventory_tx}</CardTitle>
-                <CardDescription>{t.latest_20_movements}</CardDescription>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <div>
+                  <CardTitle>{t.recent_inventory_tx}</CardTitle>
+                  <CardDescription>{t.latest_20_movements}</CardDescription>
+                </div>
+                <Button variant="outline" size="sm" onClick={handleExportInventory} className="text-amber-600 border-amber-200 hover:bg-amber-50">
+                  <Download className="w-4 h-4 mr-2" />
+                  {t.export_excel || "Export Excel"}
+                </Button>
               </CardHeader>
               <CardContent>
                 <div className="overflow-x-auto">
@@ -755,7 +780,7 @@ export default function ReportsPage() {
                     <tbody>
                       {data?.inventoryStats?.recentTransactions?.map((tx: any) => (
                         <tr key={tx.id} className="border-b hover:bg-muted/20">
-                          <td className="py-2 px-3 text-muted-foreground">{new Date(tx.createdAt).toLocaleDateString()}</td>
+                          <td className="py-2 px-3 text-muted-foreground">{new Date(tx.createdAt).toLocaleDateString('en-GB')}</td>
                           <td className="py-2 px-3">
                             <Badge variant={tx.type === 'TRANSFER' ? 'default' : tx.type === 'PURCHASE' ? 'outline' : 'secondary'} className="text-[10px] font-bold">
                               {tx.type}

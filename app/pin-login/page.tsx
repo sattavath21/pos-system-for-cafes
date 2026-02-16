@@ -12,20 +12,23 @@ function PinLoginContent() {
     const [pin, setPin] = useState("")
     const [error, setError] = useState("")
     const [isLoading, setIsLoading] = useState(false)
+    const [isNavigating, setIsNavigating] = useState(false)
     const router = useRouter()
     const searchParams = useSearchParams()
     const role = searchParams.get('role') // Get role from URL
     const { t } = useTranslation()
 
     const handleNumberClick = (num: string) => {
-        if (pin.length < 4) {
+        if (pin.length < 4 && !isNavigating) {
             const newPin = pin + num
             setPin(newPin)
             setError("")
-            if (newPin.length === 4) {
+            if (newPin.length === 4 && !isNavigating) {
                 // Use a small timeout to allow UI to update before submitting
                 setTimeout(() => {
-                    document.getElementById('pin-submit-btn')?.click()
+                    if (!isNavigating) {
+                        document.getElementById('pin-submit-btn')?.click()
+                    }
                 }, 100)
             }
         }
@@ -48,6 +51,7 @@ function PinLoginContent() {
         }
 
         setIsLoading(true)
+        setIsNavigating(true)
         setError("")
 
         try {
@@ -64,13 +68,14 @@ function PinLoginContent() {
                 if (data.user.role !== role) {
                     setError(`Invalid PIN for ${role} role`)
                     setPin("")
+                    setIsNavigating(false)
                     return
                 }
 
                 // Store user data
                 localStorage.setItem('user', JSON.stringify(data.user))
 
-                // Redirect based on role
+                // Redirect based on role - keep isNavigating true until navigation completes
                 if (role === 'ADMIN') {
                     router.push('/dashboard')
                 } else if (role === 'CASHIER') {
@@ -78,13 +83,16 @@ function PinLoginContent() {
                 } else if (role === 'KITCHEN') {
                     router.push('/kitchen')
                 }
+                // Don't reset isNavigating here - let it stay true during navigation
             } else {
                 setError(data.error || 'Invalid PIN')
                 setPin("")
+                setIsNavigating(false)
             }
         } catch (err) {
             setError('Login failed. Please try again.')
             setPin("")
+            setIsNavigating(false)
         } finally {
             setIsLoading(false)
         }

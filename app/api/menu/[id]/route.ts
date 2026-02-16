@@ -5,7 +5,7 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
     try {
         const { id } = await params
         const body = await request.json()
-        const { name, description, category, image, isAvailable, variations } = body
+        const { name, localName, description, category, image, isAvailable, variations } = body
 
         // Find or Create Category
         let categoryId: string
@@ -36,6 +36,7 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
                 where: { id },
                 data: {
                     name,
+                    localName,
                     description,
                     categoryId,
                     image: image || '/placeholder.svg',

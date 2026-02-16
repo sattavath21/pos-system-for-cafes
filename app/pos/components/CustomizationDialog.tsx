@@ -31,6 +31,7 @@ interface CustomizationDialogProps {
     onConfirm: (selection: {
         variationSizeId: string
         name: string
+        localName?: string
         price: number
         sugar: string
         shot: string
@@ -38,6 +39,7 @@ interface CustomizationDialogProps {
         size: string
     }) => void
     menuName: string
+    localName?: string
     variations: MenuVariation[]
 }
 
@@ -47,6 +49,7 @@ export function CustomizationDialog({
     onClose,
     onConfirm,
     menuName,
+    localName,
     variations
 }: CustomizationDialogProps) {
     const { t } = useTranslation()
@@ -58,8 +61,8 @@ export function CustomizationDialog({
     // Reset defaults when opening
     useEffect(() => {
         if (isOpen && variations.length > 0) {
-            setSugar("Normal")
-            setShot("Normal")
+            setSugar("Normal Sweet")
+            setShot("Normal Shot")
 
             // Set default variation (first available)
             const defaultVar = variations[0]
@@ -74,14 +77,14 @@ export function CustomizationDialog({
     const sugarOptions = [
         { label: "No Sweet", icon: CandyOff },
         { label: "Less Sweet", icon: Droplet },
-        { label: "Normal", icon: Droplets },
+        { label: "Normal Sweet", icon: Droplets },
         { label: "Extra Sweet", icon: Candy }
 
     ]
     const shotOptions = [
-        { label: "Reduced", level: 0.5 },
-        { label: "Normal", level: 1 },
-        { label: "Double", level: 2 }
+        { label: "Reduced Shot", level: 0.5 },
+        { label: "Normal Shot", level: 1 },
+        { label: "Double Shot", level: 2 }
     ]
 
     // Get current variation object
@@ -122,6 +125,7 @@ export function CustomizationDialog({
         onConfirm({
             variationSizeId: selectedSize,
             name: menuName, // Keep name as the base product name
+            localName: localName,
             price: finalPrice,
             sugar,
             shot,

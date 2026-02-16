@@ -28,6 +28,7 @@ type Order = {
     createdAt: string
     items?: any[]
     cancellationReason?: string
+    isReportable?: boolean
 }
 
 export default function ActiveOrdersPage() {
@@ -112,7 +113,7 @@ export default function ActiveOrdersPage() {
 
     const getStatusBadge = (status: string) => {
         const variants: Record<string, { color: string; icon: any; label: string }> = {
-            PENDING: { color: "bg-yellow-100 text-yellow-800", icon: Clock, label: t.pending_status },
+            // PENDING: { color: "bg-yellow-100 text-yellow-800", icon: Clock, label: t.pending_status },
             COMPLETED: { color: "bg-green-100 text-green-800", icon: CheckCircle, label: t.completed_status },
             HOLD: { color: "bg-orange-100 text-orange-800", icon: Clock, label: t.hold_status },
             CANCELLED: { color: "bg-red-100 text-red-800", icon: XCircle, label: t.cancelled_status }
@@ -136,7 +137,7 @@ export default function ActiveOrdersPage() {
             <div className="p-6 space-y-6">
                 {/* Filter Tabs */}
                 <div className="flex gap-2 overflow-x-auto">
-                    {["ALL", "PENDING", "HOLD", "COMPLETED", "CANCELLED"].map((status) => (
+                    {["ALL", "HOLD", "COMPLETED", "CANCELLED"].map((status) => (
                         <Button
                             key={status}
                             variant={filter === status ? "default" : "outline"}
@@ -189,9 +190,16 @@ export default function ActiveOrdersPage() {
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                     {filteredOrders.map((order) => (
                         <Card key={order.id} className="p-4">
-                            <div className="flex justify-between items-start mb-3">
+                            <div className="flex justify-between items-start">
                                 <div>
-                                    <h3 className="font-bold text-lg">{order.orderNumber}</h3>
+                                    <div className="flex items-center gap-2">
+                                        <h3 className="font-bold text-lg">{order.orderNumber}</h3>
+                                        {order.isReportable === false && (
+                                            <Badge variant="outline" className="border-rose-500 text-rose-700 bg-rose-50 font-black animate-pulse">
+                                                {t.complimentary || "COMPLIMENTARY"}
+                                            </Badge>
+                                        )}
+                                    </div>
                                     <p className="text-sm text-muted-foreground">
                                         {new Date(order.createdAt).toLocaleString()}
                                     </p>
@@ -206,7 +214,7 @@ export default function ActiveOrdersPage() {
                             )}
 
                             {order.beeperNumber && (
-                                <div className="mb-2">
+                                <div className="">
                                     <Badge variant="outline" className="border-orange-500 text-orange-700 bg-orange-50 font-bold">
                                         {t.beeper.toUpperCase()}: {order.beeperNumber}
                                     </Badge>

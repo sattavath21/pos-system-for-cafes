@@ -29,6 +29,7 @@ export async function GET(request: Request) {
         const transformed = menus.map(menu => ({
             id: menu.id,
             name: menu.name,
+            localName: menu.localName,
             description: menu.description,
             image: menu.image,
             isAvailable: menu.isAvailable,
@@ -60,7 +61,7 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
     try {
         const body = await request.json()
-        const { name, description, category, image, isAvailable, variations } = body
+        const { name, localName, description, category, image, isAvailable, variations } = body
 
         if (!name) {
             return NextResponse.json({ error: 'Name is required' }, { status: 400 })
@@ -91,6 +92,7 @@ export async function POST(request: Request) {
         const menu = await prisma.menu.create({
             data: {
                 name,
+                localName,
                 description,
                 categoryId,
                 image: image || '/placeholder.svg',

@@ -350,10 +350,10 @@ export async function GET(request: Request) {
             orderBy: { createdAt: 'desc' }
         })
 
-        // Most Added to Warehouse (PURCHASE/ADJUSTMENT with positive quantity)
+        // Most Added to Warehouse (DEPOSIT transactions)
         const addedMap = new Map()
         inventoryTransactions
-            .filter(t => (t.type === 'PURCHASE' || t.type === 'ADJUSTMENT') && t.quantity > 0)
+            .filter(t => t.type === 'DEPOSIT')
             .forEach(t => {
                 const name = t.ingredient.name
                 if (!addedMap.has(name)) {
@@ -383,8 +383,9 @@ export async function GET(request: Request) {
         // Transaction type breakdown
         const transactionTypes = {
             transfers: inventoryTransactions.filter(t => t.type === 'TRANSFER').length,
-            purchases: inventoryTransactions.filter(t => t.type === 'PURCHASE').length,
-            adjustments: inventoryTransactions.filter(t => t.type === 'ADJUSTMENT').length,
+            deposits: inventoryTransactions.filter(t => t.type === 'DEPOSIT').length,
+            withdrawals: inventoryTransactions.filter(t => t.type === 'WITHDRAW').length,
+            shopAdjustments: inventoryTransactions.filter(t => t.type === 'SHOP_ADJUST').length,
             usage: inventoryTransactions.filter(t => t.type === 'USAGE').length
         }
 

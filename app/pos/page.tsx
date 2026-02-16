@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogTrigger } from "@/components/ui/dialog"
 import { Label } from "@/components/ui/label"
-import { Search, Plus, List, Package, Tag, Clock, X, Minus, Trash2, Pause, User, ArrowLeft, Check, ChevronRight, Printer, CheckCircle, Star, ShoppingCart } from "lucide-react"
+import { Search, Plus, List, Package, Tag, Clock, X, Minus, Trash2, Pause, User, ArrowLeft, Check, ChevronRight, Printer, CheckCircle, Star, ShoppingCart, CandyOff, Droplet, Droplets, Candy, Coffee } from "lucide-react"
 import Link from "next/link"
 import { Badge } from "@/components/ui/badge"
 import { formatLAK, calculateChange, LAK_DENOMINATIONS, calculateTax, calculateInclusiveTax } from "@/lib/currency"
@@ -22,6 +22,7 @@ import { Switch } from "@/components/ui/switch"
 type MenuItem = {
   id: string
   name: string
+  localName?: string
   category: string
   isAvailable: boolean
   image?: string
@@ -40,6 +41,7 @@ type CartItem = {
   id: string
   variationSizeId: string
   name: string
+  localName?: string
   price: number
   quantity: number
   sugar?: string
@@ -513,6 +515,7 @@ export default function POSPage() {
   const handleAddToCartWithCustomization = (selection: {
     variationSizeId: string
     name: string
+    localName?: string
     price: number
     sugar: string
     shot: string
@@ -539,6 +542,7 @@ export default function POSPage() {
         id: uniqueId,
         variationSizeId: selection.variationSizeId,
         name: selection.name,
+        localName: selection.localName,
         price: finalPrice,
         quantity: 1,
         sugar: selection.sugar,
@@ -581,7 +585,7 @@ export default function POSPage() {
           taxAmount: tax,
           items: cart.map(i => ({
             variationSizeId: i.variationSizeId,
-            name: i.name,
+            name: `${i.localName || i.name} (${i.name})`, // Snapshot both names
             price: i.price,
             quantity: i.quantity,
             sugarLevel: i.sugar,
@@ -745,7 +749,9 @@ export default function POSPage() {
   }
 
   const filteredItems = menuItems.filter(
-    (item) => (activeCategory === "All" || item.category === activeCategory) && item.name.toLowerCase().includes(searchQuery.toLowerCase()),
+    (item) => (activeCategory === "All" || item.category === activeCategory) &&
+      (item.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        (item.localName && item.localName.toLowerCase().includes(searchQuery.toLowerCase())))
   )
 
   const { t } = useTranslation()
@@ -775,7 +781,7 @@ export default function POSPage() {
 
         {/* Categories */}
         <div className="p-4 border-b bg-white">
-          <div className="flex gap-3 overflow-x-auto">
+          <div className="flex flex-wrap gap-3">
             {categories.map((category) => (
               <Button
                 key={category}
@@ -795,23 +801,32 @@ export default function POSPage() {
             {filteredItems.map((item) => (
               <Card
                 key={item.id}
-                className={`p-4 cursor-pointer hover:shadow-lg transition-shadow ${!item.isAvailable ? 'opacity-50 pointer-events-none' : ''}`}
+                className={`p-4 cursor-pointer hover:shadow-lg transition-all bg-amber-50 hover:bg-amber-100 border-amber-200 shadow-sm ${!item.isAvailable ? 'opacity-50 pointer-events-none' : ''}`}
                 onClick={() => handleClickProduct(item)}
               >
-                <div className="aspect-square bg-gradient-to-br from-amber-100 to-orange-100 rounded-lg mb-3 flex items-center justify-center overflow-hidden">
-                  {item.image && item.image !== '/placeholder.svg' ? (
-                    <img src={item.image} alt={item.name} className="w-full h-full object-cover" />
-                  ) : (
-                    <span className="text-4xl">☕</span>
-                  )}
+                <div className="flex flex-col h-full justify-between">
+                  <div className="relative w-full aspect-square mb-3 rounded-md overflow-hidden bg-white shadow-inner">
+                    {item.image && item.image !== "/placeholder.svg" ? (
+                      <Image
+                        src={item.image}
+                        alt={item.name}
+                        fill
+                        className="object-cover"
+                        sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+                      />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center text-slate-300">
+                        <Package className="w-12 h-12" />
+                      </div>
+                    )}
+                  </div>
+                  <div>
+                    <h3 className="font-bold text-lg leading-tight text-slate-800">{item.localName || item.name}</h3>
+                    <p className="text-sm text-slate-500 font-medium">{item.name}</p>
+                  </div>
                 </div>
-                <h3 className="font-semibold mb-1 text-balance">{item.name}</h3>
-                <p className="text-lg font-bold text-amber-600">
-                  {item.variations?.length > 0
-                    ? formatLAK(Math.min(...item.variations.flatMap(v => v.sizes.map(s => s.price))))
-                    : "N/A"}
-                </p>
               </Card>
+
             ))}
           </div>
         </div>
@@ -849,7 +864,10 @@ export default function POSPage() {
                 <Card key={item.id} className="p-3">
                   <div className="flex items-start justify-between mb-2">
                     <div className="flex-1">
-                      <h4 className="font-semibold text-slate-800">{item.name}</h4>
+                      <h4 className="font-semibold text-slate-800 leading-tight">
+                        {item.localName || item.name}
+                        {item.localName && <span className="text-xs text-slate-500 font-medium ml-1">({item.name})</span>}
+                      </h4>
                       <div className="flex flex-wrap gap-1 mt-0.5 mb-1">
                         {item.variation && (
                           <span className="text-[10px] bg-amber-50 px-1.5 py-0.5 rounded-full text-amber-700 border border-amber-100 font-bold uppercase">
@@ -864,11 +882,20 @@ export default function POSPage() {
                       </div>
                       <p className="text-sm text-muted-foreground">{formatLAK(item.price)} {t.each}</p>
                       <div className="flex flex-wrap gap-1 mt-1">
-                        {item.sugar && item.sugar !== "Normal" && (
-                          <span className="text-[10px] bg-slate-50 px-1 rounded text-slate-500 border border-slate-100">{t.sugar}: {item.sugar}</span>
+                        {item.sugar && item.sugar !== "Normal Sweet" && (
+                          <div className="flex items-center gap-1 text-[10px] bg-slate-50 px-1.5 py-0.5 rounded text-slate-500 border border-slate-100">
+                            {item.sugar === "No Sweet" && <CandyOff className="w-3 h-3" />}
+                            {item.sugar === "Less Sweet" && <Droplet className="w-3 h-3" />}
+                            {item.sugar === "Extra Sweet" && <Candy className="w-3 h-3" />}
+                            <span>{item.sugar}</span>
+                          </div>
                         )}
-                        {item.shot && item.shot !== "Normal" && (
-                          <span className="text-[10px] bg-slate-50 px-1 rounded text-slate-500 border border-slate-100">{t.shot}: {item.shot}</span>
+                        {item.shot && item.shot !== "Normal Shot" && (
+                          <div className="flex items-center gap-1 text-[10px] bg-slate-50 px-1.5 py-0.5 rounded text-slate-500 border border-slate-100">
+                            {item.shot === "Reduced Shot" && <div className="flex"><Minus className="w-3 h-3" /><Coffee className="w-3 h-3" /></div>}
+                            {item.shot === "Double Shot" && <div className="flex"><Coffee className="w-3 h-3" /><Coffee className="w-3 h-3" /></div>}
+                            <span>{item.shot}</span>
+                          </div>
                         )}
                       </div>
                     </div>
@@ -1605,10 +1632,11 @@ export default function POSPage() {
             onClose={() => { setCustomizationOpen(false); setProductToCustomize(null); }}
             onConfirm={handleAddToCartWithCustomization}
             menuName={productToCustomize.name}
+            localName={productToCustomize.localName}
             variations={productToCustomize.variations || []}
           />
         )}
       </div>
-    </div>
+    </div >
   )
 }

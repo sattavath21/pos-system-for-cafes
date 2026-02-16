@@ -105,11 +105,7 @@ export default function ShiftsPage() {
                         <ChevronRight className="w-5 h-4 text-muted-foreground" />
                         <h1 className="text-2xl font-bold text-amber-900">{t.shift_reports}</h1>
                     </div>
-                    <div className="flex items-center gap-4">
-                        <Link href="/dashboard">
-                            <Button variant="outline" size="sm">{t.dashboard}</Button>
-                        </Link>
-                    </div>
+
                 </div>
             </header>
 

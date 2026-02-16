@@ -146,10 +146,26 @@ export default function DashboardPage() {
     <div className="p-6 lg:p-10 space-y-8">
       {/* Header Section */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-3xl font-bold text-slate-900">{t.dashboard}</h1>
-          <p className="text-slate-500 mt-1">{t.dashboard_welcome || "Welcome back! Here's what's happening today."}</p>
+        <div className="flex flex-row items-center gap-8">
+          <div>
+            <h1 className="text-3xl font-bold text-slate-900">{t.dashboard}</h1>
+            <p className="text-slate-500 mt-1">{t.dashboard_welcome || "Welcome back! Here's what's happening today."}</p>
+          </div>
+          <div className="items-center align-center justify-center">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => router.push('/shifts')}
+              className="rounded-xl font-bold text-slate-600 hover:text-amber-900 border-slate-200"
+            >
+              {t.shift_history || "Shift History"}
+            </Button>
+          </div>
+
         </div>
+
+
+
         <div className="flex items-center gap-3">
           <div className={cn(
             "px-4 py-2 rounded-full flex items-center gap-2 border font-bold text-sm cursor-pointer hover:bg-slate-50 transition-colors",
@@ -162,14 +178,7 @@ export default function DashboardPage() {
             <Calendar className="w-4 h-4 text-slate-400" />
             {new Date().toLocaleDateString(undefined, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
           </div>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => router.push('/shifts')}
-            className="rounded-xl font-bold text-slate-600 hover:text-amber-900 border-slate-200"
-          >
-            {t.shift_history || "Shift History"}
-          </Button>
+
         </div>
       </div>
 

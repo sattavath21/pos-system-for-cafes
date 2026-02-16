@@ -36,6 +36,7 @@ type VariationItem = {
 type MenuItem = {
   id: string
   name: string
+  localName?: string
   description: string
   // price is removed from top level in DB, but UI might still have it in type definition for legacy, ignoring it.
   category: string
@@ -155,6 +156,7 @@ export default function MenuPage() {
     setFormData({
       id: item.id,
       name: item.name,
+      localName: item.localName,
       description: item.description,
       category: item.category,
       isAvailable: item.isAvailable,
@@ -180,6 +182,7 @@ export default function MenuPage() {
     setEditingItem(null)
     setFormData({
       name: "",
+      localName: "",
       description: "",
       category: categories[0]?.name || "Coffee",
       isAvailable: true,
@@ -428,12 +431,22 @@ export default function MenuPage() {
                   <div className="grid grid-cols-2 gap-6 p-4 border rounded-lg bg-slate-50">
                     <div className="space-y-4">
                       <div className="space-y-2">
-                        <Label htmlFor="name">{t.item_name}</Label>
+                        <Label htmlFor="name">{t.item_name} (EN)</Label>
                         <Input
                           id="name"
                           value={formData.name || ""}
                           onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                           required
+                          placeholder="English Name"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="localName">{t.item_name} (LAO)</Label>
+                        <Input
+                          id="localName"
+                          value={formData.localName || ""}
+                          onChange={(e) => setFormData({ ...formData, localName: e.target.value })}
+                          placeholder="ຊື່ພາສາລາວ"
                         />
                       </div>
                       <div className="space-y-2">
@@ -690,7 +703,8 @@ export default function MenuPage() {
                 </div>
                 <div>
                   <div className="flex items-center gap-2">
-                    <h3 className="font-semibold text-lg">{item.name}</h3>
+                    <h3 className="font-semibold text-lg">{item.localName || item.name}</h3>
+                    <span className="text-muted-foreground text-sm">{item.name}</span>
                     {!item.isAvailable && (
                       <Badge variant="secondary" className="bg-red-100 text-red-700">
                         {t.unavailable}
