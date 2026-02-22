@@ -70,6 +70,26 @@ export default function ReportsPage() {
     }
   }
 
+  const [refunds, setRefunds] = useState<any[]>([])
+  const [isLoadingRefunds, setIsLoadingRefunds] = useState(false)
+
+  const fetchRefunds = async () => {
+    if (!dateRange?.from || !dateRange?.to) return
+    setIsLoadingRefunds(true)
+    try {
+      const start = startOfDay(dateRange.from).toISOString()
+      const end = endOfDay(dateRange.to).toISOString()
+      const res = await fetch(`/api/reports/refunds?startDate=${start}&endDate=${end}`)
+      if (res.ok) {
+        setRefunds(await res.json())
+      }
+    } catch (e) {
+      console.error(e)
+    } finally {
+      setIsLoadingRefunds(false)
+    }
+  }
+
   const handleExport = async () => {
     if (!dateRange?.from || !dateRange?.to) return
     const start = startOfDay(dateRange.from).toISOString()
@@ -241,6 +261,20 @@ export default function ReportsPage() {
                 <p className="text-[14px] text-muted-foreground mt-1 uppercase tracking-wider font-semibold">{t.average_order_value}</p>
               </CardHeader>
             </Card>
+            <Card className="border-l-4 border-l-rose-500 shadow-none bg-slate-50/50">
+              <CardHeader className="p-4">
+                <CardDescription>COGS</CardDescription>
+                <CardTitle className="text-2xl font-bold">{formatLAK(data?.summary.totalCOGS || 0)}</CardTitle>
+                <p className="text-[14px] text-muted-foreground mt-1 uppercase tracking-wider font-semibold">Cost of Goods Sold</p>
+              </CardHeader>
+            </Card>
+            <Card className="border-l-4 border-l-indigo-500 shadow-none bg-slate-50/50">
+              <CardHeader className="p-4">
+                <CardDescription>Gross Profit</CardDescription>
+                <CardTitle className="text-2xl font-bold text-indigo-600">{formatLAK(data?.summary.grossProfit || 0)}</CardTitle>
+                <p className="text-[14px] text-muted-foreground mt-1 uppercase tracking-wider font-semibold">Revenue - COGS</p>
+              </CardHeader>
+            </Card>
 
           </div>
         </div>
@@ -249,8 +283,9 @@ export default function ReportsPage() {
           <TabsList className="bg-muted p-1 rounded-lg">
             <TabsTrigger value="overview">{t.overview}</TabsTrigger>
             <TabsTrigger value="products">{t.product_performance}</TabsTrigger>
-            <TabsTrigger value="customers">Customers & Loyalty</TabsTrigger>
+            <TabsTrigger value="customers">Customers</TabsTrigger>
             <TabsTrigger value="inventory">Inventory</TabsTrigger>
+            <TabsTrigger value="advanced" onClick={fetchRefunds}>Advanced & Refunds</TabsTrigger>
             <TabsTrigger value="operations">{t.operations_payments}</TabsTrigger>
             <TabsTrigger value="promotions">{t.promotions_roi}</TabsTrigger>
           </TabsList>
@@ -458,7 +493,7 @@ export default function ReportsPage() {
                       <div key={i} className="flex justify-between items-center p-3 rounded-xl border bg-white shadow-sm">
                         <div className="flex items-center gap-3">
                           <Badge className="bg-amber-600 text-white w-8 h-8 rounded-full flex items-center justify-center p-0">{s.name}</Badge>
-                          <span className="font-bold text-slate-700">{s.name} Size</span>
+                          <span className="font-bold text-slate-700">{s.name}</span>
                         </div>
                         <div className="text-right">
                           <p className="font-bold text-slate-900">{s.sold} items</p>
@@ -775,6 +810,8 @@ export default function ReportsPage() {
                         <th className="py-2 px-3 text-right">Qty</th>
                         <th className="py-2 px-3 text-left">From</th>
                         <th className="py-2 px-3 text-left">To</th>
+                        <th className="py-2 px-3 text-left">Reason</th>
+                        <th className="py-2 px-3 text-left">Notes</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -790,11 +827,13 @@ export default function ReportsPage() {
                           <td className="py-2 px-3 text-right font-bold">{tx.quantity} {tx.unit}</td>
                           <td className="py-2 px-3 text-xs text-muted-foreground">{tx.fromStore || '-'}</td>
                           <td className="py-2 px-3 text-xs text-muted-foreground">{tx.toStore || '-'}</td>
+                          <td className="py-2 px-3 text-xs italic text-muted-foreground">{tx.reason || '-'}</td>
+                          <td className="py-2 px-3 text-xs text-muted-foreground">{tx.notes || '-'}</td>
                         </tr>
                       ))}
                       {(!data?.inventoryStats?.recentTransactions || data.inventoryStats.recentTransactions.length === 0) && (
                         <tr>
-                          <td colSpan={6} className="py-10 text-center text-muted-foreground italic">No transactions found.</td>
+                          <td colSpan={8} className="py-10 text-center text-muted-foreground italic">No transactions found.</td>
                         </tr>
                       )}
                     </tbody>
@@ -804,6 +843,167 @@ export default function ReportsPage() {
             </Card>
           </TabsContent>
 
+
+          <TabsContent value="advanced" className="space-y-6">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              {/* Refund Tracking */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <History className="w-5 h-5 text-rose-500" />
+                    Refund Tracking
+                  </CardTitle>
+                  <CardDescription>All cancelled orders and reasons</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="border-b bg-muted/30 text-slate-500 font-bold">
+                          <th className="py-2 px-3 text-left">Order</th>
+                          <th className="py-2 px-3 text-left">Customer</th>
+                          <th className="py-2 px-3 text-right">Amount</th>
+                          <th className="py-2 px-3 text-left">Reason</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {isLoadingRefunds ? (
+                          <tr><td colSpan={4} className="py-10 text-center">Loading refunds...</td></tr>
+                        ) : refunds.length === 0 ? (
+                          <tr><td colSpan={4} className="py-10 text-center italic text-muted-foreground">No refunds found</td></tr>
+                        ) : (
+                          refunds.map((r: any) => (
+                            <tr key={r.id} className="border-b hover:bg-muted/10">
+                              <td className="py-2 px-3 font-medium text-slate-700">{r.orderNumber}</td>
+                              <td className="py-2 px-3 text-slate-500">{r.customerName}</td>
+                              <td className="py-2 px-3 text-right font-bold text-rose-600">{formatLAK(r.total)}</td>
+                              <td className="py-2 px-3 text-xs italic text-slate-400">{r.reason}</td>
+                            </tr>
+                          ))
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Margin Analysis */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <TrendingDown className="w-5 h-5 text-amber-500" />
+                    Low Margin Analysis
+                  </CardTitle>
+                  <CardDescription>Items with high cost vs selling price</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-4">
+                    {data?.advanced?.lowMarginItems?.map((item: any, i: number) => (
+                      <div key={i} className="flex flex-col p-3 rounded-xl border bg-white shadow-sm">
+                        <div className="flex justify-between items-start mb-2">
+                          <div>
+                            <p className="font-bold text-slate-800">{item.menuName}</p>
+                            <p className="text-[10px] text-muted-foreground uppercase">{item.variation} - {item.size}</p>
+                          </div>
+                          <Badge variant={item.marginPercent < 20 ? "destructive" : "outline"} className="text-[10px] font-black">
+                            {item.marginPercent.toFixed(1)}% Margin
+                          </Badge>
+                        </div>
+                        <div className="grid grid-cols-3 gap-2 text-center border-t pt-2">
+                          <div>
+                            <p className="text-[10px] text-muted-foreground uppercase">Price</p>
+                            <p className="font-bold text-blue-600">{formatLAK(item.price)}</p>
+                          </div>
+                          <div>
+                            <p className="text-[10px] text-muted-foreground uppercase">Cost</p>
+                            <p className="font-bold text-rose-500">{formatLAK(item.cost)}</p>
+                          </div>
+                          <div>
+                            <p className="text-[10px] text-muted-foreground uppercase">Profit</p>
+                            <p className="font-bold text-emerald-600">{formatLAK(item.margin)}</p>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                    {(!data?.advanced?.lowMarginItems || data.advanced.lowMarginItems.length === 0) && (
+                      <p className="py-10 text-center italic text-muted-foreground">No margin data available. Ensure recipes have costs.</p>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              {/* COGS & Shrinkage Breakdown */}
+              <Card className="lg:col-span-1">
+                <CardHeader>
+                  <CardTitle>Daily COGS Breakdown</CardTitle>
+                  <CardDescription>Sales vs Wastage Costs</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="p-4 bg-slate-50 rounded-2xl space-y-3">
+                    <div className="flex justify-between items-center text-sm">
+                      <span className="text-muted-foreground">Sales usage cost</span>
+                      <span className="font-bold">{formatLAK(data?.summary.salesCost || 0)}</span>
+                    </div>
+                    <div className="flex justify-between items-center text-sm">
+                      <span className="text-muted-foreground">Recorded wastage</span>
+                      <span className="font-bold text-rose-600">{formatLAK(data?.summary.wastageCost || 0)}</span>
+                    </div>
+                    <div className="border-t pt-2 flex justify-between items-center text-lg">
+                      <span className="font-bold text-slate-800">Total COGS</span>
+                      <span className="font-black text-rose-600">{formatLAK(data?.summary.totalCOGS || 0)}</span>
+                    </div>
+                  </div>
+                  <div className="p-4 bg-amber-50 rounded-2xl border border-amber-100">
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm font-bold text-amber-900">Est. Inventory Shrinkage</span>
+                      <span className="text-xl font-black text-rose-600">{formatLAK(data?.summary.shrinkageCost || 0)}</span>
+                    </div>
+                    <p className="text-[10px] text-amber-700 mt-1">Stock loss based on shift count discrepancies</p>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Shrinkage Details */}
+              <Card className="lg:col-span-2">
+                <CardHeader>
+                  <CardTitle>Inventory Shrinkage Details</CardTitle>
+                  <CardDescription>Items with discrepancies in stock counts</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="border-b bg-muted/30 text-slate-500 font-bold">
+                          <th className="py-2 px-3 text-left">Item</th>
+                          <th className="py-2 px-3 text-right">Theo.</th>
+                          <th className="py-2 px-3 text-right">Actual</th>
+                          <th className="py-2 px-3 text-right">Diff.</th>
+                          <th className="py-2 px-3 text-right">Loss Value</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {data?.advanced?.shrinkageDetails?.length === 0 ? (
+                          <tr><td colSpan={5} className="py-10 text-center italic text-muted-foreground">No stock audit discrepancies recorded</td></tr>
+                        ) : (
+                          data?.advanced?.shrinkageDetails?.map((s: any, i: number) => (
+                            <tr key={i} className="border-b hover:bg-muted/10">
+                              <td className="py-2 px-3 font-medium text-slate-700">{s.ingredientName}</td>
+                              <td className="py-2 px-3 text-right text-slate-500">{s.theoretical}</td>
+                              <td className="py-2 px-3 text-right text-slate-500">{s.actual}</td>
+                              <td className="py-2 px-3 text-right font-bold text-rose-600">{s.difference}</td>
+                              <td className="py-2 px-3 text-right font-bold text-rose-700">{formatLAK(s.lossValue)}</td>
+                            </tr>
+                          ))
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          </TabsContent>
 
           <TabsContent value="promotions" className="space-y-6">
             <Card>

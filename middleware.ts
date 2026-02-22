@@ -20,6 +20,40 @@ export function middleware(request: NextRequest) {
             url.pathname = '/role-select'
             return NextResponse.redirect(url)
         }
+
+        // Role-based access control
+        const session = request.cookies.get('pos_session')
+        if (session) {
+            try {
+                const user = JSON.parse(session.value)
+                const role = user.role
+
+                // Define restricted routes for CASHIER
+                const cashierRestrictedRoutes = ['/inventory', '/promotions', '/reports', '/menu', '/settings', '/dashboard']
+
+                if (role === 'CASHIER') {
+                    const isRestricted = cashierRestrictedRoutes.some(route => path.startsWith(route))
+                    if (isRestricted) {
+                        const url = request.nextUrl.clone()
+                        url.pathname = '/pos'
+                        return NextResponse.redirect(url)
+                    }
+                }
+
+                if (role === 'KITCHEN') {
+                    // Kitchen should only access kitchen
+                    const kitchenAllowedRoutes = ['/kitchen', '/orders'] // Allow orders to see what's coming
+                    const isAllowed = kitchenAllowedRoutes.some(route => path.startsWith(route))
+                    if (!isAllowed) {
+                        const url = request.nextUrl.clone()
+                        url.pathname = '/kitchen'
+                        return NextResponse.redirect(url)
+                    }
+                }
+            } catch (e) {
+                console.error('Error parsing session in middleware:', e)
+            }
+        }
     }
 
     return NextResponse.next()

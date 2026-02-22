@@ -208,6 +208,87 @@ export async function GET(request: Request) {
         const sizeStats = Array.from(sizeMap.values()).sort((a, b) => b.sold - a.sold)
         const variationStats = Array.from(varTypeMap.values()).sort((a, b) => b.sold - a.sold)
 
+        // --- NEW: Advanced Analytics (Margin, COGS, Shrinkage) ---
+
+        // 1. Margin Analysis
+        // Get all menu items with recipes and ingredient costs
+        const menuRecipes = await prisma.menu.findMany({
+            include: {
+                recipes: {
+                    include: { ingredient: { select: { cost: true } } }
+                },
+                variations: {
+                    include: { sizes: true }
+                }
+            }
+        })
+
+        const marginData: any[] = []
+        menuRecipes.forEach(menu => {
+            const menuCost = menu.recipes.reduce((sum, r) => sum + (r.quantity * r.ingredient.cost), 0)
+
+            menu.variations.forEach(v => {
+                v.sizes.forEach(s => {
+                    const price = s.price
+                    const margin = price - menuCost
+                    const marginPercent = price > 0 ? (margin / price) * 100 : 0
+
+                    marginData.push({
+                        menuName: menu.name,
+                        variation: v.type,
+                        size: s.size,
+                        price,
+                        cost: menuCost,
+                        margin,
+                        marginPercent
+                    })
+                })
+            })
+        })
+
+        const lowMarginItems = [...marginData]
+            .filter(item => item.price > 0)
+            .sort((a, b) => a.marginPercent - b.marginPercent)
+            .slice(0, 10)
+
+        // 2. Daily COGS (Cost of Goods Sold)
+        // a. From Sales
+        let salesCost = 0
+        orderItems.forEach(item => {
+            const vs = item.variationSize
+            const menuRecord = menuRecipes.find(m => m.id === vs?.variation.menuId)
+            if (menuRecord) {
+                const itemCost = menuRecord.recipes.reduce((sum, r) => sum + (r.quantity * r.ingredient.cost), 0)
+                salesCost += itemCost * item.quantity
+            }
+        })
+        // wastageCost will be calculated after inventoryTransactions is fetched below
+
+        // 3. Inventory Shrinkage
+        // Based on StockCount entries
+        const stockCounts = await prisma.stockCount.findMany({
+            where: { createdAt: { gte: startDate, lte: endDate } },
+            include: { ingredient: { select: { cost: true } } }
+        })
+
+        const shrinkageCost = stockCounts.reduce((sum, sc) => {
+            // Shrinkage is typically a negative difference (actual < theoretical)
+            if (sc.difference < 0) {
+                return sum + (Math.abs(sc.difference) * sc.ingredient.cost)
+            }
+            return sum
+        }, 0)
+
+        const shrinkageDetails = stockCounts.map(sc => ({
+            id: sc.id,
+            ingredientName: sc.ingredient.name,
+            theoretical: sc.theoreticalStock,
+            actual: sc.actualStock,
+            difference: sc.difference,
+            lossValue: sc.difference < 0 ? Math.abs(sc.difference) * sc.ingredient.cost : 0,
+            date: sc.createdAt
+        })).sort((a, b) => b.lossValue - a.lossValue)
+
         // 6. Promo Impact
         const promoOrders = await prisma.order.findMany({
             where: {
@@ -380,6 +461,13 @@ export async function GET(request: Request) {
             })
         const mostTransferred = Array.from(transferMap.values()).sort((a, b) => b.quantity - a.quantity).slice(0, 10)
 
+        // b. Wastage cost (WITHDRAW transactions labelled as waste)
+        const wastageTransactions = inventoryTransactions.filter(t =>
+            t.type === 'WITHDRAW' && (t.reason?.toLowerCase().includes('waste') || t.notes?.toLowerCase().includes('waste'))
+        )
+        const wastageCost = wastageTransactions.reduce((sum, t) => sum + (t.quantity * (t.ingredient.cost || 0)), 0)
+        const totalCOGS = salesCost + wastageCost
+
         // Transaction type breakdown
         const transactionTypes = {
             transfers: inventoryTransactions.filter(t => t.type === 'TRANSFER').length,
@@ -420,6 +508,8 @@ export async function GET(request: Request) {
                     unit: t.ingredient.unit,
                     fromStore: t.fromStore,
                     toStore: t.toStore,
+                    reason: t.reason,
+                    notes: t.notes,
                     createdAt: t.createdAt
                 }))
             },
@@ -432,7 +522,16 @@ export async function GET(request: Request) {
                 totalDiscounts: summaryStats._sum?.discount || 0,
                 periodCount: dailyTrend.length,
                 complimentaryOrders: (complimentaryStats._count as any) || 0,
-                complimentaryValue: complimentaryStats._sum?.total || 0
+                complimentaryValue: complimentaryStats._sum?.total || 0,
+                totalCOGS,
+                salesCost,
+                wastageCost,
+                shrinkageCost,
+                grossProfit: (summaryStats._sum?.total || 0) - totalCOGS
+            },
+            advanced: {
+                lowMarginItems,
+                shrinkageDetails
             }
         })
 

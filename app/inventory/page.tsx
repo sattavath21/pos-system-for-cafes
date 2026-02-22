@@ -31,13 +31,15 @@ type Ingredient = {
   unit: string
   mainStock: number
   subStock: number
-  minStock: number
-  maxStock: number
+  minStock: number // Warehouse Min
+  maxStock: number // Warehouse Max
+  minStockSub: number // Shop Min
+  maxStockSub: number // Shop Max
   cost: number
 }
 
 type SortConfig = {
-  key: keyof Ingredient | null
+  key: keyof Ingredient | 'status' | null
   direction: 'asc' | 'desc'
 }
 
@@ -46,7 +48,7 @@ export default function InventoryPage() {
   const [ingredients, setIngredients] = useState<Ingredient[]>([])
   const [isDialogOpen, setIsDialogOpen] = useState(false)
   const [editingItem, setEditingItem] = useState<Ingredient | null>(null)
-  const [activeTab, setActiveTab] = useState<"SUB" | "MAIN">("SUB")
+  const [activeTab, setActiveTab] = useState<"SUB" | "MAIN" | "AUDIT">("SUB")
   const [isTransferOpen, setIsTransferOpen] = useState(false)
   const [transferItem, setTransferItem] = useState<Ingredient | null>(null)
   const [transferQty, setTransferQty] = useState("")
@@ -54,8 +56,12 @@ export default function InventoryPage() {
   const [depositItem, setDepositItem] = useState<Ingredient | null>(null)
   const [isWithdrawOpen, setIsWithdrawOpen] = useState(false)
   const [withdrawItem, setWithdrawItem] = useState<Ingredient | null>(null)
-  const [isShopAdjustOpen, setIsShopAdjustOpen] = useState(false)
   const [shopAdjustItem, setShopAdjustItem] = useState<Ingredient | null>(null)
+  const [isShopAdjustOpen, setIsShopAdjustOpen] = useState(false)
+  const [isAuditOpen, setIsAuditOpen] = useState(false)
+  const [auditItem, setAuditItem] = useState<Ingredient | null>(null)
+  const [actualStockInput, setActualStockInput] = useState("")
+  const [auditNotes, setAuditNotes] = useState("")
 
   // Search and Sort
   const [searchQuery, setSearchQuery] = useState("")
@@ -67,6 +73,8 @@ export default function InventoryPage() {
     mainStock: "",
     minStock: "",
     maxStock: "",
+    minStockSub: "",
+    maxStockSub: "",
     cost: ""
   })
 
@@ -97,6 +105,8 @@ export default function InventoryPage() {
         mainStock: parseFloat(formData.mainStock) || 0,
         minStock: parseFloat(formData.minStock) || 0,
         maxStock: parseFloat(formData.maxStock) || 0,
+        minStockSub: parseFloat(formData.minStockSub) || 0,
+        maxStockSub: parseFloat(formData.maxStockSub) || 0,
         cost: parseFloat(formData.cost) || 0
       }
 
@@ -117,11 +127,12 @@ export default function InventoryPage() {
   }
 
   const handleEdit = (item: Ingredient) => {
-    // Ensure numbers
-    item.minStock = Number(item.minStock) || 0;
-    item.maxStock = Number(item.maxStock) || 0;
     item.subStock = Number(item.subStock) || 0;
     item.mainStock = Number(item.mainStock) || 0;
+    item.minStock = Number(item.minStock) || 0;
+    item.maxStock = Number(item.maxStock) || 0;
+    item.minStockSub = Number(item.minStockSub) || 0;
+    item.maxStockSub = Number(item.maxStockSub) || 0;
     item.cost = Number(item.cost) || 0;
 
     setEditingItem(item)
@@ -132,6 +143,8 @@ export default function InventoryPage() {
       mainStock: item.mainStock.toString(),
       minStock: item.minStock.toString(),
       maxStock: item.maxStock.toString(),
+      minStockSub: item.minStockSub.toString(),
+      maxStockSub: item.maxStockSub.toString(),
       cost: item.cost.toString()
     })
     setIsDialogOpen(true)
@@ -186,21 +199,53 @@ export default function InventoryPage() {
       mainStock: "",
       minStock: "",
       maxStock: "",
+      minStockSub: "",
+      maxStockSub: "",
       cost: ""
     })
   }
 
+  const handleAuditSubmit = async () => {
+    if (!auditItem || actualStockInput === "") return
+    try {
+      const res = await fetch('/api/inventory/stock-count', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          ingredientId: auditItem.id,
+          theoreticalStock: auditItem.subStock,
+          actualStock: parseFloat(actualStockInput),
+          notes: auditNotes
+        })
+      })
+
+      if (res.ok) {
+        setIsAuditOpen(false)
+        setActualStockInput("")
+        setAuditNotes("")
+        fetchInventory()
+      }
+    } catch (e) {
+      console.error(e)
+    }
+  }
+
+
   const getStockStatus = (item: Ingredient) => {
-    const stock = activeTab === "SUB" ? item.subStock : item.mainStock
-    if (stock <= item.minStock) {
+    const isSub = activeTab === "SUB"
+    const stock = isSub ? item.subStock : item.mainStock
+    const min = isSub ? item.minStockSub : item.minStock
+    const max = isSub ? item.maxStockSub : item.maxStock
+
+    if (stock <= min) {
       return { label: t.low_stock, color: "bg-red-100 text-red-800" }
-    } else if (stock >= item.maxStock) {
+    } else if (stock >= max) {
       return { label: t.overstock, color: "bg-yellow-100 text-yellow-800" }
     }
     return { label: t.normal, color: "bg-green-100 text-green-800" }
   }
 
-  const handleSort = (key: keyof Ingredient) => {
+  const handleSort = (key: keyof Ingredient | 'status') => {
     let direction: 'asc' | 'desc' = 'asc';
     if (sortConfig.key === key && sortConfig.direction === 'asc') {
       direction = 'desc';
@@ -221,6 +266,25 @@ export default function InventoryPage() {
     // Sort
     if (sortConfig.key) {
       sortableItems.sort((a, b) => {
+        if (sortConfig.key === 'status') {
+          // Helper to get priority (1: Low, 2: Over, 3: Normal)
+          const getP = (i: Ingredient) => {
+            const isSub = activeTab === "SUB"
+            const stock = isSub ? i.subStock : i.mainStock
+            const min = isSub ? i.minStockSub : i.minStock
+            const max = isSub ? i.maxStockSub : i.maxStock
+
+            if (stock <= min) return 1
+            if (stock >= max) return 2
+            return 3
+          }
+          const pA = getP(a)
+          const pB = getP(b)
+          if (pA < pB) return sortConfig.direction === 'asc' ? -1 : 1
+          if (pA > pB) return sortConfig.direction === 'asc' ? 1 : -1
+          return 0
+        }
+
         // @ts-ignore
         if (a[sortConfig.key] < b[sortConfig.key]) {
           return sortConfig.direction === 'asc' ? -1 : 1;
@@ -246,16 +310,23 @@ export default function InventoryPage() {
             <Button
               variant={activeTab === "SUB" ? "default" : "outline"}
               onClick={() => setActiveTab("SUB")}
-              className={activeTab === "SUB" ? "bg-amber-600 hover:bg-amber-700" : ""}
+              className={activeTab === "SUB" ? "bg-amber-600 hover:bg-amber-700 text-white" : ""}
             >
               🏪 Shop Inventory
             </Button>
             <Button
               variant={activeTab === "MAIN" ? "default" : "outline"}
               onClick={() => setActiveTab("MAIN")}
-              className={activeTab === "MAIN" ? "bg-amber-600 hover:bg-amber-700" : ""}
+              className={activeTab === "MAIN" ? "bg-amber-600 hover:bg-amber-700 text-white" : ""}
             >
               🏭 Warehouse
+            </Button>
+            <Button
+              variant={activeTab === "AUDIT" ? "default" : "outline"}
+              onClick={() => setActiveTab("AUDIT")}
+              className={activeTab === "AUDIT" ? "bg-amber-600 hover:bg-amber-700 text-white" : ""}
+            >
+              📋 Stock Audit
             </Button>
           </div>
           <div className="flex gap-2">
@@ -268,7 +339,7 @@ export default function InventoryPage() {
                 onChange={(e) => setSearchQuery(e.target.value)}
               />
             </div>
-            {(activeTab == "MAIN") ?
+            {(activeTab == "MAIN" || activeTab == "SUB") ?
               <Dialog open={isDialogOpen} onOpenChange={(open) => { setIsDialogOpen(open); if (!open) resetForm(); }}>
                 <DialogTrigger asChild>
                   <Button className="bg-amber-600 hover:bg-amber-700">
@@ -301,13 +372,27 @@ export default function InventoryPage() {
                       </div>
                     </div>
                     <div className="grid grid-cols-2 gap-4">
-                      <div className="space-y-2">
-                        <Label>{t.min_stock}</Label>
-                        <FormattedNumberInput value={formData.minStock} onChange={val => setFormData({ ...formData, minStock: val })} />
+                      <div className="space-y-2 p-3 bg-slate-50 rounded-lg">
+                        <Label className="text-amber-800 font-bold">🏭 Warehouse Limits</Label>
+                        <div className="space-y-2 mt-2">
+                          <Label>{t.min_stock}</Label>
+                          <FormattedNumberInput value={formData.minStock} onChange={val => setFormData({ ...formData, minStock: val })} />
+                        </div>
+                        <div className="space-y-2">
+                          <Label>{t.max_stock}</Label>
+                          <FormattedNumberInput value={formData.maxStock} onChange={val => setFormData({ ...formData, maxStock: val })} />
+                        </div>
                       </div>
-                      <div className="space-y-2">
-                        <Label>{t.max_stock}</Label>
-                        <FormattedNumberInput value={formData.maxStock} onChange={val => setFormData({ ...formData, maxStock: val })} />
+                      <div className="space-y-2 p-3 bg-amber-50 rounded-lg">
+                        <Label className="text-amber-800 font-bold">🏪 Shop Limits</Label>
+                        <div className="space-y-2 mt-2">
+                          <Label>{t.min_stock}</Label>
+                          <FormattedNumberInput value={formData.minStockSub} onChange={val => setFormData({ ...formData, minStockSub: val })} />
+                        </div>
+                        <div className="space-y-2">
+                          <Label>{t.max_stock}</Label>
+                          <FormattedNumberInput value={formData.maxStockSub} onChange={val => setFormData({ ...formData, maxStockSub: val })} />
+                        </div>
                       </div>
                     </div>
                     <div className="space-y-2">
@@ -336,7 +421,11 @@ export default function InventoryPage() {
           <Card className="p-6">
             <p className="text-sm text-muted-foreground mb-1">{t.low_stock} ({activeTab === "SUB" ? "Shop" : "Whse"})</p>
             <p className="text-3xl font-bold text-red-600">
-              {ingredients.filter(i => (activeTab === "SUB" ? i.subStock : i.mainStock) <= i.minStock).length}
+              {ingredients.filter(i => {
+                const stock = activeTab === "SUB" ? i.subStock : i.mainStock
+                const min = activeTab === "SUB" ? i.minStockSub : i.minStock
+                return stock <= min
+              }).length}
             </p>
           </Card>
           <Card className="p-6">
@@ -366,7 +455,7 @@ export default function InventoryPage() {
                     </div>
                   </TableHead>
                   <TableHead>{t.unit}</TableHead>
-                  <TableHead className="cursor-pointer" onClick={() => handleSort('minStock')}>
+                  <TableHead className="cursor-pointer" onClick={() => handleSort(activeTab === 'SUB' ? 'minStockSub' : 'minStock')}>
                     <div className="flex items-center gap-1">
                       {t.min_stock}
                       <ArrowUpDown className="h-3 w-3" />
@@ -374,7 +463,12 @@ export default function InventoryPage() {
                   </TableHead>
                   <TableHead>{t.cost}</TableHead>
                   <TableHead>{t.value}</TableHead>
-                  <TableHead>{t.status}</TableHead>
+                  <TableHead className="w-[300px] cursor-pointer" onClick={() => handleSort('status')}>
+                    <div className="flex items-center gap-1">
+                      {t.status}
+                      <ArrowUpDown className="h-3 w-3" />
+                    </div>
+                  </TableHead>
                   <TableHead className="text-right">{t.actions}</TableHead>
                 </TableRow>
               </TableHeader>
@@ -394,7 +488,7 @@ export default function InventoryPage() {
                           {activeTab === "SUB" ? item.subStock : item.mainStock}
                         </TableCell>
                         <TableCell>{item.unit}</TableCell>
-                        <TableCell>{item.minStock}</TableCell>
+                        <TableCell>{activeTab === "SUB" ? item.minStockSub : item.minStock}</TableCell>
                         <TableCell>{formatLAK(item.cost)}</TableCell>
                         <TableCell>{formatLAK((activeTab === 'SUB' ? item.subStock : item.mainStock) * item.cost)}</TableCell>
                         <TableCell>
@@ -437,7 +531,7 @@ export default function InventoryPage() {
                                   <Edit className="w-4 h-4" />
                                 </Button>
                               </>
-                            ) : (
+                            ) : activeTab === "SUB" ? (
                               <>
                                 <Button
                                   variant="outline"
@@ -447,6 +541,20 @@ export default function InventoryPage() {
                                 >
                                   <Settings className="w-4 h-4 mr-1" />
                                   Adjust
+                                </Button>
+                                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleEdit(item)}>
+                                  <Edit className="w-4 h-4" />
+                                </Button>
+                              </>
+                            ) : (
+                              <>
+                                <Button
+                                  className="h-8 bg-amber-600 hover:bg-amber-700"
+                                  size="sm"
+                                  onClick={() => { setAuditItem(item); setIsAuditOpen(true); }}
+                                >
+                                  <ShoppingCart className="w-4 h-4 mr-1" />
+                                  Start Count
                                 </Button>
                               </>
                             )}
@@ -521,7 +629,75 @@ export default function InventoryPage() {
           ingredient={shopAdjustItem}
           onSuccess={() => { fetchInventory(); setShopAdjustItem(null); }}
         />
+        {/* Stock Audit Dialog */}
+        <Dialog open={isAuditOpen} onOpenChange={setIsAuditOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Stock Audit: {auditItem?.name}</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-6 py-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="p-4 bg-slate-50 rounded-xl border">
+                  <p className="text-xs text-slate-500 uppercase font-black mb-1">Theoretical (POS)</p>
+                  <p className="text-3xl font-black text-slate-800">{auditItem?.subStock} <span className="text-sm font-normal text-slate-400">{auditItem?.unit}</span></p>
+                </div>
+                <div className="p-4 bg-amber-50 rounded-xl border border-amber-100">
+                  <p className="text-xs text-amber-700 uppercase font-black mb-1">Difference</p>
+                  <p className={`text-3xl font-black ${(parseFloat(actualStockInput || "0") - (auditItem?.subStock || 0)) < 0 ? 'text-rose-600' : (parseFloat(actualStockInput || "0") - (auditItem?.subStock || 0)) > 0 ? 'text-emerald-600' : 'text-slate-400'}`}>
+                    {actualStockInput !== "" ? (parseFloat(actualStockInput) - (auditItem?.subStock || 0)).toFixed(2) : "0.00"}
+                  </p>
+                </div>
+              </div>
+
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <Label className="text-sm font-bold">Actual Count in Shop</Label>
+                  <div className="relative">
+                    <Input
+                      type="number"
+                      className="text-2xl h-16 pl-4 font-black border-2 focus:border-amber-500 rounded-xl"
+                      placeholder="0.00"
+                      value={actualStockInput}
+                      onChange={e => setActualStockInput(e.target.value)}
+                      autoFocus
+                    />
+                    <div className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 font-bold uppercase">
+                      {auditItem?.unit}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <Label className="text-sm font-bold">Additional Notes</Label>
+                  <Input
+                    placeholder="Reason for discrepancy (optional)"
+                    value={auditNotes}
+                    onChange={e => setAuditNotes(e.target.value)}
+                    className="bg-slate-50 border-slate-200"
+                  />
+                </div>
+              </div>
+
+              <div className={`p-4 rounded-xl text-sm font-medium flex items-center gap-3 ${parseFloat(actualStockInput || "0") < (auditItem?.subStock || 0) ? 'bg-rose-50 text-rose-700 border border-rose-100' : 'bg-blue-50 text-blue-700 border border-blue-100'}`}>
+                <AlertTriangle className="w-5 h-5" />
+                <p>
+                  Submitting this audit will adjust the shop stock to <strong>{actualStockInput || "0"} {auditItem?.unit}</strong> and record the difference.
+                </p>
+              </div>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setIsAuditOpen(false)} className="rounded-xl font-bold">Cancel</Button>
+              <Button
+                className="bg-amber-600 hover:bg-amber-700 text-white rounded-xl font-black px-8"
+                onClick={handleAuditSubmit}
+                disabled={actualStockInput === ""}
+              >
+                Confirm Audit
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
-    </div >
+    </div>
   )
 }

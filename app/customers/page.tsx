@@ -37,6 +37,7 @@ export default function CustomersPage() {
   const [orderHistory, setOrderHistory] = useState<any[]>([])
   const [isLoading, setIsLoading] = useState(false)
   const [isLoadingHistory, setIsLoadingHistory] = useState(false)
+  const [user, setUser] = useState<any>(null)
 
   // Form State
   const [formData, setFormData] = useState({
@@ -48,6 +49,10 @@ export default function CustomersPage() {
 
   useEffect(() => {
     fetchCustomers()
+    fetch('/api/auth/me')
+      .then(res => res.json())
+      .then(data => setUser(data.user))
+      .catch(() => { })
   }, [])
 
   const fetchCustomers = async () => {
@@ -66,17 +71,21 @@ export default function CustomersPage() {
     } catch (e) { console.error(e) }
   }
 
-  const handleAddNew = async () => {
+  const handleSave = async () => {
     setIsLoading(true)
     try {
-      const res = await fetch('/api/customers', {
-        method: 'POST',
+      const url = selectedCustomer ? `/api/customers/${selectedCustomer.id}` : '/api/customers'
+      const method = selectedCustomer ? 'PUT' : 'POST'
+
+      const res = await fetch(url, {
+        method,
         body: JSON.stringify(formData),
         headers: { 'Content-Type': 'application/json' }
       })
       if (res.ok) {
         setIsDialogOpen(false)
-        setFormData({ name: "", phone: "", email: "", dateOfBirth: "" }) // Reset
+        setSelectedCustomer(null)
+        setFormData({ name: "", phone: "", email: "", dateOfBirth: "" })
         fetchCustomers()
       }
     } catch (e) { console.error(e) }
@@ -158,7 +167,7 @@ export default function CustomersPage() {
             </DialogTrigger>
             <DialogContent>
               <DialogHeader>
-                <DialogTitle>{t.add_new_customer}</DialogTitle>
+                <DialogTitle>{selectedCustomer ? (user?.role === 'CASHIER' ? t.customer_details : t.edit_customer_details) : t.add_new_customer}</DialogTitle>
               </DialogHeader>
               <div className="space-y-4">
                 <div className="space-y-2">
@@ -203,9 +212,11 @@ export default function CustomersPage() {
                 <Button variant="outline" onClick={() => setIsDialogOpen(false)}>
                   {t.cancel}
                 </Button>
-                <Button className="bg-amber-600 hover:bg-amber-700 font-bold" onClick={handleAddNew} disabled={isLoading}>
-                  {isLoading ? t.processing : t.save}
-                </Button>
+                {(!selectedCustomer || user?.role !== 'CASHIER') && (
+                  <Button className="bg-amber-600 hover:bg-amber-700 font-bold" onClick={handleSave} disabled={isLoading}>
+                    {isLoading ? t.processing : t.save}
+                  </Button>
+                )}
               </DialogFooter>
             </DialogContent>
           </Dialog>
@@ -247,7 +258,16 @@ export default function CustomersPage() {
                       <p className="text-sm text-muted-foreground">{t.last_visit}</p>
                       <p className="font-semibold">{customer.lastVisit}</p>
                     </div>
-                    <Button variant="outline" size="icon" onClick={() => handleViewDetails(customer)}>
+                    <Button variant="outline" size="icon" onClick={() => {
+                      setSelectedCustomer(customer);
+                      setFormData({
+                        name: customer.name,
+                        phone: customer.phone || "",
+                        email: customer.email || "",
+                        dateOfBirth: customer.dateOfBirth ? new Date(customer.dateOfBirth).toISOString().split('T')[0] : ""
+                      });
+                      setIsDialogOpen(true);
+                    }}>
                       <Eye className="w-4 h-4" />
                     </Button>
                   </div>
@@ -256,66 +276,7 @@ export default function CustomersPage() {
           </div>
         </Card>
 
-        {/* Customer Details Dialog */}
-        {selectedCustomer && (
-          <Dialog open={!!selectedCustomer} onOpenChange={() => setSelectedCustomer(null)}>
-            <DialogContent className="max-w-2xl">
-              <DialogHeader>
-                <DialogTitle>{t.customer_details}</DialogTitle>
-              </DialogHeader>
-              <div className="space-y-6">
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <Label className="text-muted-foreground">{t.name}</Label>
-                    <p className="font-semibold">{selectedCustomer.name}</p>
-                  </div>
-                  <div>
-                    <Label className="text-muted-foreground">{t.phone}</Label>
-                    <p className="font-semibold">{selectedCustomer.phone || 'N/A'}</p>
-                  </div>
-                  <div>
-                    <Label className="text-muted-foreground">{t.email}</Label>
-                    <p className="font-semibold">{selectedCustomer.email || 'N/A'}</p>
-                  </div>
-                  <div>
-                    <Label className="text-muted-foreground">{t.loyalty_points}</Label>
-                    <p className="font-semibold text-amber-600">{selectedCustomer.loyaltyPoints}</p>
-                  </div>
-                  <div>
-                    <Label className="text-muted-foreground">{t.date_of_birth}</Label>
-                    <p className="font-semibold">{selectedCustomer.dateOfBirth ? new Date(selectedCustomer.dateOfBirth).toLocaleDateString() : 'N/A'}</p>
-                  </div>
-                </div>
-
-                <div className="border-t pt-4">
-                  <h3 className="font-bold mb-4">{t.order_history}</h3>
-                  {isLoadingHistory ? (
-                    <p className="text-muted-foreground text-sm">{t.loading_history}</p>
-                  ) : orderHistory.length > 0 ? (
-                    <div className="space-y-3 max-h-[300px] overflow-y-auto pr-2">
-                      {orderHistory.map((order) => (
-                        <div key={order.id} className="p-3 border rounded bg-slate-50 flex justify-between items-center text-sm">
-                          <div>
-                            <p className="font-semibold">{order.orderNumber}</p>
-                            <p className="text-xs text-muted-foreground">{new Date(order.createdAt).toLocaleString()}</p>
-                          </div>
-                          <div className="text-right">
-                            <p className="font-medium text-amber-900">{formatLAK(order.total)}</p>
-                            <Badge variant="outline" className="text-[10px] h-4">
-                              {order.status}
-                            </Badge>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <p className="text-muted-foreground text-sm">{t.no_past_orders}</p>
-                  )}
-                </div>
-              </div>
-            </DialogContent>
-          </Dialog>
-        )}
+        {/* Details Dialog removed as we now use the same dialog for Add/Edit */}
       </div>
     </div>
   )

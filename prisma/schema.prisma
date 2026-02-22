@@ -78,13 +78,28 @@ model Ingredient {
   unit         String
   mainStock    Float    @default(0) // Warehouse
   subStock     Float    @default(0) // Shop/Store (POS deducts from here)
-  minStock     Float
-  maxStock     Float
+  minStock     Float    // Warehouse Min
+  maxStock     Float    // Warehouse Max
+  minStockSub  Float    @default(0) // Shop Min
+  maxStockSub  Float    @default(0) // Shop Max
   cost         Float
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
   recipes      Recipe[]
   transactions StockTransaction[]
+  stockCounts  StockCount[]
+}
+
+model StockCount {
+  id               String     @id @default(uuid())
+  ingredientId     String
+  theoreticalStock Float
+  actualStock      Float
+  difference       Float
+  notes            String?
+  userId           String?
+  createdAt        DateTime   @default(now())
+  ingredient       Ingredient @relation(fields: [ingredientId], references: [id])
 }
 
 model StockTransaction {
@@ -207,4 +222,15 @@ model OrderItem {
 
   variationSize VariationSize @relation(fields: [variationSizeId], references: [id])
   order         Order         @relation(fields: [orderId], references: [id])
+}
+
+model StockCount {
+  id               String     @id @default(uuid())
+  ingredientId     String
+  theoreticalStock Float
+  actualStock      Float
+  difference       Float
+  notes            String?
+  createdAt        DateTime   @default(now())
+  ingredient       Ingredient @relation(fields: [ingredientId], references: [id], onDelete: Cascade)
 }

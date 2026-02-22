@@ -5,7 +5,8 @@ import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Store, Receipt, DollarSign, Languages, Key, AlertTriangle, Trash2 } from "lucide-react"
+import { Store, Receipt, DollarSign, Languages, Key, AlertTriangle, Trash2, Bold } from "lucide-react"
+import { Switch } from "@/components/ui/switch"
 import { useTranslation } from "@/hooks/use-translation"
 import Link from "next/link"
 import { Header } from "@/components/header"
@@ -190,13 +191,29 @@ export default function SettingsPage() {
             </div>
           </div>
 
-          <div className="space-y-4">
+          <div className="space-y-6">
             <div className="space-y-2">
               <Label>Receipt Footer Message</Label>
               <Input
                 placeholder="Thank you for visiting!"
                 value={settings.receiptFooter || ""}
                 onChange={(e) => setSettings({ ...settings, receiptFooter: e.target.value })}
+              />
+            </div>
+
+            <div className="flex items-center justify-between p-4 bg-slate-50 rounded-xl border border-slate-100">
+              <div className="flex items-center gap-3">
+                <div className="bg-slate-200 p-2 rounded-lg">
+                  <Bold className="w-5 h-5 text-slate-700" />
+                </div>
+                <div>
+                  <p className="font-bold">Bold Text for Thermal Printer</p>
+                  <p className="text-xs text-muted-foreground">Makes receipt text thicker for better readability on thermal paper</p>
+                </div>
+              </div>
+              <Switch
+                checked={settings.boldReceipt === 'true'}
+                onCheckedChange={(checked) => setSettings({ ...settings, boldReceipt: checked ? 'true' : 'false' })}
               />
             </div>
           </div>

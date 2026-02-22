@@ -14,6 +14,7 @@ function getRandomItem(array) {
 }
 
 async function main() {
+    const now = new Date()
     console.log("Emptying database...")
     // Order matters for foreign keys
     await prisma.orderItem.deleteMany({})
@@ -60,7 +61,7 @@ async function main() {
         Sandwich: await prisma.category.create({ data: { name: "Sandwich" } }),
         Bao: await prisma.category.create({ data: { name: "Bao" } }),
         Pie: await prisma.category.create({ data: { name: "Pie" } }),
-        Dumpling: await prisma.category.create({ data: { name: "Dumpling" } }),
+        Puff: await prisma.category.create({ data: { name: "Puff" } }),
     }
 
     // ========== INVENTORY (INGREDIENTS) ==========
@@ -87,6 +88,8 @@ async function main() {
                 subStock: 0,
                 minStock: 50,
                 maxStock: 2000,
+                minStockSub: 20,
+                maxStockSub: 500,
                 cost: 0
             }
         })
@@ -95,41 +98,43 @@ async function main() {
     // 2. Finished Goods (Items 8-22 + Cakes) -> Inventory + Menu 1:1
     const foodItems = [
         // Choux
-        { name: "Milk Choux Cream", nameLaos: "ຊູຄີມນົມ", category: "Choux", image: "choux-cream" }, // 8
-        { name: "Chocolate Choux Cream", nameLaos: "ຊູຄີມຊັອກ", category: "Choux", image: "chocolate-choux" }, // 9
+        { name: "Milk Choux Cream", nameLaos: "ຊູຄີມນົມ", category: "Choux", image: "/uploads/milk-choux-cream.jpg" }, // 8
+        { name: "Chocolate Choux Cream", nameLaos: "ຊູຄີມຊັອກ", category: "Choux", image: "/uploads/Chocolate-Choux-cream.jpg" }, // 9
         // Sourdough
-        { name: "Sourdough Quinoa + Sesame", nameLaos: "ຊາວໂດຄີນົວ + ງາຂາວ + ງາດຳ", category: "Sourdough", image: "sourdough-bread" }, // 10
-        { name: "Sourdough Cranberry + Walnut", nameLaos: "ຊາວໂດ ແຄນເບີຮີ້ + ວໍນັດ", category: "Sourdough", image: "sourdough-walnut" }, // 11
-        { name: "Sourdough Whole Wheat", nameLaos: "ຊາວໂດ ໂຮລວີທ", category: "Sourdough", image: "whole-wheat-bread" }, // 12
+        { name: "Sourdough Quinoa + Sesame", nameLaos: "ຊາວໂດຄີນົວ + ງາຂາວ + ງາດຳ", category: "Sourdough", image: "/uploads/sourdough-quinoa-sesame.jpg" }, // 10
+        { name: "Sourdough Cranberry + Walnut", nameLaos: "ຊາວໂດ ແຄນເບີຮີ້ + ວໍນັດ", category: "Sourdough", image: "/uploads/sourdough-cranberry-walnut.jpg" }, // 11
+        { name: "Sourdough Whole Wheat", nameLaos: "ຊາວໂດ ໂຮລວີທ", category: "Sourdough", image: "/uploads/sourdough-whole-wheat.jpg" }, // 12
         // Sandwich
-        { name: "Traditional Sandwich", nameLaos: "ແຊນວິດສູດບູຮານ", category: "Sandwich", image: "club-sandwich" }, // 13
-        { name: "Egg White Sandwich", nameLaos: "ເຂົ້າຈີ່ໄຂ່ຂາວ", category: "Sandwich", image: "egg-sandwich" }, // 17
+        { name: "Traditional Sandwich", nameLaos: "ແຊນວິດສູດບູຮານ", category: "Sandwich", image: "/uploads/traditional-sandwich.jpg" }, // 13
+        { name: "Egg White Sandwich", nameLaos: "ເຂົ້າຈີ່ໄຂ່ຂາວ", category: "Sandwich", image: "/uploads/Egg-White-Sandwich.jpg" }, // 17
         // Bao
-        { name: "Minced Pork Steamed Bun", nameLaos: "ຊາລາເປົາ ໝູສັບ", category: "Bao", image: "steamed-bun-pork" }, // 14
-        { name: "Cream Steamed Bun", nameLaos: "ຊາລາເປົາ ຄຣີມ", category: "Bao", image: "steamed-bun-cream" }, // 15
-        { name: "Steamed Bun", nameLaos: "ຊາລາເປົາ", category: "Bao", image: "steamed-bun" }, // 16
+        { name: "Minced Pork Steamed Bun", nameLaos: "ຊາລາເປົາ ໝູສັບ", category: "Bao", image: "/uploads/micned-pork-steamed-bun.jpg" }, // 14
+        { name: "Cream Steamed Bun", nameLaos: "ຊາລາເປົາ ຄຣີມ", category: "Bao", image: "/uploads/cream-steamed-bun.jpg" }, // 15
+        { name: "Steamed Bun", nameLaos: "ຊາລາເປົາ", category: "Bao", image: "/uploads/steamed-bun.jpg" }, // 16
         // Pie
-        { name: "Pineapple Pie", nameLaos: "ພາຍຝະລັ່ງໃຈໝາກນັດ", category: "Pie", image: "pineapple-pie" }, // 18
-        { name: "Mushroom & Black Pepper Pie", nameLaos: "ພາຍຝະລັ່ງໃຈເຫັດຫອມພິກໄທດຳ", category: "Pie", image: "mushroom-pie" }, // 19
-        { name: "Chicken Curry Pie", nameLaos: "ພາຍຝະລັ່ງກະຫຼີ່ໄກ່", category: "Pie", image: "curry-puff" }, // 20
+        { name: "Pineapple Pie", nameLaos: "ພາຍຝະລັ່ງໃຈໝາກນັດ", category: "Pie", image: "/uploads/pineapple-pie.jpg" }, // 18
+        { name: "Mushroom & Black Pepper Pie", nameLaos: "ພາຍຝະລັ່ງໃຈເຫັດຫອມພິກໄທດຳ", category: "Pie", image: "/uploads/mushroom-black-pepper-pie.jpeg" }, // 19
+        { name: "Chicken Curry Pie", nameLaos: "ພາຍຝະລັ່ງກະຫຼີ່ໄກ່", category: "Pie", image: "/uploads/chicken-currey-pie.jpg" }, // 20
         // Dumpling
-        { name: "Chicken Curry Puff", nameLaos: "ປັ້ນສິບໃຈໄກ່", category: "Dumpling", image: "curry-puff-chicken" }, // 21
-        { name: "Pineapple Curry Puff", nameLaos: "ປັ້ນສິບໃຈໝາກນັດ", category: "Dumpling", image: "pineapple-puff" }, // 22
+        { name: "Chicken Puff", nameLaos: "ປັ້ນສິບໃຈໄກ່", category: "Puff", image: "/uploads/chicken-curry-puff.jpg" }, // 21
+        { name: "Pineapple Puff", nameLaos: "ປັ້ນສິບໃຈໝາກນັດ", category: "Puff", image: "/uploads/pineapple-curry-puff.jpg" }, // 22
+        { name: "Mung Bean Puff", nameLaos: "ປັ້ນສິບໃຈຖົ່ວເຫຼືອງ", category: "Puff", image: "mung-bean-puff.png" }, // 23
+
     ]
 
     const cakeItems = [
-        { name: "Matcha Banoffee", nameLaos: "ເຄັກມັດຊະ ບານັອບຟີ່", category: "Cake", image: "matcha-cake" },
-        { name: "Matcha Orio", nameLaos: "ເຄັກມັດຊະ ໂອຣີໂອ້", category: "Cake", image: "oreo-cake" },
-        { name: "Chocolate Cake", nameLaos: "ເຄັກຊັອກໂກແລັດ", category: "Cake", image: "chocolate-cake" },
-        { name: "Banana Caramel", nameLaos: "ເຄັກກ້ວຍ ຄາຣາເມວ", category: "Cake", image: "banana-cake" },
-        { name: "Orange Cake", nameLaos: "ເຄັກໝາກກ້ຽງ ແມນດາຣິນ", category: "Cake", image: "orange-cake" },
-        { name: "Red Velvet cake", nameLaos: "ເຄັກພົມແດງ", category: "Cake", image: "red-velvet-cake" },
-        { name: "Lemon Cheese Cake", nameLaos: "ເລມ້ອນຊີສເຄັກ", category: "Cake", image: "lemon-cheesecake" },
-        { name: "Fresh Chocolate Cake – Milk", nameLaos: "ເຄັກຊັອກໂກແລັດສົດ ຣົດນົມ", category: "Cake", image: "chocolate-milk-cake" },
-        { name: "Fresh Chocolate Cake – Grape", nameLaos: "ເຄັກຊັອກໂກແລັດສົດ ປະສົມໝາກເລີແຊງ", category: "Cake", image: "grape-cake" },
-        { name: "Fresh Chocolate Cake – Dark 70%", nameLaos: "ເຄັກຊັອກໂກແລັດສົດ ເຂັ້ມ 70%", category: "Cake", image: "dark-chocolate-cake" },
-        { name: "Fresh Chocolate Cake – Dark 100%", nameLaos: "ເຄັກຊັອກໂກແລັດສົດ ເຂັ້ມ 100%", category: "Cake", image: "dark-chocolate-cake" },
-        { name: "Fresh Chocolate Cake – Macadamia", nameLaos: "ເຄັກຊັອກໂກແລັດສົດ ປະສົມແມັກຄາດີເມຍ", category: "Cake", image: "macadamia-cake" },
+        { name: "Matcha Banoffee", nameLaos: "ເຄັກມັດຊະ ບານັອບຟີ່", category: "Cake", image: "/uploads/marcha-banoffee.png" },
+        { name: "Matcha Oreo", nameLaos: "ເຄັກມັດຊະ ໂອຣີໂອ້", category: "Cake", image: "/uploads/marcha-oreo-cake.jpg" },
+        { name: "Chocolate Cake", nameLaos: "ເຄັກຊັອກໂກແລັດ", category: "Cake", image: "/uploads/chocolate-cake.jpg" },
+        { name: "Banana Caramel", nameLaos: "ເຄັກກ້ວຍ ຄາຣາເມວ", category: "Cake", image: "/uploads/banana-caramel-cake.jpeg" },
+        { name: "Orange Cake", nameLaos: "ເຄັກໝາກກ້ຽງ ແມນດາຣິນ", category: "Cake", image: "/uploads/orange-cake.jpg" },
+        { name: "Red Velvet cake", nameLaos: "ເຄັກພົມແດງ", category: "Cake", image: "/uploads/Red-Velvet-Cake.jpg" },
+        { name: "Lemon Cheese Cake", nameLaos: "ເລມ້ອນຊີສເຄັກ", category: "Cake", image: "lemon-cheesecake.jpg" },
+        { name: "Fresh Chocolate Cake – Milk", nameLaos: "ເຄັກຊັອກໂກແລັດສົດ ຣົດນົມ", category: "Cake", image: "/uploads/milk-choco-cake.jpg" },
+        { name: "Fresh Chocolate Cake – Grape", nameLaos: "ເຄັກຊັອກໂກແລັດສົດ ປະສົມໝາກເລີແຊງ", category: "Cake", image: "/uploads/choco-cake-grape.jpg" },
+        { name: "Fresh Chocolate Cake – Dark 70%", nameLaos: "ເຄັກຊັອກໂກແລັດສົດ ເຂັ້ມ 70%", category: "Cake", image: "/uploads/choco-cake-dark.jpg" },
+        { name: "Fresh Chocolate Cake – Dark 100%", nameLaos: "ເຄັກຊັອກໂກແລັດສົດ ເຂັ້ມ 100%", category: "Cake", image: "/uploads/choco-cake-dark.jpg" },
+        { name: "Fresh Chocolate Cake – Macadamia", nameLaos: "ເຄັກຊັອກໂກແລັດສົດ ປະສົມແມັກຄາດີເມຍ", category: "Cake", image: "/uploads/Chocolate-Macadamia-Cake.jpg" },
     ]
 
     const allInventoryMenuLinks = [...foodItems, ...cakeItems]
@@ -144,6 +149,8 @@ async function main() {
                 subStock: 50,
                 minStock: 10,
                 maxStock: 200,
+                minStockSub: 5,
+                maxStockSub: 50,
                 cost: 15000
             }
         })
@@ -156,7 +163,10 @@ async function main() {
     // Helper to create menu
     async function seedMenu(name, nameLaos, categoryKey, variants, imageKeyword, hasZeroCal = false, priceStart = 25000) {
 
-        const imageUrl = `https://source.unsplash.com/400x400/?${imageKeyword || name}`.replace(/\s+/g, '-')
+        let imageUrl = imageKeyword
+        if (!imageUrl || !imageUrl.startsWith('/')) {
+            imageUrl = `https://source.unsplash.com/400x400/?${imageKeyword || name}`.replace(/\s+/g, '-')
+        }
 
         const menu = await prisma.menu.create({
             data: {
@@ -213,15 +223,15 @@ async function main() {
 
     // 1. Coffee
     const coffeeList = [
-        { name: "Americano", local: "ອາເມຣິກາໂນ່", vars: ["Hot", "Iced"], zero: false, img: "americano-coffee" },
-        { name: "Espresso", local: "ເອສເພຣສໂຊ່", vars: ["Iced"], zero: true, img: "espresso-coffee" },
-        { name: "Cappuccino", local: "ຄາປູຊີໂນ່", vars: ["Hot", "Iced", "Blended"], zero: true, img: "cappuccino" },
-        { name: "Latte", local: "ລາເຕ້", vars: ["Hot", "Iced"], zero: true, img: "latte-art" },
-        { name: "Mocha", local: "ມັອກຄ່າ", vars: ["Hot", "Iced"], zero: true, img: "mocha-coffee" },
-        { name: "Honey Americano", local: "ອາເມຣິກາໂນ່ ນ້ຳເຜິ້ງ", vars: ["Iced"], zero: false, img: "honey-coffee" },
-        { name: "Coconut Americano", local: "ອາເມຣິກາໂນ່ ໝາກພ້າວ", vars: ["Iced"], zero: false, img: "coconut-coffee" },
-        { name: "Orange Americano", local: "ອາເມຣິກາໂນ່ ໝາກກ້ຽງ", vars: ["Iced"], zero: false, img: "orange-coffee" },
-        { name: "Yuzu Americano", local: "ອາເມຣິກາໂນ່ ໝາກກ້ຽງຢີ່ປຸ່ນ", vars: ["Iced"], zero: false, img: "yuzu-coffee" },
+        { name: "Americano", local: "ອາເມຣິກາໂນ່", vars: ["Hot", "Iced"], zero: false, img: "/uploads/Americano.jpeg" },
+        { name: "Espresso", local: "ເອສເພຣສໂຊ່", vars: ["Iced"], zero: true, img: "/uploads/espresso.jpg" },
+        { name: "Cappuccino", local: "ຄາປູຊີໂນ່", vars: ["Hot", "Iced", "Blended"], zero: true, img: "/uploads/cappuccino.jpg" },
+        { name: "Latte", local: "ລາເຕ້", vars: ["Hot", "Iced"], zero: true, img: "/uploads/latte.jpg" },
+        { name: "Mocha", local: "ມັອກຄ່າ", vars: ["Hot", "Iced"], zero: true, img: "/uploads/mocha.jpg" },
+        { name: "Honey Americano", local: "ອາເມຣິກາໂນ່ ນ້ຳເຜິ້ງ", vars: ["Iced"], zero: false, img: "/uploads/honey-americano.jpg" },
+        { name: "Coconut Americano", local: "ອາເມຣິກາໂນ່ ໝາກພ້າວ", vars: ["Iced"], zero: false, img: "/uploads/coconut-americano.jpg" },
+        { name: "Orange Americano", local: "ອາເມຣິກາໂນ່ ໝາກກ້ຽງ", vars: ["Iced"], zero: false, img: "/uploads/orange-americano.png" },
+        { name: "Yuzu Americano", local: "ອາເມຣິກາໂນ່ ໝາກກ້ຽງຢີ່ປຸ່ນ", vars: ["Iced"], zero: false, img: "/uploads/yuzu-americano.png" },
     ]
 
     for (const m of coffeeList) {
@@ -230,10 +240,10 @@ async function main() {
 
     // 2. Non-Coffee
     const nonCoffeeList = [
-        { name: "Cacao", local: "ໂກໂກ້", vars: ["Hot", "Iced", "Blended"], zero: true, img: "cocoa-drink" },
-        { name: "Green Tea", local: "ຊາຂຽວ", vars: ["Iced", "Blended"], zero: true, img: "green-tea-latte" },
-        { name: "Thai Tea", local: "ຊາໄທ", vars: ["Iced"], zero: true, img: "thai-tea" },
-        { name: "Red Tea Latte", local: "ຊາແດງລາເຕ້", vars: ["Iced"], zero: true, img: "red-tea-latte" },
+        { name: "Cacao", local: "ໂກໂກ້", vars: ["Hot", "Iced", "Blended"], zero: true, img: "/uploads/cacao.jpg" },
+        { name: "Green Tea", local: "ຊາຂຽວ", vars: ["Iced", "Blended"], zero: true, img: "/uploads/green-tea.jpg" },
+        { name: "Thai Tea", local: "ຊາໄທ", vars: ["Iced"], zero: true, img: "/uploads/thai-tea.jpg" },
+        { name: "Red Tea Latte", local: "ຊາແດງລາເຕ້", vars: ["Iced"], zero: true, img: "/uploads/Rose-Latte.jpg" },
     ]
     for (const m of nonCoffeeList) {
         await seedMenu(m.name, m.local, "NonCoffee", m.vars, m.img, m.zero, 30000)
@@ -241,11 +251,11 @@ async function main() {
 
     // 3. Matcha
     const matchaList = [
-        { name: "Pure Matcha", local: "ພຽງມັດຊະ", vars: ["Iced"], zero: false, img: "matcha-tea" },
-        { name: "Matcha Latte", local: "ມັດຊະ ລາເຕ້", vars: ["Iced"], zero: true, img: "matcha-latte" },
-        { name: "Coconut Matcha", local: "ມັດຊະ ນ້ຳໝາກພ້າວ", vars: ["Iced"], zero: false, img: "coconut-matcha" },
-        { name: "Orange Matcha", local: "ມັດຊະ ນ້ຳໝາກກ້ຽງ", vars: ["Iced"], zero: false, img: "orange-matcha" },
-        { name: "Strawberry Matcha Latte", local: "ມັດຊະ ສະຕໍເບີຣີ້ນົມສົດ", vars: ["Iced"], zero: false, img: "strawberry-matcha" },
+        { name: "Pure Matcha", local: "ພຽງມັດຊະ", vars: ["Iced"], zero: false, img: "/uploads/pure-matcha.png" },
+        { name: "Matcha Latte", local: "ມັດຊະ ລາເຕ້", vars: ["Iced"], zero: true, img: "/uploads/matcha-latte.jpg" },
+        { name: "Coconut Matcha", local: "ມັດຊະ ນ້ຳໝາກພ້າວ", vars: ["Iced"], zero: false, img: "/uploads/coconut-matcha.jpg" },
+        { name: "Orange Matcha", local: "ມັດຊະ ນ້ຳໝາກກ້ຽງ", vars: ["Iced"], zero: false, img: "/uploads/orange-matcha.jpg" },
+        { name: "Strawberry Matcha Latte", local: "ມັດຊະ ສະຕໍເບີຣີ້ນົມສົດ", vars: ["Iced"], zero: false, img: "/uploads/Strawberry-Matcha-LatteI.jpg" },
     ]
     for (const m of matchaList) {
         await seedMenu(m.name, m.local, "Matcha", m.vars, m.img, m.zero, 35000)
@@ -253,10 +263,10 @@ async function main() {
 
     // 4. Fruity
     const fruityList = [
-        { name: "Yuzu Honey Lemon", local: "ຢູຊຸຮັນນີ້ ເລມ່ອນ", vars: ["Iced"], img: "yuzu-honey" },
-        { name: "Yuzu Soda", local: "ຢູຊຸໂຊດາ", vars: ["Iced"], img: "yuzu-soda" },
-        { name: "Apple Soda", local: "ແອັບເປິ້ນ ໂຊດາ", vars: ["Iced"], img: "apple-soda" },
-        { name: "Lemon Peach Soda", local: "ເລມ່ອນ ພີດ ໂຊດາ", vars: ["Iced"], img: "peach-soda" },
+        { name: "Yuzu Honey Lemon", local: "ຢູຊຸຮັນນີ້ ເລມ່ອນ", vars: ["Iced"], img: "/uploads/yuzu-honey-lemon.jpg" },
+        { name: "Yuzu Soda", local: "ຢູຊຸໂຊດາ", vars: ["Iced"], img: "/uploads/Yuzu-Soda.jpeg" },
+        { name: "Apple Soda", local: "ແອັບເປິ້ນ ໂຊດາ", vars: ["Iced"], img: "/uploads/apple-soda.jpg" },
+        { name: "Lemon Peach Soda", local: "ເລມ່ອນ ພີດ ໂຊດາ", vars: ["Iced"], img: "/uploads/peach-lemon-soda.jpeg" },
     ]
     for (const m of fruityList) {
         await seedMenu(m.name, m.local, "Fruity", m.vars, m.img, false, 35000)
@@ -264,16 +274,16 @@ async function main() {
 
     // 5. Smoothie
     const smoothieList = [
-        { name: "Blue Sky Smoothie", local: "ບລູສະກາຍ ສະມູດຕີ້", vars: ["Blended"], img: "blue-smoothie" },
-        { name: "Hokkaido Orio Smoothie", local: "ຮັອກໄກໂດ ໂອຣິໂອ້ ສະມູດຕີ້", vars: ["Blended"], img: "oreo-shake" },
-        { name: "Mixed Berry Smoothie", local: "ເບີຣີ້ລວມ ສະມູດຕິ້", vars: ["Blended"], img: "berry-smoothie" },
-        { name: "Açaí Berry Smoothie", local: "ອາຊາອິເບີຣີ້ ສະມູດຕີ້", vars: ["Blended"], img: "acai-bowl" },
-        { name: "Blueberry Smoothie", local: "ບລູເບີຣີ້ ສະມູດຕີ້", vars: ["Blended"], img: "blueberry-smoothie" },
-        { name: "Strawberry Smoothie", local: "ສະຕໍເບີຣີ້ ສະມູດຕີ້", vars: ["Blended"], img: "strawberry-smoothie" },
-        { name: "Cranberry Smoothie", local: "ແຄນເບຣີ້ ສະມູດຕີ້", vars: ["Blended"], img: "cranberry-smoothie" },
-        { name: "Avocado + Banana Smoothie", local: "ອາໂວຄາໂດ້ + ກ້ວຍ ສະມູດຕີ້", vars: ["Blended"], img: "avocado-smoothie" },
-        { name: "Apple + Kale Smoothie", local: "ແອັບເປິ້ນ + ເຄວ ສະມູດຕີ້", vars: ["Blended"], img: "green-smoothie" },
-        { name: "Apple + Green Mixed Smoothie", local: "ແອັບເປິ້ນ + ຜັກລວມ ສະມູດຕີ້", vars: ["Blended"], img: "green-juice" },
+        { name: "Blue Sky Smoothie", local: "ບລູສະກາຍ ສະມູດຕີ້", vars: ["Blended"], img: "/uploads/blue-sky-smoothie.jpg" },
+        { name: "Hokkaido Oreo Smoothie", local: "ຮັອກໄກໂດ ໂອຣິໂອ້ ສະມູດຕີ້", vars: ["Blended"], img: "/uploads/Oreo-smoothie.jpg" },
+        { name: "Mixed Berry Smoothie", local: "ເບີຣີ້ລວມ ສະມູດຕິ້", vars: ["Blended"], img: "/uploads/mixed-berry-smoothie.jpg" },
+        { name: "Açaí Berry Smoothie", local: "ອາຊາອິເບີຣີ້ ສະມູດຕີ້", vars: ["Blended"], img: "/uploads/Acai-berry-Smoothie.jpg" },
+        { name: "Blueberry Smoothie", local: "ບລູເບີຣີ້ ສະມູດຕີ້", vars: ["Blended"], img: "/uploads/Blueberry-Smoothie.jpg" },
+        { name: "Strawberry Smoothie", local: "ສະຕໍເບີຣີ້ ສະມູດຕີ້", vars: ["Blended"], img: "/uploads/Strawberry-smoothie.jpg" },
+        { name: "Cranberry Smoothie", local: "ແຄນເບຣີ້ ສະມູດຕີ້", vars: ["Blended"], img: "/uploads/cranberry-smoothie.jpg" },
+        { name: "Avocado + Banana Smoothie", local: "ອາໂວຄາໂດ້ + ກ້ວຍ ສະມູດຕີ້", vars: ["Blended"], img: "/uploads/avocado-banana-smoothie.jpg" },
+        { name: "Apple + Kale Smoothie", local: "ແອັບເປິ້ນ + ເຄວ ສະມູດຕີ້", vars: ["Blended"], img: "/uploads/Apple-Kale-Smoothie.jpg" },
+        { name: "Apple + Green Mixed Smoothie", local: "ແອັບເປິ້ນ + ຜັກລວມ ສະມູດຕີ້", vars: ["Blended"], img: "/uploads/apple-green-mixed-smoothie.jpg" },
     ]
     for (const m of smoothieList) {
         await seedMenu(m.name, m.local, "Smoothie", m.vars, m.img, false, 40000)
@@ -281,16 +291,16 @@ async function main() {
 
     // 6. Premium
     const premiumList = [
-        { name: "Premium Americano", local: "ພຣີມ້ຽມ ອາເມຣິກາໂນ່", vars: ["Hot", "Iced"], zero: false, img: "premium-coffee" },
-        { name: "Premium Espresso", local: "ພຣີມ້ຽມ ເອສເພຣສໂຊ່", vars: ["Iced"], zero: true, img: "premium-espresso" },
-        { name: "Premium Cappuccino", local: "ພຣີມ້ຽມ ຄາປູຊີໂນ່", vars: ["Hot", "Iced"], zero: true, img: "premium-cappuccino" },
-        { name: "Premium Latte", local: "ພຣີມ້ຽມ ລາເຕ້", vars: ["Hot", "Iced"], zero: true, img: "premium-latte" },
-        { name: "Premium Pure Matcha", local: "ພຣີມ້ຽມ ພຽງມັດຊະ", vars: ["Iced"], zero: false, img: "ceremonial-matcha" },
-        { name: "Premium Matcha Latte", local: "ພຣີມ້ຽມ ມັດຊະ ລາເຕ້", vars: ["Iced"], zero: true, img: "matcha-latte-art" },
-        { name: "Premium Matcha Latte Almond Milk", local: "ພຣີມ້ຽມ ມັດຊະ ລາເຕ້ ນົມອາວມ້ອນ", vars: ["Iced"], zero: true, img: "almond-matcha" },
-        { name: "Premium Matcha Latte Oat Milk", local: "ພຣີມ້ຽມ ມັດຊະ ລາເຕ້ ນົມໂອ້ດ", vars: ["Iced"], zero: true, img: "oat-matcha" },
-        { name: "Premium Espresso Almond Milk", local: "ພຣີມ້ຽມ ເອສເພຣສໂຊ່ ນົມອາວມ້ອນ", vars: ["Iced"], zero: true, img: "almond-coffee" },
-        { name: "Premium Latte Almond Milk", local: "ພຣີມ້ຽມ ລາເຕ້ ນົມອາວມ້ອນ", vars: ["Iced"], zero: true, img: "almond-latte" },
+        { name: "Premium Americano", local: "ພຣີມ້ຽມ ອາເມຣິກາໂນ່", vars: ["Hot", "Iced"], zero: false, img: "/uploads/Americano.jpeg" },
+        { name: "Premium Espresso", local: "ພຣີມ້ຽມ ເອສເພຣສໂຊ່", vars: ["Iced"], zero: true, img: "/uploads/espresso.jpg" },
+        { name: "Premium Cappuccino", local: "ພຣີມ້ຽມ ຄາປູຊີໂນ່", vars: ["Hot", "Iced"], zero: true, img: "/uploads/cappuccino.jpg" },
+        { name: "Premium Latte", local: "ພຣີມ້ຽມ ລາເຕ້", vars: ["Hot", "Iced"], zero: true, img: "/uploads/latte.jpg" },
+        { name: "Premium Pure Matcha", local: "ພຣີມ້ຽມ ພຽງມັດຊະ", vars: ["Iced"], zero: false, img: "/uploads/pure-matcha.png" },
+        { name: "Premium Matcha Latte", local: "ພຣີມ້ຽມ ມັດຊະ ລາເຕ້", vars: ["Iced"], zero: true, img: "/uploads/matcha-latte.jpg" },
+        { name: "Premium Matcha Latte Almond Milk", local: "ພຣີມ້ຽມ ມັດຊະ ລາເຕ້ ນົມອາວມ້ອນ", vars: ["Iced"], zero: true, img: "/uploads/matcha-latte-almond-milk.jpg" },
+        { name: "Premium Matcha Latte Oat Milk", local: "ພຣີມ້ຽມ ມັດຊະ ລາເຕ້ ນົມໂອ້ດ", vars: ["Iced"], zero: true, img: "/uploads/Iced-Oat-Milk-Latte.png" },
+        { name: "Premium Espresso Almond Milk", local: "ພຣີມ້ຽມ ເອສເພຣສໂຊ່ ນົມອາວມ້ອນ", vars: ["Iced"], zero: true, img: "/uploads/espresso-almond-milk.jpg" },
+        { name: "Premium Latte Almond Milk", local: "ພຣີມ້ຽມ ລາເຕ້ ນົມອາວມ້ອນ", vars: ["Iced"], zero: true, img: "/uploads/premium-latte-almond-milk.jpg" },
     ]
     for (const m of premiumList) {
         await seedMenu(m.name, m.local, "Premium", m.vars, m.img, m.zero, 45000)
@@ -313,6 +323,48 @@ async function main() {
         }
     }
 
+    // ========== CUSTOMERS ==========
+    console.log("Seeding customers...")
+    const customersData = [
+        { name: "John Doe", phone: "020 5555 1234", email: "john@example.com", loyaltyPoints: 150, totalSpent: 450000, visitCount: 15, type: "NORMAL" },
+        { name: "Jane Smith", phone: "020 5555 5678", loyaltyPoints: 80, totalSpent: 240000, visitCount: 8, type: "NORMAL" },
+        { name: "Bob Wilson", phone: "020 5555 9012", loyaltyPoints: 200, totalSpent: 600000, visitCount: 20, type: "NORMAL" },
+        { name: "Owner VIP", phone: "000 000 0000", loyaltyPoints: 0, totalSpent: 0, visitCount: 0, type: "COMPLIMENTARY" }
+    ]
+
+    for (const data of customersData) {
+        await prisma.customer.create({ data })
+    }
+
+    // ========== PROMOTIONS ==========
+    console.log("Seeding promotions...")
+    const promos = [
+        {
+            name: "New Year Sale",
+            code: "NY2025",
+            description: "10% off all orders",
+            discountType: "percentage",
+            discountValue: 10,
+            startDate: subDays(now, 30),
+            endDate: new Date(now.getFullYear(), 11, 31),
+            isActive: true
+        },
+        {
+            name: "Loyalty Bonus",
+            code: "LOYAL50",
+            description: "50,000 LAK off",
+            discountType: "fixed",
+            discountValue: 50000,
+            startDate: subDays(now, 60),
+            endDate: new Date(now.getFullYear() + 1, 5, 30),
+            isActive: true
+        }
+    ]
+
+    for (const p of promos) {
+        await prisma.promotion.create({ data: p })
+    }
+
     // ========== MOCK TRANSACTION DATA ==========
     console.log("Seeding mock transaction data...")
 
@@ -326,7 +378,6 @@ async function main() {
 
     const allIngredients = await prisma.ingredient.findMany()
 
-    const now = new Date()
     const ordersData = []
 
     // Create ~500 orders across last 30 days

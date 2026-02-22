@@ -1,23 +1,29 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 
+// Inventory ID API routes
+
 export async function PUT(request: Request, { params }: { params: { id: string } }) {
     try {
         const { id } = await params
         const body = await request.json()
-        const { name, unit, mainStock, subStock, minStock, maxStock, cost } = body
+        const { name, unit, mainStock, subStock, minStock, maxStock, minStockSub, maxStockSub, cost } = body
+
+        const updatedData = {
+            name,
+            unit,
+            mainStock: parseFloat(mainStock?.toString() || "0"),
+            subStock: parseFloat(subStock?.toString() || "0"),
+            minStock: parseFloat(minStock?.toString() || "0"),
+            maxStock: parseFloat(maxStock?.toString() || "0"),
+            minStockSub: parseFloat(minStockSub?.toString() || "0"),
+            maxStockSub: parseFloat(maxStockSub?.toString() || "0"),
+            cost: parseFloat(cost?.toString() || "0")
+        }
 
         const ingredient = await prisma.ingredient.update({
             where: { id },
-            data: {
-                name,
-                unit,
-                mainStock: parseFloat(mainStock.toString()),
-                subStock: parseFloat(subStock.toString()),
-                minStock: parseFloat(minStock.toString()),
-                maxStock: parseFloat(maxStock.toString()),
-                cost: parseFloat(cost.toString())
-            }
+            data: updatedData
         })
 
         return NextResponse.json({ success: true, ingredient })

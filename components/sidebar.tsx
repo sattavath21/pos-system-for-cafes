@@ -86,12 +86,22 @@ export function Sidebar() {
 
     // Filter items based on user role
     const isSpecialRole = user?.role === 'ADMIN' || user?.role === 'MANAGER'
+    const isCashier = user?.role === 'CASHIER'
+
     const filteredNavItems = mainNavItems.filter(item => {
+        // Cashier restrictions
+        if (isCashier) {
+            const cashierAllowed = ['/pos', '/orders', '/customers']
+            return cashierAllowed.includes(item.href)
+        }
+
         if ((item as any).adminOnly) return user?.role === 'ADMIN'
         if ((item as any).managerAllowed) return isSpecialRole
         return true
     })
+
     const filteredSystemItems = systemActions.filter(item => {
+        if (isCashier) return false // Hide settings for cashier
         if ((item as any).adminOnly) return user?.role === 'ADMIN'
         if ((item as any).managerAllowed) return isSpecialRole
         return true

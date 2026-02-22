@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge"
 import { QRCodeSVG } from "qrcode.react"
 import { formatLAK, calculateTax } from "@/lib/currency"
 import { useShift } from "@/components/shift-provider"
+import { useTranslation } from "@/hooks/use-translation"
 
 type CartItem = {
     id: string
@@ -24,6 +25,7 @@ type CartItem = {
 }
 
 export default function CustomerViewPage() {
+    const { t } = useTranslation()
     const [cart, setCart] = useState<CartItem[]>([])
     const [total, setTotal] = useState(0)
     const [subtotal, setSubtotal] = useState(0)
@@ -120,30 +122,62 @@ export default function CustomerViewPage() {
 
     if (successInfo) {
         return (
-            <div className="min-h-screen bg-emerald-50 flex flex-col items-center justify-center p-8 text-center animate-in zoom-in duration-500">
-                <div className="max-w-md w-full space-y-8 bg-white p-12 rounded-3xl shadow-2xl border-4 border-emerald-100">
-                    <div className="w-32 h-32 bg-emerald-100 rounded-full flex items-center justify-center mx-auto mb-6">
-                        <span className="text-6xl text-emerald-600">✅</span>
-                    </div>
-                    <h1 className="text-5xl font-black text-emerald-900 tracking-tight">Payment Successful!</h1>
-                    <p className="text-xl text-emerald-700">Thank you for your visit</p>
+            <div className="h-screen bg-slate-50 flex flex-col items-center justify-center overflow-hidden animate-in fade-in duration-700">
+                <div className="max-w-lg w-full px-6 relative">
+                    {/* Decorative Background Elements */}
+                    <div className="absolute -top-16 -left-16 w-48 h-48 bg-emerald-200 rounded-full mix-blend-multiply filter blur-3xl opacity-30 animate-blob"></div>
+                    <div className="absolute -bottom-16 -right-16 w-48 h-48 bg-amber-200 rounded-full mix-blend-multiply filter blur-3xl opacity-30 animate-blob animation-delay-2000"></div>
 
-                    <div className="border-y-2 border-dashed border-emerald-100 py-8 space-y-4">
-                        <div className="flex justify-between items-center text-slate-500">
-                            <span className="text-lg">Total Amount</span>
-                            <span className="text-2xl font-bold">{formatLAK(successInfo.total)}</span>
-                        </div>
-                        <div className="flex justify-between items-center text-slate-500">
-                            <span className="text-lg">Amount Paid</span>
-                            <span className="text-2xl font-bold">{formatLAK(successInfo.cashReceived)}</span>
-                        </div>
-                        <div className="flex justify-between items-center pt-2">
-                            <span className="text-2xl font-bold text-emerald-800">Your Change</span>
-                            <span className="text-4xl font-black text-emerald-600">{formatLAK(successInfo.change)}</span>
-                        </div>
-                    </div>
+                    <Card className="relative overflow-hidden border-none shadow-[0_16px_48px_-12px_rgba(0,0,0,0.1)] rounded-3xl bg-white/90 backdrop-blur-xl">
+                        <div className="absolute top-0 left-0 w-full h-1.5 bg-gradient-to-r from-emerald-400 via-teal-500 to-emerald-500"></div>
 
-                    <p className="text-emerald-500 font-bold uppercase tracking-widest pt-4">See you again soon!</p>
+                        <div className="p-8 flex flex-col items-center gap-5">
+                            {/* Icon */}
+                            <div className="w-24 h-24 bg-emerald-50 rounded-full flex items-center justify-center relative">
+                                <div className="absolute inset-0 rounded-full border-4 border-emerald-100 animate-ping opacity-20"></div>
+                                <div className="absolute inset-3 rounded-full border-2 border-emerald-200 animate-pulse"></div>
+                                <CheckCircle className="w-14 h-14 text-emerald-500 relative z-10" />
+                            </div>
+
+                            {/* Title */}
+                            <div className="text-center space-y-1">
+                                <h1 className="text-4xl font-black text-slate-800 tracking-tight leading-none">
+                                    {t.order_complete_msg || "Payment Confirmed!"}
+                                </h1>
+                                <p className="text-base text-slate-400 font-medium italic">Your order is now being prepared</p>
+                            </div>
+
+                            {/* Payment Details */}
+                            <div className="w-full bg-slate-50/80 rounded-2xl px-6 py-4 space-y-3 border border-slate-100">
+                                <div className="flex justify-between items-center">
+                                    <span className="text-sm font-bold uppercase tracking-widest text-slate-400">Amount Paid</span>
+                                    <span className="text-2xl font-black text-slate-700">{formatLAK(successInfo.cashReceived)}</span>
+                                </div>
+                                <div className="h-px bg-slate-200/50"></div>
+                                <div className="flex justify-between items-center">
+                                    <span className="text-sm font-bold uppercase tracking-widest text-slate-400">Billed Total</span>
+                                    <span className="text-xl font-bold text-slate-400">{formatLAK(successInfo.total)}</span>
+                                </div>
+                                <div className="bg-emerald-500 rounded-2xl px-5 py-4 text-white flex justify-between items-center shadow-md shadow-emerald-100 relative overflow-hidden">
+                                    <div className="absolute top-0 right-0 p-3 opacity-10">
+                                        <Coffee className="w-12 h-12 transform rotate-12" />
+                                    </div>
+                                    <span className="text-lg font-black uppercase tracking-tight">Your Change</span>
+                                    <span className="text-4xl font-black tabular-nums">{formatLAK(successInfo.change)}</span>
+                                </div>
+                            </div>
+
+                            {/* Thank you */}
+                            <div className="space-y-1 text-center">
+                                <div className="flex items-center justify-center gap-3 text-emerald-600 font-black text-base uppercase tracking-widest">
+                                    <div className="h-px w-6 bg-emerald-200"></div>
+                                    {t.thank_you}
+                                    <div className="h-px w-6 bg-emerald-200"></div>
+                                </div>
+                                <p className="text-sm text-slate-400 font-medium">Please wait for your beeper call</p>
+                            </div>
+                        </div>
+                    </Card>
                 </div>
             </div>
         )

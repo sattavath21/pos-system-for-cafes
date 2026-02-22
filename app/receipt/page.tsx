@@ -69,20 +69,20 @@ function ReceiptContent() {
 
   return (
     <div className="flex flex-col items-center min-h-screen bg-gray-100 p-0 sm:p-8 print:bg-white print:p-0">
-      <Card id="printable-receipt" className="w-[400px] p-3 bg-white shadow-none border-none font-mono text-sm leading-tight">
+      <Card id="printable-receipt" className={`w-[400px] p-3 bg-white shadow-none border-none font-mono text-sm leading-tight ${settings?.boldReceipt === 'true' ? 'font-bold' : ''}`}>
         <div className="text-center space-y-1 mb-3 pt-2">
           <div className="flex justify-center mb-2">
             <img src="/placeholder-logo.png" alt="Logo" className="h-12 w-auto object-contain" />
           </div>
-          <h1 className="text-lg font-bold uppercase tracking-tight">{settings?.shopName || 'Cafe POS'}</h1>
-          <p className="text-[9px] text-muted-foreground">Order completed successfully</p>
+          <h1 className="text-lg font-black uppercase tracking-tight">{settings?.shopName || 'Cafe POS'}</h1>
+          {settings?.shopAddress && <p className="text-[9px] text-muted-foreground">{settings.shopAddress}</p>}
+          {settings?.shopPhone && <p className="text-[9px] text-muted-foreground">Tel: {settings.shopPhone}</p>}
         </div>
 
         <div className="border border-dashed border-slate-200 p-2 rounded-lg bg-slate-50 relative overflow-hidden">
           <div className="text-center border-b border-dashed border-slate-300 pb-2 mb-2">
             <p className="text-[8px] uppercase tracking-wider text-slate-500">Order Number</p>
             <p className="text-lg font-bold">{order.orderNumber}</p>
-            <p className="text-xs font-bold uppercase mt-0.5">{settings?.shopName || 'Cafe POS'}</p>
             <p className="text-[8px] mt-0.5">{new Date(order.createdAt).toLocaleString()}</p>
           </div>
 
@@ -173,7 +173,7 @@ function ReceiptContent() {
 
         <div className="text-center mt-2 pt-1.5 text-[7px] opacity-70 border-t border-dashed border-slate-300">
           <p>Payment: {order.paymentMethod === 'BANK_NOTE' ? 'Cash' : 'Transfer'}</p>
-          <p className="font-bold mt-0.5 uppercase">Thank you for your visit!</p>
+          <p className="font-bold mt-0.5 uppercase">{settings?.receiptFooter || 'Thank you for your visit!'}</p>
         </div>
       </Card>
 

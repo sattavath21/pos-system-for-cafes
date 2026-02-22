@@ -1374,12 +1374,12 @@ export default function POSPage() {
 
                     {/* Primary Numpad */}
                     <div className="flex-1 flex flex-col justify-center max-w-sm mx-auto w-full">
-                      <div className="grid grid-cols-3 gap-3">
+                      <div className="grid grid-cols-3 gap-2">
                         {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((num) => (
                           <Button
                             key={num}
                             variant="outline"
-                            className="h-16 text-3xl font-black border-2 hover:bg-amber-50 hover:border-amber-400 transition-all rounded-2xl shadow-sm"
+                            className="h-12 text-2xl font-black border-2 hover:bg-amber-50 hover:border-amber-400 transition-all rounded-xl shadow-sm"
                             onClick={() => {
                               if (focusedInput === 'beeper') setBeeperNumber(prev => (prev + num).slice(0, 4))
                               if (focusedInput === 'cash') setCashReceived(prev => prev + num)
@@ -1390,7 +1390,7 @@ export default function POSPage() {
                         ))}
                         <Button
                           variant="outline"
-                          className="h-16 text-xl font-bold border-2 text-rose-500 hover:bg-rose-50 hover:border-rose-400 rounded-2xl"
+                          className="h-12 text-base font-bold border-2 text-rose-500 hover:bg-rose-50 hover:border-rose-400 rounded-xl"
                           onClick={() => {
                             if (focusedInput === 'beeper') setBeeperNumber("")
                             if (focusedInput === 'cash') setCashReceived("")
@@ -1400,7 +1400,7 @@ export default function POSPage() {
                         </Button>
                         <Button
                           variant="outline"
-                          className="h-16 text-3xl font-black border-2 hover:bg-amber-50 hover:border-amber-400 rounded-2xl shadow-sm"
+                          className="h-12 text-2xl font-black border-2 hover:bg-amber-50 hover:border-amber-400 rounded-xl shadow-sm"
                           onClick={() => {
                             if (focusedInput === 'beeper') setBeeperNumber(prev => (prev + '0').slice(0, 4))
                             if (focusedInput === 'cash') setCashReceived(prev => prev + '0')
@@ -1410,7 +1410,7 @@ export default function POSPage() {
                         </Button>
                         <Button
                           variant="outline"
-                          className="h-16 text-xl font-bold border-2 text-slate-600 hover:bg-slate-100 rounded-2xl"
+                          className="h-12 text-base font-bold border-2 text-slate-600 hover:bg-slate-100 rounded-xl"
                           onClick={() => {
                             if (focusedInput === 'beeper') setBeeperNumber(prev => prev.slice(0, -1))
                             if (focusedInput === 'cash') setCashReceived(prev => prev.slice(0, -1))
@@ -1422,40 +1422,49 @@ export default function POSPage() {
                     </div>
 
                     {/* Bank Note Quick Actions */}
-                    <div className="space-y-3">
-                      <div className="flex justify-between items-center px-1 mb-2">
-                        <Label className="text-xs font-bold uppercase text-slate-400">{t.bank_note} Quick Add</Label>
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between">
+                        <Label className="text-[10px] font-black uppercase text-slate-400 tracking-widest">{t.bank_note} Denominations</Label>
                         <Button
                           variant="default"
-                          size="lg"
-                          className="h-16 px-8 bg-green-600 hover:bg-green-700 text-white font-bold text-xl shadow-md"
+                          size="sm"
+                          className="h-9 px-4 bg-emerald-600 hover:bg-emerald-700 text-white font-black text-sm shadow rounded-xl"
                           onClick={() => setCashReceived(total.toString())}
                         >
-                          💰 {t.pay_exact}
+                          <CheckCircle className="w-4 h-4 mr-1.5" />
+                          {t.pay_exact}
                         </Button>
                       </div>
                       <div className="grid grid-cols-4 gap-2">
-                        {[500, 1000, 2000, 5000, 10000, 20000, 50000, 100000].map(denom => (
+                        {[
+                          { val: 500, color: 'bg-slate-100 text-slate-600 border-slate-200' },
+                          { val: 1000, color: 'bg-blue-50 text-blue-700 border-blue-200' },
+                          { val: 2000, color: 'bg-purple-50 text-purple-700 border-purple-200' },
+                          { val: 5000, color: 'bg-orange-50 text-orange-700 border-orange-200' },
+                          { val: 10000, color: 'bg-red-50 text-red-700 border-red-200' },
+                          { val: 20000, color: 'bg-green-50 text-green-700 border-green-200' },
+                          { val: 50000, color: 'bg-sky-50 text-sky-700 border-sky-200' },
+                          { val: 100000, color: 'bg-amber-50 text-amber-700 border-amber-200' }
+                        ].map(denom => (
                           <Button
-                            key={denom}
+                            key={denom.val}
                             variant="outline"
-                            size="lg"
-                            className="h-16 text-lg font-bold border-amber-200 bg-amber-50 hover:bg-amber-100 hover:border-amber-400 rounded-lg text-amber-900 shadow-sm"
-                            onClick={() => setCashReceived(prev => String(Number(prev || 0) + denom))}
+                            className={`h-10 flex flex-col items-center justify-center gap-0 border-2 font-bold rounded-xl hover:scale-[1.04] active:scale-95 transition-all text-xs ${denom.color} hover:shadow-sm`}
+                            onClick={() => setCashReceived(prev => String(Number(prev || 0) + denom.val))}
                           >
-                            +{denom.toLocaleString()}₭
+                            {denom.val.toLocaleString()}
                           </Button>
                         ))}
                       </div>
                     </div>
 
                     {/* Actions */}
-                    <div className="flex gap-3 pt-4">
-                      <Button variant="outline" className="flex-1 h-14 text-lg font-bold border-2 rounded-xl" onClick={() => setIsPaymentOpen(false)}>
+                    <div className="flex gap-3 pt-2">
+                      <Button variant="outline" className="flex-1 h-12 text-base font-bold border-2 rounded-xl" onClick={() => setIsPaymentOpen(false)}>
                         {t.cancel}
                       </Button>
                       <Button
-                        className="flex-[2] h-16 text-xl font-black bg-green-600 hover:bg-green-700 shadow-lg shadow-green-200 rounded-xl"
+                        className="flex-[2] h-12 text-base font-black bg-green-600 hover:bg-green-700 shadow-lg shadow-green-200 rounded-xl"
                         disabled={isProcessing || !beeperNumber || !cashReceived || Number(cashReceived) < total}
                         onClick={handleCheckout}
                       >
