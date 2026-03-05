@@ -50,7 +50,8 @@ export async function GET(request: Request) {
             select: {
                 total: true,
                 createdAt: true,
-                discount: true
+                discount: true,
+                user: { select: { name: true } }
             }
         })
 
@@ -65,6 +66,17 @@ export async function GET(request: Request) {
             entry.orders += 1
         })
         const dailyTrend = Array.from(trendMap.values()).sort((a, b) => a.date.localeCompare(b.date))
+
+        // Staff Sales Performance
+        const staffMap = new Map()
+        orders.forEach(o => {
+            const staffName = o.user?.name || "Unknown Staff"
+            if (!staffMap.has(staffName)) staffMap.set(staffName, { name: staffName, revenue: 0, orders: 0 })
+            const entry = staffMap.get(staffName)
+            entry.revenue += o.total
+            entry.orders += 1
+        })
+        const staffSales = Array.from(staffMap.values()).sort((a, b) => b.revenue - a.revenue)
 
         // 2. Category Share
         const orderItems = await prisma.orderItem.findMany({
@@ -265,29 +277,9 @@ export async function GET(request: Request) {
         // wastageCost will be calculated after inventoryTransactions is fetched below
 
         // 3. Inventory Shrinkage
-        // Based on StockCount entries
-        const stockCounts = await prisma.stockCount.findMany({
-            where: { createdAt: { gte: startDate, lte: endDate } },
-            include: { ingredient: { select: { cost: true } } }
-        })
-
-        const shrinkageCost = stockCounts.reduce((sum, sc) => {
-            // Shrinkage is typically a negative difference (actual < theoretical)
-            if (sc.difference < 0) {
-                return sum + (Math.abs(sc.difference) * sc.ingredient.cost)
-            }
-            return sum
-        }, 0)
-
-        const shrinkageDetails = stockCounts.map(sc => ({
-            id: sc.id,
-            ingredientName: sc.ingredient.name,
-            theoretical: sc.theoreticalStock,
-            actual: sc.actualStock,
-            difference: sc.difference,
-            lossValue: sc.difference < 0 ? Math.abs(sc.difference) * sc.ingredient.cost : 0,
-            date: sc.createdAt
-        })).sort((a, b) => b.lossValue - a.lossValue)
+        // Based on SHOP_ADJUST transactions (calculated after inventoryTransactions is fetched)
+        let shrinkageCost = 0
+        let shrinkageDetails: any[] = []
 
         // 6. Promo Impact
         const promoOrders = await prisma.order.findMany({
@@ -427,7 +419,7 @@ export async function GET(request: Request) {
             where: {
                 createdAt: { gte: startDate, lte: endDate }
             },
-            include: { ingredient: true },
+            include: { ingredient: true, user: { select: { name: true } } },
             orderBy: { createdAt: 'desc' }
         })
 
@@ -461,11 +453,42 @@ export async function GET(request: Request) {
             })
         const mostTransferred = Array.from(transferMap.values()).sort((a, b) => b.quantity - a.quantity).slice(0, 10)
 
-        // b. Wastage cost (WITHDRAW transactions labelled as waste)
+        // b. Wastage cost (WITHDRAW or SHOP_ADJUST transactions labelled as waste/spill)
         const wastageTransactions = inventoryTransactions.filter(t =>
-            t.type === 'WITHDRAW' && (t.reason?.toLowerCase().includes('waste') || t.notes?.toLowerCase().includes('waste'))
+            // Withdrawals are usually considered usage or waste depending on context, but let's keep WITHDRAW as intentional waste if it had those notes before, 
+            // OR if it's a SHOP_ADJUST with specific dropdown reasons.
+            // Dropdown reasons: SPILLAGE, THEFT, COUNTING_ERROR, SYSTEM_ERROR, EXPIRED, OTHER
+            (t.type === 'SHOP_ADJUST' && (t.reason === 'SPILLAGE' || t.reason === 'EXPIRED')) ||
+            (t.type === 'WITHDRAW' && (t.reason === 'DAMAGED' || t.reason === 'LOST')) // Assuming DAMAGED and LOST from withdrawal are waste
         )
-        const wastageCost = wastageTransactions.reduce((sum, t) => sum + (t.quantity * (t.ingredient.cost || 0)), 0)
+        const wastageCost = wastageTransactions.reduce((sum, t) => {
+            return sum + (Math.abs(t.quantity) * (t.ingredient.cost || 0))
+        }, 0)
+
+        // c. Shrinkage cost (SHOP_ADJUST transactions labelled as shrink or adjust)
+        const shrinkageTransactions = inventoryTransactions.filter(t =>
+            t.type === 'SHOP_ADJUST' &&
+            (t.reason === 'THEFT' || t.reason === 'COUNTING_ERROR' || t.reason === 'SYSTEM_ERROR' || t.reason === 'OTHER')
+        )
+
+        shrinkageCost = shrinkageTransactions.reduce((sum, t) => {
+            // Negative quantity means loss
+            if (t.quantity < 0) {
+                return sum + (Math.abs(t.quantity) * (t.ingredient.cost || 0))
+            }
+            return sum
+        }, 0)
+
+        shrinkageDetails = shrinkageTransactions.map(sc => ({
+            id: sc.id,
+            ingredientName: sc.ingredient.name,
+            difference: sc.quantity,
+            lossValue: sc.quantity < 0 ? Math.abs(sc.quantity) * (sc.ingredient.cost || 0) : 0,
+            date: sc.createdAt,
+            reason: sc.reason || 'Adjustment',
+            notes: sc.notes || ''
+        })).sort((a, b) => b.lossValue - a.lossValue)
+
         const totalCOGS = salesCost + wastageCost
 
         // Transaction type breakdown
@@ -488,6 +511,7 @@ export async function GET(request: Request) {
             sizeStats,
             variationStats,
             promoImpact,
+            staffSales,
             complimentaryDetails,
             customerStats: {
                 memberVsGuest,
@@ -508,6 +532,7 @@ export async function GET(request: Request) {
                     unit: t.ingredient.unit,
                     fromStore: t.fromStore,
                     toStore: t.toStore,
+                    user: t.user?.name || null,
                     reason: t.reason,
                     notes: t.notes,
                     createdAt: t.createdAt

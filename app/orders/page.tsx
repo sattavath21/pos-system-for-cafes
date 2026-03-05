@@ -43,6 +43,8 @@ export default function ActiveOrdersPage() {
 
     useEffect(() => {
         fetchOrders()
+        const interval = setInterval(fetchOrders, 5000)
+        return () => clearInterval(interval)
     }, [selectedDate])
 
     const fetchOrders = async () => {

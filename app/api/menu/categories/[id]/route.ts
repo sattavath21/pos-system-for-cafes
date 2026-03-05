@@ -7,13 +7,17 @@ export async function PUT(
 ) {
     try {
         const { id } = await params
-        const { name } = await request.json()
+        const { name, hasSugarLevel, hasShotType } = await request.json()
 
         if (!name) return NextResponse.json({ error: 'Name required' }, { status: 400 })
 
         const category = await prisma.category.update({
             where: { id },
-            data: { name }
+            data: {
+                name,
+                hasSugarLevel: Boolean(hasSugarLevel),
+                hasShotType: Boolean(hasShotType)
+            }
         })
 
         return NextResponse.json(category)

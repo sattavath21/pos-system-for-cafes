@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Badge } from "@/components/ui/badge"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogTrigger } from "@/components/ui/dialog"
-import { Plus, Edit, Trash2, AlertTriangle, Package, ShoppingCart, Minus, Settings, Search, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react"
+import { Plus, Edit, Trash2, Package, ShoppingCart, Minus, Settings, Search, ArrowUpDown, Store, Warehouse } from "lucide-react"
 import { formatLAK } from "@/lib/currency"
 import { Header } from "@/components/header"
 import { FormattedNumberInput } from "@/components/ui/formatted-number-input"
@@ -23,6 +23,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { useTranslation } from "@/hooks/use-translation"
 
 type Ingredient = {
@@ -48,7 +49,7 @@ export default function InventoryPage() {
   const [ingredients, setIngredients] = useState<Ingredient[]>([])
   const [isDialogOpen, setIsDialogOpen] = useState(false)
   const [editingItem, setEditingItem] = useState<Ingredient | null>(null)
-  const [activeTab, setActiveTab] = useState<"SUB" | "MAIN" | "AUDIT">("SUB")
+  const [activeTab, setActiveTab] = useState<"SUB" | "MAIN">("SUB")
   const [isTransferOpen, setIsTransferOpen] = useState(false)
   const [transferItem, setTransferItem] = useState<Ingredient | null>(null)
   const [transferQty, setTransferQty] = useState("")
@@ -58,10 +59,6 @@ export default function InventoryPage() {
   const [withdrawItem, setWithdrawItem] = useState<Ingredient | null>(null)
   const [shopAdjustItem, setShopAdjustItem] = useState<Ingredient | null>(null)
   const [isShopAdjustOpen, setIsShopAdjustOpen] = useState(false)
-  const [isAuditOpen, setIsAuditOpen] = useState(false)
-  const [auditItem, setAuditItem] = useState<Ingredient | null>(null)
-  const [actualStockInput, setActualStockInput] = useState("")
-  const [auditNotes, setAuditNotes] = useState("")
 
   // Search and Sort
   const [searchQuery, setSearchQuery] = useState("")
@@ -205,32 +202,6 @@ export default function InventoryPage() {
     })
   }
 
-  const handleAuditSubmit = async () => {
-    if (!auditItem || actualStockInput === "") return
-    try {
-      const res = await fetch('/api/inventory/stock-count', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          ingredientId: auditItem.id,
-          theoreticalStock: auditItem.subStock,
-          actualStock: parseFloat(actualStockInput),
-          notes: auditNotes
-        })
-      })
-
-      if (res.ok) {
-        setIsAuditOpen(false)
-        setActualStockInput("")
-        setAuditNotes("")
-        fetchInventory()
-      }
-    } catch (e) {
-      console.error(e)
-    }
-  }
-
-
   const getStockStatus = (item: Ingredient) => {
     const isSub = activeTab === "SUB"
     const stock = isSub ? item.subStock : item.mainStock
@@ -305,398 +276,309 @@ export default function InventoryPage() {
 
       <div className="p-6 space-y-6">
         {/* Inventory View Tabs */}
-        <div className="flex gap-3 justify-between items-center">
-          <div className="flex gap-3">
-            <Button
-              variant={activeTab === "SUB" ? "default" : "outline"}
-              onClick={() => setActiveTab("SUB")}
-              className={activeTab === "SUB" ? "bg-amber-600 hover:bg-amber-700 text-white" : ""}
-            >
-              🏪 Shop Inventory
-            </Button>
-            <Button
-              variant={activeTab === "MAIN" ? "default" : "outline"}
-              onClick={() => setActiveTab("MAIN")}
-              className={activeTab === "MAIN" ? "bg-amber-600 hover:bg-amber-700 text-white" : ""}
-            >
-              🏭 Warehouse
-            </Button>
-            <Button
-              variant={activeTab === "AUDIT" ? "default" : "outline"}
-              onClick={() => setActiveTab("AUDIT")}
-              className={activeTab === "AUDIT" ? "bg-amber-600 hover:bg-amber-700 text-white" : ""}
-            >
-              📋 Stock Audit
-            </Button>
-          </div>
-          <div className="flex gap-2">
-            <div className="relative w-64">
-              <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder={t.search_items}
-                className="pl-8"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-              />
-            </div>
-            {(activeTab == "MAIN" || activeTab == "SUB") ?
-              <Dialog open={isDialogOpen} onOpenChange={(open) => { setIsDialogOpen(open); if (!open) resetForm(); }}>
-                <DialogTrigger asChild>
-                  <Button className="bg-amber-600 hover:bg-amber-700">
-                    <Plus className="w-4 h-4 mr-2" />
-                    {t.add_ingredient}
-                  </Button>
-                </DialogTrigger>
-                <DialogContent>
-                  <DialogHeader>
-                    <DialogTitle>{editingItem ? t.edit : t.add_item} {t.inventory}</DialogTitle>
-                  </DialogHeader>
-                  <div className="space-y-4">
-                    <div className="space-y-2">
-                      <Label>{t.name}</Label>
-                      <FormattedTextInput value={formData.name} onChange={val => setFormData({ ...formData, name: val })} />
-                    </div>
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="space-y-2">
-                        <Label>{t.unit}</Label>
-                        <FormattedTextInput
-                          placeholder="e.g. kg, L, pcs"
-                          value={formData.unit}
-                          onChange={val => setFormData({ ...formData, unit: val })}
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label>Initial Warehouse Stock</Label>
-                        <FormattedNumberInput value={formData.mainStock} onChange={val => setFormData({ ...formData, mainStock: val })} />
-                        <p className="text-xs text-muted-foreground">Shop stock starts at 0. Transfer from warehouse as needed.</p>
-                      </div>
-                    </div>
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="space-y-2 p-3 bg-slate-50 rounded-lg">
-                        <Label className="text-amber-800 font-bold">🏭 Warehouse Limits</Label>
-                        <div className="space-y-2 mt-2">
-                          <Label>{t.min_stock}</Label>
-                          <FormattedNumberInput value={formData.minStock} onChange={val => setFormData({ ...formData, minStock: val })} />
-                        </div>
-                        <div className="space-y-2">
-                          <Label>{t.max_stock}</Label>
-                          <FormattedNumberInput value={formData.maxStock} onChange={val => setFormData({ ...formData, maxStock: val })} />
-                        </div>
-                      </div>
-                      <div className="space-y-2 p-3 bg-amber-50 rounded-lg">
-                        <Label className="text-amber-800 font-bold">🏪 Shop Limits</Label>
-                        <div className="space-y-2 mt-2">
-                          <Label>{t.min_stock}</Label>
-                          <FormattedNumberInput value={formData.minStockSub} onChange={val => setFormData({ ...formData, minStockSub: val })} />
-                        </div>
-                        <div className="space-y-2">
-                          <Label>{t.max_stock}</Label>
-                          <FormattedNumberInput value={formData.maxStockSub} onChange={val => setFormData({ ...formData, maxStockSub: val })} />
-                        </div>
-                      </div>
-                    </div>
-                    <div className="space-y-2">
-                      <Label>{t.cost_per_unit} (LAK)</Label>
-                      <FormattedNumberInput allowDecimals={true} value={formData.cost} onChange={val => setFormData({ ...formData, cost: val })} />
-                    </div>
-                  </div>
-                  <DialogFooter>
-                    <Button variant="outline" onClick={() => setIsDialogOpen(false)}>{t.cancel}</Button>
-                    <Button className="bg-amber-600 hover:bg-amber-700" onClick={handleSubmit}>
-                      {editingItem ? t.update : t.save}
-                    </Button>
-                  </DialogFooter>
-                </DialogContent>
-              </Dialog>
-              : null}
-          </div>
-        </div>
+        <Tabs value={activeTab} onValueChange={(val) => setActiveTab(val as "SUB" | "MAIN")} className="w-full">
+          <div className="flex justify-between items-center mb-6">
+            <TabsList className="grid w-full grid-cols-2 lg:w-[400px]">
+              <TabsTrigger value="SUB" className="font-bold">
+                <Store className="w-4 h-4 mr-2" />
+                {t.shop_inventory || "Shop Inventory"}
+              </TabsTrigger>
+              <TabsTrigger value="MAIN" className="font-bold">
+                <Warehouse className="w-4 h-4 mr-2" />
+                {t.warehouse || "Warehouse"}
+              </TabsTrigger>
+            </TabsList>
 
-        {/* Stats */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-          <Card className="p-6">
-            <p className="text-sm text-muted-foreground mb-1">{t.total_items}</p>
-            <p className="text-3xl font-bold">{ingredients.length}</p>
-          </Card>
-          <Card className="p-6">
-            <p className="text-sm text-muted-foreground mb-1">{t.low_stock} ({activeTab === "SUB" ? "Shop" : "Whse"})</p>
-            <p className="text-3xl font-bold text-red-600">
-              {ingredients.filter(i => {
-                const stock = activeTab === "SUB" ? i.subStock : i.mainStock
-                const min = activeTab === "SUB" ? i.minStockSub : i.minStock
-                return stock <= min
-              }).length}
-            </p>
-          </Card>
-          <Card className="p-6">
-            <p className="text-sm text-muted-foreground mb-1">{t.total_value} ({activeTab === "SUB" ? "Shop" : "Whse"})</p>
-            <p className="text-2xl font-bold text-green-600">
-              {formatLAK(ingredients.reduce((sum, i) => sum + ((activeTab === "SUB" ? i.subStock : i.mainStock) * i.cost), 0))}
-            </p>
-          </Card>
-        </div>
-
-        {/* Inventory Table */}
-        <Card className="p-6">
-          <div className="rounded-md border">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead className="w-[300px] cursor-pointer" onClick={() => handleSort('name')}>
-                    <div className="flex items-center gap-1">
-                      {t.item}
-                      <ArrowUpDown className="h-3 w-3" />
-                    </div>
-                  </TableHead>
-                  <TableHead className="cursor-pointer" onClick={() => handleSort(activeTab === 'SUB' ? 'subStock' : 'mainStock')}>
-                    <div className="flex items-center gap-1">
-                      Stock ({activeTab === 'SUB' ? 'Shop' : 'Whse'})
-                      <ArrowUpDown className="h-3 w-3" />
-                    </div>
-                  </TableHead>
-                  <TableHead>{t.unit}</TableHead>
-                  <TableHead className="cursor-pointer" onClick={() => handleSort(activeTab === 'SUB' ? 'minStockSub' : 'minStock')}>
-                    <div className="flex items-center gap-1">
-                      {t.min_stock}
-                      <ArrowUpDown className="h-3 w-3" />
-                    </div>
-                  </TableHead>
-                  <TableHead>{t.cost}</TableHead>
-                  <TableHead>{t.value}</TableHead>
-                  <TableHead className="w-[300px] cursor-pointer" onClick={() => handleSort('status')}>
-                    <div className="flex items-center gap-1">
-                      {t.status}
-                      <ArrowUpDown className="h-3 w-3" />
-                    </div>
-                  </TableHead>
-                  <TableHead className="text-right">{t.actions}</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {sortedIngredients.length > 0 ? (
-                  sortedIngredients.map((item) => {
-                    const status = getStockStatus(item)
-                    return (
-                      <TableRow key={item.id}>
-                        <TableCell className="font-medium">
-                          <div className="flex items-center gap-2">
-                            <Package className="h-4 w-4 text-muted-foreground" />
-                            {item.name}
-                          </div>
-                        </TableCell>
-                        <TableCell className="font-bold text-lg">
-                          {activeTab === "SUB" ? item.subStock : item.mainStock}
-                        </TableCell>
-                        <TableCell>{item.unit}</TableCell>
-                        <TableCell>{activeTab === "SUB" ? item.minStockSub : item.minStock}</TableCell>
-                        <TableCell>{formatLAK(item.cost)}</TableCell>
-                        <TableCell>{formatLAK((activeTab === 'SUB' ? item.subStock : item.mainStock) * item.cost)}</TableCell>
-                        <TableCell>
-                          <Badge className={status.color}>{status.label}</Badge>
-                        </TableCell>
-                        <TableCell className="text-right">
-                          <div className="flex justify-end gap-2">
-                            {activeTab === "MAIN" ? (
-                              <>
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  className="h-8 border-green-200 text-green-700 bg-green-50 hover:bg-green-100"
-                                  onClick={() => { setDepositItem(item); setIsDepositOpen(true); }}
-                                >
-                                  <ShoppingCart className="w-3 h-3 mr-1" />
-                                  In
-                                </Button>
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  className="h-8 border-rose-200 text-rose-700 bg-rose-50 hover:bg-rose-100"
-                                  onClick={() => { setWithdrawItem(item); setIsWithdrawOpen(true); }}
-                                >
-                                  <Minus className="w-3 h-3 mr-1" />
-                                  Out
-                                </Button>
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  className="h-8 border-amber-200 text-amber-700 bg-amber-50 hover:bg-amber-100"
-                                  onClick={() => { setTransferItem(item); setIsTransferOpen(true); }}
-                                >
-                                  To Shop
-                                </Button>
-                                <Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-red-50 hover:text-red-600" onClick={() => handleDelete(item.id)}>
-                                  <Trash2 className="w-4 h-4" />
-                                </Button>
-                                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleEdit(item)}>
-                                  <Edit className="w-4 h-4" />
-                                </Button>
-                              </>
-                            ) : activeTab === "SUB" ? (
-                              <>
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  className="h-8 border-amber-200 text-amber-700 bg-amber-50 hover:bg-amber-100"
-                                  onClick={() => { setShopAdjustItem(item); setIsShopAdjustOpen(true); }}
-                                >
-                                  <Settings className="w-4 h-4 mr-1" />
-                                  Adjust
-                                </Button>
-                                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleEdit(item)}>
-                                  <Edit className="w-4 h-4" />
-                                </Button>
-                              </>
-                            ) : (
-                              <>
-                                <Button
-                                  className="h-8 bg-amber-600 hover:bg-amber-700"
-                                  size="sm"
-                                  onClick={() => { setAuditItem(item); setIsAuditOpen(true); }}
-                                >
-                                  <ShoppingCart className="w-4 h-4 mr-1" />
-                                  Start Count
-                                </Button>
-                              </>
-                            )}
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    )
-                  })
-                ) : (
-                  <TableRow>
-                    <TableCell colSpan={8} className="h-24 text-center">
-                      {t.no_items_found}
-                    </TableCell>
-                  </TableRow>
-                )}
-              </TableBody>
-            </Table>
-          </div>
-        </Card>
-
-        {/* Stock Transfer Dialog */}
-        <Dialog open={isTransferOpen} onOpenChange={setIsTransferOpen}>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Transfer Stock: {transferItem?.name}</DialogTitle>
-            </DialogHeader>
-            <div className="space-y-4">
-              <p className="text-sm text-muted-foreground">
-                Move stock from Warehouse to Shop for daily operations
-              </p>
-              <div className="space-y-2">
-                <Label>Available in Warehouse: {transferItem?.mainStock} {transferItem?.unit}</Label>
-                <Label>Quantity to Transfer</Label>
+            <div className="flex gap-2">
+              <div className="relative w-64">
+                <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
                 <Input
-                  type="number"
-                  placeholder="Enter quantity"
-                  value={transferQty}
-                  onChange={e => setTransferQty(e.target.value)}
-                  max={transferItem?.mainStock}
+                  placeholder={t.search_items}
+                  className="pl-8"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
                 />
               </div>
-            </div>
-            <DialogFooter>
-              <Button variant="outline" onClick={() => setIsTransferOpen(false)}>{t.cancel}</Button>
-              <Button
-                className="bg-amber-600 hover:bg-amber-700"
-                onClick={handleTransfer}
-                disabled={!transferQty || parseFloat(transferQty) <= 0 || parseFloat(transferQty) > (transferItem?.mainStock || 0)}
-              >
-                Transfer to Shop
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-
-        {/* New Transaction Dialogs */}
-        <DepositDialog
-          open={isDepositOpen}
-          onOpenChange={setIsDepositOpen}
-          ingredient={depositItem}
-          onSuccess={() => { fetchInventory(); setDepositItem(null); }}
-        />
-        <WithdrawDialog
-          open={isWithdrawOpen}
-          onOpenChange={setIsWithdrawOpen}
-          ingredient={withdrawItem}
-          onSuccess={() => { fetchInventory(); setWithdrawItem(null); }}
-        />
-        <ShopAdjustDialog
-          open={isShopAdjustOpen}
-          onOpenChange={setIsShopAdjustOpen}
-          ingredient={shopAdjustItem}
-          onSuccess={() => { fetchInventory(); setShopAdjustItem(null); }}
-        />
-        {/* Stock Audit Dialog */}
-        <Dialog open={isAuditOpen} onOpenChange={setIsAuditOpen}>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Stock Audit: {auditItem?.name}</DialogTitle>
-            </DialogHeader>
-            <div className="space-y-6 py-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div className="p-4 bg-slate-50 rounded-xl border">
-                  <p className="text-xs text-slate-500 uppercase font-black mb-1">Theoretical (POS)</p>
-                  <p className="text-3xl font-black text-slate-800">{auditItem?.subStock} <span className="text-sm font-normal text-slate-400">{auditItem?.unit}</span></p>
-                </div>
-                <div className="p-4 bg-amber-50 rounded-xl border border-amber-100">
-                  <p className="text-xs text-amber-700 uppercase font-black mb-1">Difference</p>
-                  <p className={`text-3xl font-black ${(parseFloat(actualStockInput || "0") - (auditItem?.subStock || 0)) < 0 ? 'text-rose-600' : (parseFloat(actualStockInput || "0") - (auditItem?.subStock || 0)) > 0 ? 'text-emerald-600' : 'text-slate-400'}`}>
-                    {actualStockInput !== "" ? (parseFloat(actualStockInput) - (auditItem?.subStock || 0)).toFixed(2) : "0.00"}
-                  </p>
-                </div>
-              </div>
-
-              <div className="space-y-4">
-                <div className="space-y-2">
-                  <Label className="text-sm font-bold">Actual Count in Shop</Label>
-                  <div className="relative">
-                    <Input
-                      type="number"
-                      className="text-2xl h-16 pl-4 font-black border-2 focus:border-amber-500 rounded-xl"
-                      placeholder="0.00"
-                      value={actualStockInput}
-                      onChange={e => setActualStockInput(e.target.value)}
-                      autoFocus
-                    />
-                    <div className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 font-bold uppercase">
-                      {auditItem?.unit}
+              {(activeTab == "MAIN" || activeTab == "SUB") ?
+                <Dialog open={isDialogOpen} onOpenChange={(open) => { setIsDialogOpen(open); if (!open) resetForm(); }}>
+                  <DialogTrigger asChild>
+                    <Button className="bg-amber-600 hover:bg-amber-700">
+                      <Plus className="w-4 h-4 mr-2" />
+                      {t.add_ingredient}
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent>
+                    <DialogHeader>
+                      <DialogTitle>{editingItem ? t.edit : t.add_item} {t.inventory}</DialogTitle>
+                    </DialogHeader>
+                    <div className="space-y-4">
+                      <div className="space-y-2">
+                        <Label>{t.name}</Label>
+                        <FormattedTextInput value={formData.name} onChange={val => setFormData({ ...formData, name: val })} />
+                      </div>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                          <Label>{t.unit}</Label>
+                          <FormattedTextInput
+                            placeholder="e.g. kg, L, pcs"
+                            value={formData.unit}
+                            onChange={val => setFormData({ ...formData, unit: val })}
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label>Initial Warehouse Stock</Label>
+                          <FormattedNumberInput value={formData.mainStock} onChange={val => setFormData({ ...formData, mainStock: val })} />
+                          <p className="text-xs text-muted-foreground">Shop stock starts at 0. Transfer from warehouse as needed.</p>
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-2 p-3 bg-slate-50 rounded-lg">
+                          <Label className="text-amber-800 font-bold">🏭 Warehouse Limits</Label>
+                          <div className="space-y-2 mt-2">
+                            <Label>{t.min_stock}</Label>
+                            <FormattedNumberInput value={formData.minStock} onChange={val => setFormData({ ...formData, minStock: val })} />
+                          </div>
+                          <div className="space-y-2">
+                            <Label>{t.max_stock}</Label>
+                            <FormattedNumberInput value={formData.maxStock} onChange={val => setFormData({ ...formData, maxStock: val })} />
+                          </div>
+                        </div>
+                        <div className="space-y-2 p-3 bg-amber-50 rounded-lg">
+                          <Label className="text-amber-800 font-bold">🏪 Shop Limits</Label>
+                          <div className="space-y-2 mt-2">
+                            <Label>{t.min_stock}</Label>
+                            <FormattedNumberInput value={formData.minStockSub} onChange={val => setFormData({ ...formData, minStockSub: val })} />
+                          </div>
+                          <div className="space-y-2">
+                            <Label>{t.max_stock}</Label>
+                            <FormattedNumberInput value={formData.maxStockSub} onChange={val => setFormData({ ...formData, maxStockSub: val })} />
+                          </div>
+                        </div>
+                      </div>
+                      <div className="space-y-2">
+                        <Label>{t.cost_per_unit} (LAK)</Label>
+                        <FormattedNumberInput allowDecimals={true} value={formData.cost} onChange={val => setFormData({ ...formData, cost: val })} />
+                      </div>
                     </div>
-                  </div>
-                </div>
+                    <DialogFooter>
+                      <Button variant="outline" onClick={() => setIsDialogOpen(false)}>{t.cancel}</Button>
+                      <Button className="bg-amber-600 hover:bg-amber-700" onClick={handleSubmit}>
+                        {editingItem ? t.update : t.save}
+                      </Button>
+                    </DialogFooter>
+                  </DialogContent>
+                </Dialog>
+                : null}
+            </div>
+          </div>
 
+          {/* Stats */}
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+            <Card className="p-6">
+              <p className="text-sm text-muted-foreground mb-1">{t.total_items}</p>
+              <p className="text-3xl font-bold">{ingredients.length}</p>
+            </Card>
+            <Card className="p-6">
+              <p className="text-sm text-muted-foreground mb-1">{t.low_stock} ({activeTab === "SUB" ? "Shop" : "Whse"})</p>
+              <p className="text-3xl font-bold text-red-600">
+                {ingredients.filter(i => {
+                  const stock = activeTab === "SUB" ? i.subStock : i.mainStock
+                  const min = activeTab === "SUB" ? i.minStockSub : i.minStock
+                  return stock <= min
+                }).length}
+              </p>
+            </Card>
+            <Card className="p-6">
+              <p className="text-sm text-muted-foreground mb-1">{t.total_value} ({activeTab === "SUB" ? "Shop" : "Whse"})</p>
+              <p className="text-2xl font-bold text-green-600">
+                {formatLAK(ingredients.reduce((sum, i) => sum + ((activeTab === "SUB" ? i.subStock : i.mainStock) * i.cost), 0))}
+              </p>
+            </Card>
+          </div>
+
+          {/* Inventory Table */}
+          <Card className="p-6">
+            <div className="rounded-md border">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="w-[300px] cursor-pointer" onClick={() => handleSort('name')}>
+                      <div className="flex items-center gap-1">
+                        {t.item}
+                        <ArrowUpDown className="h-3 w-3" />
+                      </div>
+                    </TableHead>
+                    <TableHead className="cursor-pointer" onClick={() => handleSort(activeTab === 'SUB' ? 'subStock' : 'mainStock')}>
+                      <div className="flex items-center gap-1">
+                        Stock ({activeTab === 'SUB' ? 'Shop' : 'Whse'})
+                        <ArrowUpDown className="h-3 w-3" />
+                      </div>
+                    </TableHead>
+                    <TableHead>{t.unit}</TableHead>
+                    <TableHead className="cursor-pointer" onClick={() => handleSort(activeTab === 'SUB' ? 'minStockSub' : 'minStock')}>
+                      <div className="flex items-center gap-1">
+                        {t.min_stock}
+                        <ArrowUpDown className="h-3 w-3" />
+                      </div>
+                    </TableHead>
+                    <TableHead>{t.cost}</TableHead>
+                    <TableHead>{t.value}</TableHead>
+                    <TableHead className="w-[300px] cursor-pointer" onClick={() => handleSort('status')}>
+                      <div className="flex items-center gap-1">
+                        {t.status}
+                        <ArrowUpDown className="h-3 w-3" />
+                      </div>
+                    </TableHead>
+                    <TableHead className="text-right">{t.actions}</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {sortedIngredients.length > 0 ? (
+                    sortedIngredients.map((item) => {
+                      const status = getStockStatus(item)
+                      return (
+                        <TableRow key={item.id}>
+                          <TableCell className="font-medium">
+                            <div className="flex items-center gap-2">
+                              <Package className="h-4 w-4 text-muted-foreground" />
+                              {item.name}
+                            </div>
+                          </TableCell>
+                          <TableCell className="font-bold text-lg">
+                            {activeTab === "SUB" ? item.subStock : item.mainStock}
+                          </TableCell>
+                          <TableCell>{item.unit}</TableCell>
+                          <TableCell>{activeTab === "SUB" ? item.minStockSub : item.minStock}</TableCell>
+                          <TableCell>{formatLAK(item.cost)}</TableCell>
+                          <TableCell>{formatLAK((activeTab === 'SUB' ? item.subStock : item.mainStock) * item.cost)}</TableCell>
+                          <TableCell>
+                            <Badge className={status.color}>{status.label}</Badge>
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <div className="flex justify-end gap-2">
+                              {activeTab === "MAIN" ? (
+                                <>
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    className="h-8 border-green-200 text-green-700 bg-green-50 hover:bg-green-100"
+                                    onClick={() => { setDepositItem(item); setIsDepositOpen(true); }}
+                                  >
+                                    <ShoppingCart className="w-3 h-3 mr-1" />
+                                    In
+                                  </Button>
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    className="h-8 border-rose-200 text-rose-700 bg-rose-50 hover:bg-rose-100"
+                                    onClick={() => { setWithdrawItem(item); setIsWithdrawOpen(true); }}
+                                  >
+                                    <Minus className="w-3 h-3 mr-1" />
+                                    Out
+                                  </Button>
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    className="h-8 border-amber-200 text-amber-700 bg-amber-50 hover:bg-amber-100"
+                                    onClick={() => { setTransferItem(item); setIsTransferOpen(true); }}
+                                  >
+                                    To Shop
+                                  </Button>
+                                  <Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-red-50 hover:text-red-600" onClick={() => handleDelete(item.id)}>
+                                    <Trash2 className="w-4 h-4" />
+                                  </Button>
+                                  <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleEdit(item)}>
+                                    <Edit className="w-4 h-4" />
+                                  </Button>
+                                </>
+                              ) : (
+                                <>
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    className="h-8 border-amber-200 text-amber-700 bg-amber-50 hover:bg-amber-100"
+                                    onClick={() => { setShopAdjustItem(item); setIsShopAdjustOpen(true); }}
+                                  >
+                                    <Settings className="w-4 h-4 mr-1" />
+                                    Adjust
+                                  </Button>
+                                  <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleEdit(item)}>
+                                    <Edit className="w-4 h-4" />
+                                  </Button>
+                                </>
+                              )}
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      )
+                    })
+                  ) : (
+                    <TableRow>
+                      <TableCell colSpan={8} className="h-24 text-center">
+                        {t.no_items_found}
+                      </TableCell>
+                    </TableRow>
+                  )}
+                </TableBody>
+              </Table>
+            </div>
+          </Card>
+
+          {/* Stock Transfer Dialog */}
+          <Dialog open={isTransferOpen} onOpenChange={setIsTransferOpen}>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Transfer Stock: {transferItem?.name}</DialogTitle>
+              </DialogHeader>
+              <div className="space-y-4">
+                <p className="text-sm text-muted-foreground">
+                  Move stock from Warehouse to Shop for daily operations
+                </p>
                 <div className="space-y-2">
-                  <Label className="text-sm font-bold">Additional Notes</Label>
+                  <Label>Available in Warehouse: {transferItem?.mainStock} {transferItem?.unit}</Label>
+                  <Label>Quantity to Transfer</Label>
                   <Input
-                    placeholder="Reason for discrepancy (optional)"
-                    value={auditNotes}
-                    onChange={e => setAuditNotes(e.target.value)}
-                    className="bg-slate-50 border-slate-200"
+                    type="number"
+                    placeholder="Enter quantity"
+                    value={transferQty}
+                    onChange={e => setTransferQty(e.target.value)}
+                    max={transferItem?.mainStock}
                   />
                 </div>
               </div>
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setIsTransferOpen(false)}>{t.cancel}</Button>
+                <Button
+                  className="bg-amber-600 hover:bg-amber-700"
+                  onClick={handleTransfer}
+                  disabled={!transferQty || parseFloat(transferQty) <= 0 || parseFloat(transferQty) > (transferItem?.mainStock || 0)}
+                >
+                  Transfer to Shop
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
 
-              <div className={`p-4 rounded-xl text-sm font-medium flex items-center gap-3 ${parseFloat(actualStockInput || "0") < (auditItem?.subStock || 0) ? 'bg-rose-50 text-rose-700 border border-rose-100' : 'bg-blue-50 text-blue-700 border border-blue-100'}`}>
-                <AlertTriangle className="w-5 h-5" />
-                <p>
-                  Submitting this audit will adjust the shop stock to <strong>{actualStockInput || "0"} {auditItem?.unit}</strong> and record the difference.
-                </p>
-              </div>
-            </div>
-            <DialogFooter>
-              <Button variant="outline" onClick={() => setIsAuditOpen(false)} className="rounded-xl font-bold">Cancel</Button>
-              <Button
-                className="bg-amber-600 hover:bg-amber-700 text-white rounded-xl font-black px-8"
-                onClick={handleAuditSubmit}
-                disabled={actualStockInput === ""}
-              >
-                Confirm Audit
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
+          {/* New Transaction Dialogs */}
+          <DepositDialog
+            open={isDepositOpen}
+            onOpenChange={setIsDepositOpen}
+            ingredient={depositItem}
+            onSuccess={() => { fetchInventory(); setDepositItem(null); }}
+          />
+          <WithdrawDialog
+            open={isWithdrawOpen}
+            onOpenChange={setIsWithdrawOpen}
+            ingredient={withdrawItem}
+            onSuccess={() => { fetchInventory(); setWithdrawItem(null); }}
+          />
+          <ShopAdjustDialog
+            open={isShopAdjustOpen}
+            onOpenChange={setIsShopAdjustOpen}
+            ingredient={shopAdjustItem}
+            onSuccess={() => { fetchInventory(); setShopAdjustItem(null); }}
+          />
+        </Tabs>
       </div>
     </div>
   )

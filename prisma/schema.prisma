@@ -10,19 +10,27 @@ datasource db {
 model User {
   id        String   @id @default(uuid())
   name      String
+  username  String   @unique
   role      String
   pin       String
   isActive  Boolean  @default(true)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+  
+  orders            Order[]
+  stockTransactions StockTransaction[]
+  stockCounts       StockCount[]
+  shifts            Shift[]
 }
 
 model Category {
-  id        String    @id @default(uuid())
-  name      String
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
-  menus     Menu[]
+  id            String    @id @default(uuid())
+  name          String
+  hasSugarLevel Boolean   @default(false)
+  hasShotType   Boolean   @default(false)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  menus         Menu[]
 }
 
 // Menu (base item, NO PRICE)
@@ -100,6 +108,7 @@ model StockCount {
   userId           String?
   createdAt        DateTime   @default(now())
   ingredient       Ingredient @relation(fields: [ingredientId], references: [id])
+  user             User?      @relation(fields: [userId], references: [id])
 }
 
 model StockTransaction {
@@ -115,6 +124,7 @@ model StockTransaction {
   userId       String?
   createdAt    DateTime   @default(now())
   ingredient   Ingredient @relation(fields: [ingredientId], references: [id])
+  user         User?      @relation(fields: [userId], references: [id])
 }
 
 model Recipe {
@@ -179,7 +189,15 @@ model Order {
   pointsRedeemed     Int?        @default(0)
   taxAmount          Float?      @default(0)
   isReportable       Boolean     @default(true)
+  userId             String?
+  
+  // Onepay Integration Fields
+  bankReference      String?   @unique
+  paymentStatus      String?   @default("PENDING") // PENDING, PAID, FAILED
+  qrCodeData         String?
+
   customer           Customer?   @relation(fields: [customerId], references: [id])
+  user               User?       @relation(fields: [userId], references: [id])
   promotion          Promotion?  @relation(fields: [promoId], references: [id])
   items              OrderItem[]
 }
@@ -203,6 +221,7 @@ model Shift {
   createdAt         DateTime  @default(now())
   updatedAt         DateTime  @updatedAt
   responsiblePerson String?
+  user              User?     @relation(fields: [userId], references: [id])
 }
 
 // OrderItem now references VariationSize (single source of truth)
@@ -224,13 +243,3 @@ model OrderItem {
   order         Order         @relation(fields: [orderId], references: [id])
 }
 
-model StockCount {
-  id               String     @id @default(uuid())
-  ingredientId     String
-  theoreticalStock Float
-  actualStock      Float
-  difference       Float
-  notes            String?
-  createdAt        DateTime   @default(now())
-  ingredient       Ingredient @relation(fields: [ingredientId], references: [id], onDelete: Cascade)
-}

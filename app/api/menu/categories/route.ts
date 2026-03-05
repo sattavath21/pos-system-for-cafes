@@ -15,11 +15,15 @@ export async function GET() {
 
 export async function POST(request: Request) {
     try {
-        const { name } = await request.json()
+        const { name, hasSugarLevel, hasShotType } = await request.json()
         if (!name) return NextResponse.json({ error: 'Name required' }, { status: 400 })
 
         const category = await prisma.category.create({
-            data: { name }
+            data: {
+                name,
+                hasSugarLevel: Boolean(hasSugarLevel),
+                hasShotType: Boolean(hasShotType)
+            }
         })
 
         return NextResponse.json(category, { status: 201 })

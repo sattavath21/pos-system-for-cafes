@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { cookies } from 'next/headers'
 
 export async function POST(request: Request) {
     try {
@@ -12,6 +13,17 @@ export async function POST(request: Request) {
 
         if (!reason) {
             return NextResponse.json({ error: 'Reason is required for adjustment' }, { status: 400 })
+        }
+
+        // Get current user
+        const cookieStore = await cookies()
+        const sessionCookie = cookieStore.get('pos_session')
+        let userId = null
+        if (sessionCookie) {
+            try {
+                const sessionUser = JSON.parse(sessionCookie.value)
+                userId = sessionUser.id
+            } catch (e) { }
         }
 
         // Get current ingredient
@@ -41,7 +53,8 @@ export async function POST(request: Request) {
                     fromStore: discrepancy < 0 ? 'SUB' : null,
                     toStore: discrepancy > 0 ? 'SUB' : null,
                     reason,
-                    notes: notes ? `${notes} | Discrepancy: ${discrepancy > 0 ? '+' : ''}${discrepancy.toFixed(2)} ${ingredient.unit}` : `Discrepancy: ${discrepancy > 0 ? '+' : ''}${discrepancy.toFixed(2)} ${ingredient.unit}`
+                    notes: notes ? `${notes} | Discrepancy: ${discrepancy > 0 ? '+' : ''}${discrepancy.toFixed(2)} ${ingredient.unit}` : `Discrepancy: ${discrepancy > 0 ? '+' : ''}${discrepancy.toFixed(2)} ${ingredient.unit}`,
+                    userId: userId
                 }
             })
         ])

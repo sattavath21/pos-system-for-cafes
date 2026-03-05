@@ -133,8 +133,8 @@ function ReceiptContent() {
 
                   {((item.sugarLevel && item.sugarLevel !== "100%") || (item.shotType && item.shotType !== "Normal")) && (
                     <div className="text-[8px] text-slate-500 pl-1.5">
-                      {item.sugarLevel && item.sugarLevel !== "100%" && `Sugar: ${item.sugarLevel} `}
-                      {item.shotType && item.shotType !== "Normal" && `Shot: ${item.shotType}`}
+                      {item.sugarLevel && item.sugarLevel !== "100%" && ` ${item.sugarLevel}, `}
+                      {item.shotType && item.shotType !== "Normal" && `${item.shotType}`}
                     </div>
                   )}
                 </div>
@@ -143,22 +143,28 @@ function ReceiptContent() {
           </div>
 
           <div className="border-t border-dashed border-slate-300 pt-2 space-y-0.5">
+            {order.discount > 0 && (
+              <>
+                <div className="flex justify-between text-[9px] text-slate-500">
+                  <span>Gross Total</span>
+                  <span className="line-through">{formatLAK(order.subtotal || (order.total + order.discount))}</span>
+                </div>
+                <div className="flex justify-between text-[9px] text-rose-600">
+                  <span>Discount</span>
+                  <span>-{formatLAK(order.discount)}</span>
+                </div>
+              </>
+            )}
             <div className="flex justify-between text-[9px]">
               <span>Subtotal (Net)</span>
               <span>{formatLAK(order.total - order.tax)}</span>
             </div>
-            {order.discount > 0 && (
-              <div className="flex justify-between text-[9px] text-rose-600">
-                <span>Discount</span>
-                <span>-{formatLAK(order.discount)}</span>
-              </div>
-            )}
             <div className="flex justify-between text-[9px]">
-              <span>Tax ({settings?.taxRate || '10'}% Incl.)</span>
+              <span>VAT ({settings?.taxRate || '10'}%)</span>
               <span>{formatLAK(order.tax)}</span>
             </div>
             <div className="flex justify-between font-bold text-sm mt-1.5 pt-1.5 border-t border-dashed border-slate-300">
-              <span>TOTAL</span>
+              <span>GRAND TOTAL</span>
               <span>{formatLAK(order.total)}</span>
             </div>
           </div>

@@ -38,6 +38,7 @@ export default function CustomerViewPage() {
     const [qrPayment, setQrPayment] = useState<any>(null)
     const [settings, setSettings] = useState<any>(null)
     const [customer, setCustomer] = useState<any>(null)
+    const [isComplimentary, setIsComplimentary] = useState(false)
     const [successInfo, setSuccessInfo] = useState<{ total: number, cashReceived: number, change: number } | null>(null)
 
     useEffect(() => {
@@ -55,6 +56,7 @@ export default function CustomerViewPage() {
                 setLoyaltyDiscount(event.data.loyaltyPoints || 0)
                 setPromoName(event.data.promoName || "")
                 setCustomer(event.data.customer || null)
+                setIsComplimentary(event.data.isComplimentary || false)
                 setIsIdle(event.data.cart.length === 0)
                 setSuccessInfo(null) // Clear success when cart updates
             } else if (event.data.type === "PAYMENT_SUCCESS") {
@@ -184,28 +186,48 @@ export default function CustomerViewPage() {
     }
 
     if (isIdle) {
+        const shopName = settings?.shopName || 'Cafe'
         return (
-            <div className="min-h-screen bg-amber-50 flex flex-col items-center justify-center p-8 text-center animate-in fade-in duration-700">
-                <div className="max-w-2xl space-y-8">
-                    <div className="w-32 h-32 bg-amber-100 rounded-full flex items-center justify-center mx-auto mb-6">
-                        <span className="text-6xl">☕</span>
+            <div className="min-h-screen bg-gradient-to-br from-amber-50 via-orange-50 to-yellow-50 flex flex-col items-center justify-center p-8 text-center animate-in fade-in duration-700 relative overflow-hidden">
+                {/* Decorative blobs */}
+                <div className="absolute top-0 left-0 w-96 h-96 bg-amber-200 rounded-full mix-blend-multiply filter blur-3xl opacity-20 -translate-x-1/2 -translate-y-1/2" />
+                <div className="absolute bottom-0 right-0 w-96 h-96 bg-orange-200 rounded-full mix-blend-multiply filter blur-3xl opacity-20 translate-x-1/2 translate-y-1/2" />
+
+                <div className="relative max-w-xl space-y-8 z-10">
+                    {/* Logo icon */}
+                    <div className="w-28 h-28 bg-white/80 backdrop-blur rounded-3xl flex items-center justify-center mx-auto shadow-lg shadow-amber-200/50 border border-amber-100">
+                        <span className="text-5xl">☕</span>
                     </div>
-                    <h1 className="text-6xl font-bold text-amber-900 tracking-tight">Welcome to {settings?.shopName || 'Cafe POS'}</h1>
-                    <p className="text-2xl text-amber-700 font-light">
-                        We're ready to take your order. Please let our barista know what you'd like!
-                    </p>
-                    <div className="pt-12 grid grid-cols-3 gap-8 opacity-70">
-                        <div className="text-center">
-                            <div className="text-4xl mb-2">🥐</div>
-                            <p className="font-medium text-amber-800">Fresh Pastries</p>
+
+                    {/* Title — split into two lines to avoid ugly wrapping */}
+                    <div className="space-y-2">
+                        <p className="text-xl font-semibold text-amber-600 uppercase tracking-[0.2em]">Welcome to</p>
+                        <h1 className="text-5xl font-black text-amber-900 leading-tight">{shopName}</h1>
+                        <p className="text-lg text-amber-700/70 font-light mt-2">
+                            Tell our barista what you'd like today 😊
+                        </p>
+                    </div>
+
+                    {/* Divider */}
+                    <div className="flex items-center gap-3 opacity-40">
+                        <div className="flex-1 h-px bg-amber-400" />
+                        <span className="text-amber-600 text-lg">✦</span>
+                        <div className="flex-1 h-px bg-amber-400" />
+                    </div>
+
+                    {/* Feature highlights */}
+                    <div className="grid grid-cols-3 gap-6">
+                        <div className="bg-white/60 backdrop-blur rounded-2xl p-4 space-y-2 shadow-sm border border-amber-100/50">
+                            <div className="text-3xl">🥐</div>
+                            <p className="text-sm font-semibold text-amber-800">Fresh Pastries</p>
                         </div>
-                        <div className="text-center">
-                            <div className="text-4xl mb-2">🍵</div>
-                            <p className="font-medium text-amber-800">Organic Tea</p>
+                        <div className="bg-white/60 backdrop-blur rounded-2xl p-4 space-y-2 shadow-sm border border-amber-100/50">
+                            <div className="text-3xl">🍵</div>
+                            <p className="text-sm font-semibold text-amber-800">Premium Drinks</p>
                         </div>
-                        <div className="text-center">
-                            <div className="text-4xl mb-2">🍰</div>
-                            <p className="font-medium text-amber-800">Sweet Treats</p>
+                        <div className="bg-white/60 backdrop-blur rounded-2xl p-4 space-y-2 shadow-sm border border-amber-100/50">
+                            <div className="text-3xl">🍰</div>
+                            <p className="text-sm font-semibold text-amber-800">Sweet Treats</p>
                         </div>
                     </div>
                 </div>
@@ -237,11 +259,22 @@ export default function CustomerViewPage() {
                             <div className="grid grid-cols-4 gap-2">
                                 {items.map((item: any) => (
                                     <div key={item.id} className="p-2 border rounded-lg bg-white/80 hover:bg-white transition-colors">
-                                        <div className="flex items-start justify-between gap-2">
+                                        <div className="flex items-start gap-2.5">
+                                            {item.image ? (
+                                                <img
+                                                    src={item.image}
+                                                    alt={item.name}
+                                                    className="w-10 h-10 object-cover rounded-md flex-shrink-0 border border-slate-100 shadow-sm"
+                                                />
+                                            ) : (
+                                                <div className="w-10 h-10 bg-slate-50 rounded-md flex-shrink-0 flex items-center justify-center border border-slate-100 shadow-sm">
+                                                    <Coffee className="w-5 h-5 text-slate-300" />
+                                                </div>
+                                            )}
                                             <div className="flex-1 min-w-0">
                                                 <div className="flex flex-col">
-                                                    <h3 className="text-base font-bold text-slate-800 leading-tight">{item.localName || item.name}</h3>
-                                                    {item.localName && <span className="text-xs text-slate-500 font-medium">{item.name}</span>}
+                                                    <h3 className="text-base font-bold text-slate-800 leading-tight break-words">{item.localName || item.name}</h3>
+                                                    {item.localName && <span className="text-[10px] text-slate-500 font-medium truncate">{item.name}</span>}
                                                 </div>
                                                 <div className="flex flex-wrap gap-1 mt-1">
                                                     {item.variation && (
@@ -345,13 +378,21 @@ export default function CustomerViewPage() {
                                 <span>{formatLAK(tax)}</span>
                             </div>
 
-                            <div className="border-t pt-4">
+                            <div className="border-t pt-4 border-b pb-4">
                                 <div className="flex justify-between items-baseline">
                                     <span className="text-2xl font-bold text-slate-800">Total</span>
-                                    <span className="text-4xl font-extrabold text-amber-600">{formatLAK(total)}</span>
+                                    <span className="text-4xl font-extrabold text-amber-600">{isComplimentary ? formatLAK(0) : formatLAK(total)}</span>
                                 </div>
-                                <p className="text-right text-xs text-slate-400 mt-1">Thank you for visiting!</p>
                             </div>
+
+                            {isComplimentary ? (
+                                <div className="mt-4 p-4 bg-emerald-50 rounded-xl border border-emerald-200 text-center animate-pulse">
+                                    <p className="text-sm font-bold text-emerald-800 uppercase tracking-widest mb-1">Complimentary Order</p>
+                                    <p className="text-xl font-black text-emerald-600">No Payment Required</p>
+                                </div>
+                            ) : (
+                                <p className="text-right text-xs text-slate-400 mt-2">Thank you for visiting!</p>
+                            )}
                         </div>
                     )}
                 </div>

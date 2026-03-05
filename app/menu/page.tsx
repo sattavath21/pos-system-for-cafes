@@ -46,9 +46,8 @@ type MenuItem = {
 }
 
 const DEFAULT_SIZES = [
-  { size: "S", price: 0, isAvailable: true, displayOrder: 1 },
-  { size: "M", price: 0, isAvailable: true, displayOrder: 2 },
-  { size: "L", price: 0, isAvailable: true, displayOrder: 3 },
+  { size: "Standard", price: 0, isAvailable: true, displayOrder: 1 },
+  { size: "0 Cal Sweetener", price: 0, isAvailable: true, displayOrder: 2 },
 ]
 
 export default function MenuPage() {
@@ -57,11 +56,13 @@ export default function MenuPage() {
   const [isDialogOpen, setIsDialogOpen] = useState(false)
   const [editingItem, setEditingItem] = useState<MenuItem | null>(null)
   const [menuItems, setMenuItems] = useState<MenuItem[]>([])
-  const [categories, setCategories] = useState<{ id: string, name: string }[]>([])
+  const [categories, setCategories] = useState<{ id: string, name: string, hasSugarLevel: boolean, hasShotType: boolean }[]>([])
   const [isLoading, setIsLoading] = useState(false)
   const [isCategoryDialogOpen, setIsCategoryDialogOpen] = useState(false)
   const [newCategoryName, setNewCategoryName] = useState("")
-  const [editingCategory, setEditingCategory] = useState<{ id: string, name: string } | null>(null)
+  const [newCatSugar, setNewCatSugar] = useState(false)
+  const [newCatShot, setNewCatShot] = useState(false)
+  const [editingCategory, setEditingCategory] = useState<{ id: string, name: string, hasSugarLevel: boolean, hasShotType: boolean } | null>(null)
   const [newVariationType, setNewVariationType] = useState("")
 
   // Form states
@@ -103,11 +104,17 @@ export default function MenuPage() {
     try {
       const res = await fetch('/api/menu/categories', {
         method: 'POST',
-        body: JSON.stringify({ name: newCategoryName }),
+        body: JSON.stringify({
+          name: newCategoryName,
+          hasSugarLevel: newCatSugar,
+          hasShotType: newCatShot
+        }),
         headers: { 'Content-Type': 'application/json' }
       })
       if (res.ok) {
         setNewCategoryName("")
+        setNewCatSugar(false)
+        setNewCatShot(false)
         fetchCategories()
       }
     } catch (e) {
@@ -120,7 +127,11 @@ export default function MenuPage() {
     try {
       const res = await fetch(`/api/menu/categories/${editingCategory.id}`, {
         method: 'PUT',
-        body: JSON.stringify({ name: editingCategory.name }),
+        body: JSON.stringify({
+          name: editingCategory.name,
+          hasSugarLevel: editingCategory.hasSugarLevel,
+          hasShotType: editingCategory.hasShotType
+        }),
         headers: { 'Content-Type': 'application/json' }
       })
       if (res.ok) {
@@ -355,7 +366,7 @@ export default function MenuPage() {
               </DialogHeader>
               <div className="space-y-6 py-4">
                 {/* Create New */}
-                <div className="space-y-2 border-b pb-4">
+                <div className="space-y-3">
                   <Label htmlFor="catName">{t.add_new_category || "Add New Category"}</Label>
                   <div className="flex gap-2">
                     <Input
@@ -368,38 +379,69 @@ export default function MenuPage() {
                       <Plus className="w-4 h-4" />
                     </Button>
                   </div>
+                  <div className="flex gap-4 pt-1">
+                    <div className="flex items-center space-x-2">
+                      <Switch id="sugar-new" checked={newCatSugar} onCheckedChange={setNewCatSugar} />
+                      <Label htmlFor="sugar-new" className="text-xs">Sugar Level</Label>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <Switch id="shot-new" checked={newCatShot} onCheckedChange={setNewCatShot} />
+                      <Label htmlFor="shot-new" className="text-xs">Shot Type</Label>
+                    </div>
+                  </div>
                 </div>
 
                 {/* List Existing */}
                 <div className="space-y-3">
                   <Label>{t.existing_categories || "Existing Categories"}</Label>
-                  <div className="max-h-[300px] overflow-y-auto space-y-2 pr-2">
+                  <div className="max-h-[350px] overflow-y-auto space-y-3 pr-2 border rounded-md p-2">
                     {categories.map((cat) => (
-                      <div key={cat.id} className="flex items-center gap-2 p-2 rounded-lg border bg-slate-50">
+                      <div key={cat.id} className="p-3 rounded-lg border bg-slate-50 space-y-2">
                         {editingCategory?.id === cat.id ? (
                           <>
-                            <Input
-                              value={editingCategory.name}
-                              onChange={e => setEditingCategory({ ...editingCategory, name: e.target.value })}
-                              className="h-8"
-                              autoFocus
-                            />
-                            <Button size="sm" variant="ghost" className="text-green-600 h-8 w-8 p-0" onClick={handleUpdateCategory}>
-                              <Check className="w-4 h-4" />
-                            </Button>
-                            <Button size="sm" variant="ghost" className="text-slate-400 h-8 w-8 p-0" onClick={() => setEditingCategory(null)}>
-                              <X className="w-4 h-4" />
-                            </Button>
+                            <div className="flex items-center gap-2">
+                              <Input
+                                value={editingCategory.name}
+                                onChange={e => setEditingCategory({ ...editingCategory, name: e.target.value })}
+                                className="h-8"
+                                autoFocus
+                              />
+                              <Button size="sm" variant="ghost" className="text-green-600 h-8 w-8 p-0" onClick={handleUpdateCategory}>
+                                <Check className="w-4 h-4" />
+                              </Button>
+                              <Button size="sm" variant="ghost" className="text-slate-400 h-8 w-8 p-0" onClick={() => setEditingCategory(null)}>
+                                <X className="w-4 h-4" />
+                              </Button>
+                            </div>
+                            <div className="flex gap-4">
+                              <div className="flex items-center space-x-2">
+                                <Switch id={`sugar-${cat.id}`} checked={editingCategory.hasSugarLevel} onCheckedChange={(val) => setEditingCategory({ ...editingCategory, hasSugarLevel: val })} />
+                                <Label htmlFor={`sugar-${cat.id}`} className="text-xs">Sugar</Label>
+                              </div>
+                              <div className="flex items-center space-x-2">
+                                <Switch id={`shot-${cat.id}`} checked={editingCategory.hasShotType} onCheckedChange={(val) => setEditingCategory({ ...editingCategory, hasShotType: val })} />
+                                <Label htmlFor={`shot-${cat.id}`} className="text-xs">Shot</Label>
+                              </div>
+                            </div>
                           </>
                         ) : (
                           <>
-                            <span className="flex-1 font-medium px-2">{cat.name}</span>
-                            <Button size="sm" variant="ghost" className="text-slate-500 h-8 w-8 p-0" onClick={() => setEditingCategory({ id: cat.id, name: cat.name })}>
-                              <Edit className="w-4 h-4" />
-                            </Button>
-                            <Button size="sm" variant="ghost" className="text-red-500 h-8 w-8 p-0" onClick={() => handleDeleteCategory(cat.id)}>
-                              <Trash2 className="w-4 h-4" />
-                            </Button>
+                            <div className="flex items-center justify-between">
+                              <span className="font-bold text-amber-900">{cat.name}</span>
+                              <div className="flex gap-1">
+                                <Button size="sm" variant="ghost" className="text-slate-500 h-8 w-8 p-0" onClick={() => setEditingCategory({ ...cat })}>
+                                  <Edit className="w-4 h-4" />
+                                </Button>
+                                <Button size="sm" variant="ghost" className="text-red-500 h-8 w-8 p-0" onClick={() => handleDeleteCategory(cat.id)}>
+                                  <Trash2 className="w-4 h-4" />
+                                </Button>
+                              </div>
+                            </div>
+                            <div className="flex gap-3">
+                              {cat.hasSugarLevel && <Badge variant="outline" className="text-[10px] bg-blue-50 text-blue-700 border-blue-200">Sugar Level</Badge>}
+                              {cat.hasShotType && <Badge variant="outline" className="text-[10px] bg-purple-50 text-purple-700 border-purple-200">Shot Type</Badge>}
+                              {!cat.hasSugarLevel && !cat.hasShotType && <span className="text-[10px] text-muted-foreground italic">No customizations</span>}
+                            </div>
                           </>
                         )}
                       </div>
@@ -614,7 +656,7 @@ export default function MenuPage() {
                           </div>
 
                           {variation.isEnabled && (
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                            <div className="grid grid-cols-1 gap-3">
                               {variation.sizes.map((size, sIndex) => (
                                 <div key={sIndex} className="flex items-center gap-2 bg-white p-2 rounded border shadow-sm">
                                   <div className="flex items-center gap-1">
@@ -622,38 +664,38 @@ export default function MenuPage() {
                                       type="button"
                                       variant="outline"
                                       size="sm"
-                                      className="h-8 w-8 p-0 text-slate-500 border-slate-200"
+                                      className="h-10 w-10 p-0 text-slate-500 border-slate-200"
                                       onClick={() => updateOrder("size", vIndex, (size.displayOrder - 1).toString(), sIndex)}
                                       disabled={size.displayOrder <= 1}
                                     >
-                                      <Minus className="w-3 h-3" />
+                                      <Minus className="w-5 h-5" />
                                     </Button>
-                                    <div className="w-8 h-8 flex items-center justify-center bg-white border rounded font-bold text-xs">
+                                    <div className="w-10 h-10 flex items-center justify-center bg-white border rounded font-bold text-sm">
                                       {size.displayOrder}
                                     </div>
                                     <Button
                                       type="button"
                                       variant="outline"
                                       size="sm"
-                                      className="h-8 w-8 p-0 text-slate-500 border-slate-200"
+                                      className="h-10 w-10 p-0 text-slate-500 border-slate-200"
                                       onClick={() => updateOrder("size", vIndex, (size.displayOrder + 1).toString(), sIndex)}
                                     >
-                                      <Plus className="w-3 h-3" />
+                                      <Plus className="w-5 h-5" />
                                     </Button>
                                   </div>
-                                  <div className="w-20">
+                                  <div className="flex-[2]">
                                     <Input
                                       value={size.size}
                                       onChange={(e) => updateSizeLabel(vIndex, sIndex, e.target.value)}
-                                      className="h-9 text-center font-bold"
+                                      className="h-10 text-left font-bold"
                                       placeholder={t.size_label}
                                     />
                                   </div>
-                                  <div className="flex-1">
+                                  <div className="w-32">
                                     <PriceInput
                                       value={size.price}
                                       onChange={(num) => updateSizePrice(vIndex, sIndex, num)}
-                                      className="h-9 text-right font-mono"
+                                      className="h-10 text-right font-mono"
                                       placeholder="Price (LAK)"
                                       currency="₭"
                                     />
@@ -750,6 +792,6 @@ export default function MenuPage() {
           ))}
         </div>
       </div>
-    </div>
+    </div >
   )
 }

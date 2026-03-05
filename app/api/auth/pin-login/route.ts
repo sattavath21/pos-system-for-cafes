@@ -5,44 +5,39 @@ import { cookies } from 'next/headers'
 
 export async function POST(request: Request) {
     try {
-        const { pin, role } = await request.json()
+        const { pin, username } = await request.json()
 
         if (!pin || pin.length < 4) {
             return NextResponse.json({ error: 'Invalid PIN' }, { status: 400 })
         }
 
-        if (!role) {
-            return NextResponse.json({ error: 'Role is required' }, { status: 400 })
+        if (!username) {
+            return NextResponse.json({ error: 'Username is required' }, { status: 400 })
         }
 
-        // Only get users with the specified role
-        const users = await prisma.user.findMany({
+        const user = await prisma.user.findUnique({
             where: {
-                isActive: true,
-                role: role
+                username: username
             }
         })
 
-        // Check PIN against users with matching role
-        let matchedUser = null
-        for (const user of users) {
-            const isMatch = await bcrypt.compare(pin, user.pin)
-            if (isMatch) {
-                matchedUser = user
-                break
-            }
+        if (!user || !user.isActive) {
+            return NextResponse.json({ error: 'Invalid User' }, { status: 401 })
         }
 
-        if (!matchedUser) {
-            return NextResponse.json({ error: 'Invalid PIN for this role' }, { status: 401 })
+        const isMatch = await bcrypt.compare(pin, user.pin)
+
+        if (!isMatch) {
+            return NextResponse.json({ error: 'Invalid PIN for this user' }, { status: 401 })
         }
 
         // Create session
         const cookieStore = await cookies()
         const sessionData = {
-            id: matchedUser.id,
-            name: matchedUser.name,
-            role: matchedUser.role
+            id: user.id,
+            name: user.name,
+            username: user.username,
+            role: user.role
         }
 
         cookieStore.set('pos_session', JSON.stringify(sessionData), {
@@ -54,9 +49,10 @@ export async function POST(request: Request) {
 
         return NextResponse.json({
             user: {
-                id: matchedUser.id,
-                name: matchedUser.name,
-                role: matchedUser.role
+                id: user.id,
+                name: user.name,
+                username: user.username,
+                role: user.role
             }
         })
     } catch (error) {

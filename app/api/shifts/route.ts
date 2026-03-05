@@ -37,8 +37,8 @@ export async function POST(request: Request) {
 
         const shift = await prisma.shift.create({
             data: {
-                userId: body.userId,
-                startCash: parseFloat(body.startCash.toString()) || 0,
+                userId: body.userId ? (await prisma.user.findUnique({ where: { id: body.userId } }) ? body.userId : null) : null,
+                startCash: parseFloat(body.startCash?.toString()) || 0,
                 responsiblePerson: body.responsiblePerson || null,
                 status: 'OPEN'
             }

@@ -4,18 +4,16 @@ import { cookies } from 'next/headers'
 export async function GET() {
     try {
         const cookieStore = await cookies()
-        const session = cookieStore.get('pos_session') || cookieStore.get('session')
+        const sessionCookie = cookieStore.get('pos_session')
 
-        if (!session) {
-            return NextResponse.json({ authenticated: false }, { status: 401 })
+        if (!sessionCookie) {
+            return NextResponse.json({ error: 'Not authenticated' }, { status: 401 })
         }
 
-        const userData = JSON.parse(session.value)
-        return NextResponse.json({
-            authenticated: true,
-            user: userData
-        })
+        const user = JSON.parse(sessionCookie.value)
+
+        return NextResponse.json({ user })
     } catch (error) {
-        return NextResponse.json({ authenticated: false }, { status: 500 })
+        return NextResponse.json({ error: 'Failed to process session' }, { status: 500 })
     }
 }

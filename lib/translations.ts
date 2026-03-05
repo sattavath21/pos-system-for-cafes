@@ -334,6 +334,7 @@ export const translations = {
         total_usage_caps: "Total Usage",
         transfer_success: "Successfully transferred",
         to_shop: "to Shop!",
+        user_management: "User Management"
     },
     lo: {
         dashboard: "ໜ້າຫຼັກ",
@@ -669,5 +670,7 @@ export const translations = {
         total_usage_caps: "ການນຳໃຊ້ທັງໝົດ",
         transfer_success: "ໂອນສຳເລັດ",
         to_shop: "ເຂົ້າຮ້ານ!",
+        user_management: "ການຈັດການຜູ້ໃຊ້",
+
     }
 }

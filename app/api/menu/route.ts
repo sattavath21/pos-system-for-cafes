@@ -36,6 +36,8 @@ export async function GET(request: Request) {
             category: menu.category?.name || "Uncategorized",
             categoryName: menu.category?.name || "Uncategorized",
             categoryId: menu.categoryId,
+            hasSugarLevel: menu.category?.hasSugarLevel ?? false,
+            hasShotType: menu.category?.hasShotType ?? false,
             variations: menu.variations.map(variation => ({
                 id: variation.id,
                 type: variation.type,

@@ -41,6 +41,8 @@ interface CustomizationDialogProps {
     menuName: string
     localName?: string
     variations: MenuVariation[]
+    hasSugarLevel?: boolean
+    hasShotType?: boolean
 }
 
 
@@ -50,7 +52,9 @@ export function CustomizationDialog({
     onConfirm,
     menuName,
     localName,
-    variations
+    variations,
+    hasSugarLevel = true,
+    hasShotType = true
 }: CustomizationDialogProps) {
     const { t } = useTranslation()
     const [sugar, setSugar] = useState("Normal")
@@ -86,6 +90,9 @@ export function CustomizationDialog({
         { label: "Normal Shot", level: 1 },
         { label: "Double Shot", level: 2 }
     ]
+
+    const effectiveSugar = hasSugarLevel ? sugar : "Normal"
+    const effectiveShot = hasShotType ? shot : "Normal"
 
     // Get current variation object
     const currentVariation = variations.find(v => v.type === selectedVariation)
@@ -127,8 +134,8 @@ export function CustomizationDialog({
             name: menuName, // Keep name as the base product name
             localName: localName,
             price: finalPrice,
-            sugar,
-            shot,
+            sugar: effectiveSugar,
+            shot: effectiveShot,
             variation: selectedVariation,
             size: selectedSizeObj.size
         })
@@ -188,48 +195,52 @@ export function CustomizationDialog({
                     </div>
 
                     {/* Sugar Level */}
-                    <div className="space-y-2">
-                        <Label>Sugar Level</Label>
-                        <div className="grid grid-cols-4 gap-2">
-                            {sugarOptions.map(({ label, icon: Icon }) => (
-                                <Button
-                                    key={label}
-                                    variant={sugar === label ? "default" : "outline"}
-                                    onClick={() => setSugar(label)}
-                                    className="h-16 flex flex-col items-center justify-center gap-1"
-                                >
-                                    <Icon className="h-5 w-5" />
-                                    <span className="text-xs">{label}</span>
-                                </Button>
-                            ))}
+                    {hasSugarLevel && (
+                        <div className="space-y-2">
+                            <Label>Sugar Level</Label>
+                            <div className="grid grid-cols-4 gap-2">
+                                {sugarOptions.map(({ label, icon: Icon }) => (
+                                    <Button
+                                        key={label}
+                                        variant={sugar === label ? "default" : "outline"}
+                                        onClick={() => setSugar(label)}
+                                        className="h-16 flex flex-col items-center justify-center gap-1"
+                                    >
+                                        <Icon className="h-5 w-5" />
+                                        <span className="text-xs">{label}</span>
+                                    </Button>
+                                ))}
+                            </div>
                         </div>
-                    </div>
+                    )}
 
 
                     {/* Shot Type */}
-                    <div className="space-y-2">
-                        <Label>Shot Type</Label>
-                        <div className="grid grid-cols-3 gap-2">
-                            {shotOptions.map(({ label, level }) => (
-                                <Button
-                                    key={label}
-                                    variant={shot === label ? "default" : "outline"}
-                                    onClick={() => setShot(label)}
-                                    className="h-14 flex flex-col items-center justify-center gap-1"
-                                >
-                                    <div className="flex gap-1 items-center">
-                                        {level === 0.5 && <div className="flex gap-1 items-center"><Minus className="h-4 w-4" /> <Coffee className="h-4 w-4" /></div>}
+                    {hasShotType && (
+                        <div className="space-y-2">
+                            <Label>Shot Type</Label>
+                            <div className="grid grid-cols-3 gap-2">
+                                {shotOptions.map(({ label, level }) => (
+                                    <Button
+                                        key={label}
+                                        variant={shot === label ? "default" : "outline"}
+                                        onClick={() => setShot(label)}
+                                        className="h-14 flex flex-col items-center justify-center gap-1"
+                                    >
+                                        <div className="flex gap-1 items-center">
+                                            {level === 0.5 && <div className="flex gap-1 items-center"><Minus className="h-4 w-4" /> <Coffee className="h-4 w-4" /></div>}
 
-                                        {level >= 1 &&
-                                            Array.from({ length: Math.floor(level) }).map((_, i) => (
-                                                <Coffee key={i} className="h-4 w-4" />
-                                            ))}
-                                    </div>
-                                    <span className="text-xs">{label}</span>
-                                </Button>
-                            ))}
+                                            {level >= 1 &&
+                                                Array.from({ length: Math.floor(level) }).map((_, i) => (
+                                                    <Coffee key={i} className="h-4 w-4" />
+                                                ))}
+                                        </div>
+                                        <span className="text-xs">{label}</span>
+                                    </Button>
+                                ))}
+                            </div>
                         </div>
-                    </div>
+                    )}
 
 
                 </div>

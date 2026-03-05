@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { startOfDay } from 'date-fns'
+import { cookies } from 'next/headers'
 
 // Force dynamic to prevent caching issues with Orders
 export const dynamic = 'force-dynamic'
@@ -16,6 +17,17 @@ export async function POST(request: Request) {
         } = body
 
         // --- VALIDATION PHASE (Fail Fast) ---
+
+        // 0. Get current user
+        const cookieStore = await cookies()
+        const sessionCookie = cookieStore.get('pos_session')
+        let userId = null
+        if (sessionCookie) {
+            try {
+                const sessionUser = JSON.parse(sessionCookie.value)
+                userId = sessionUser.id
+            } catch (e) { }
+        }
 
         // 1. Validate Items & VariationSizes
         if (!items || !Array.isArray(items) || items.length === 0) {
@@ -168,6 +180,7 @@ export async function POST(request: Request) {
                         ...orderData,
                         ...(customerId && { customer: { connect: { id: customerId } } }),
                         ...(promoId && { promotion: { connect: { id: promoId } } }),
+                        ...(userId && { user: { connect: { id: userId } } }),
                         items: {
                             create: preparedItems
                         }
@@ -183,6 +196,7 @@ export async function POST(request: Request) {
                         ...orderData,
                         customer: customerId ? { connect: { id: customerId } } : { disconnect: true },
                         promotion: promoId ? { connect: { id: promoId } } : { disconnect: true },
+                        ...(userId && { user: { connect: { id: userId } } }),
                         items: {
                             create: preparedItems
                         }
@@ -235,8 +249,8 @@ export async function POST(request: Request) {
                     })
                 }
 
-                // 3. Update Cash Drawer (if Cash & Open Shift exists)
-                if ((paymentMethod === 'BANK_NOTE' || paymentMethod === 'CASH') && openShiftId) {
+                // 3. Update Cash Drawer (if Cash & Open Shift exists AND is reportable)
+                if ((paymentMethod === 'BANK_NOTE' || paymentMethod === 'CASH') && openShiftId && savedOrder.isReportable) {
                     await tx.shift.update({
                         where: { id: openShiftId },
                         data: { cashPayments: { increment: savedOrder.total } }
@@ -281,8 +295,8 @@ export async function POST(request: Request) {
                     })
                 }
 
-                // 3. Revert Cash
-                if (previousOrder.paymentMethod === 'BANK_NOTE' || previousOrder.paymentMethod === 'CASH') {
+                // 3. Revert Cash (if was reportable)
+                if ((previousOrder.paymentMethod === 'BANK_NOTE' || previousOrder.paymentMethod === 'CASH') && previousOrder.isReportable) {
                     const shift = await tx.shift.findFirst({ where: { status: 'OPEN' } })
                     if (shift) {
                         await tx.shift.update({

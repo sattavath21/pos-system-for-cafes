@@ -18,7 +18,7 @@ export default function SettingsPage() {
   const [isSaving, setIsSaving] = useState(false)
 
   const [adminPin, setAdminPin] = useState("")
-  const [cashierPin, setCashierPin] = useState("")
+  const [staffPin, setStaffPin] = useState("")
 
   useEffect(() => {
     fetchData()
@@ -74,7 +74,7 @@ export default function SettingsPage() {
       if (res.ok) {
         alert(`${role} PIN updated successfully`)
         if (role === 'ADMIN') setAdminPin("")
-        else setCashierPin("")
+        else setStaffPin("")
       } else {
         alert("Failed to update PIN")
       }
@@ -162,19 +162,29 @@ export default function SettingsPage() {
                 />
               </div>
               <div className="space-y-2">
+                <Label>Logo URL / Path</Label>
+                <Input
+                  placeholder="/CAFE LOGO.jpg"
+                  value={settings.shopLogo || ""}
+                  onChange={(e) => setSettings({ ...settings, shopLogo: e.target.value })}
+                />
+              </div>
+            </div>
+            <div className="grid md:grid-cols-2 gap-4">
+              <div className="space-y-2">
                 <Label>Phone Number</Label>
                 <Input
                   value={settings.shopPhone || ""}
                   onChange={(e) => setSettings({ ...settings, shopPhone: e.target.value })}
                 />
               </div>
-            </div>
-            <div className="space-y-2">
-              <Label>Shop Address</Label>
-              <Input
-                value={settings.shopAddress || ""}
-                onChange={(e) => setSettings({ ...settings, shopAddress: e.target.value })}
-              />
+              <div className="space-y-2">
+                <Label>Shop Address</Label>
+                <Input
+                  value={settings.shopAddress || ""}
+                  onChange={(e) => setSettings({ ...settings, shopAddress: e.target.value })}
+                />
+              </div>
             </div>
           </div>
         </Card>
@@ -291,15 +301,15 @@ export default function SettingsPage() {
                     </div>
                   </div>
                   <div className="space-y-2">
-                    <Label className="text-amber-900 font-bold">Update Cashier PIN</Label>
+                    <Label className="text-amber-900 font-bold">Update All Staff PINs</Label>
                     <div className="flex gap-2">
                       <Input
                         type="password"
                         placeholder="New 4+ digit PIN"
-                        value={cashierPin}
-                        onChange={(e) => setCashierPin(e.target.value)}
+                        value={staffPin}
+                        onChange={(e) => setStaffPin(e.target.value)}
                       />
-                      <Button onClick={() => handleUpdatePin('CASHIER', cashierPin)}>Update</Button>
+                      <Button onClick={() => handleUpdatePin('STAFF', staffPin)}>Update</Button>
                     </div>
                   </div>
                 </div>

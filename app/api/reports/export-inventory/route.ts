@@ -29,6 +29,11 @@ export async function GET(request: Request) {
                         name: true,
                         unit: true
                     }
+                },
+                user: {
+                    select: {
+                        name: true
+                    }
                 }
             },
             orderBy: { createdAt: 'desc' }
@@ -45,6 +50,7 @@ export async function GET(request: Request) {
             unit: tx.ingredient.unit,
             fromStore: tx.fromStore || '-',
             toStore: tx.toStore || '-',
+            staff: tx.user?.name || '-',
             reason: tx.reason || '-',
             cost: tx.cost || 0,
             notes: tx.notes || '-'
@@ -65,6 +71,7 @@ export async function GET(request: Request) {
             { wch: 8 },  // unit
             { wch: 12 }, // fromStore
             { wch: 12 }, // toStore
+            { wch: 15 }, // staff
             { wch: 20 }, // reason
             { wch: 10 }, // cost
             { wch: 30 }  // notes

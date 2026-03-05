@@ -38,8 +38,8 @@ export default function ReportsPage() {
         const res = await fetch('/api/auth/me')
         if (res.ok) {
           const d = await res.json()
-          if (d.user.role === 'CASHIER') {
-            window.location.href = '/dashboard'
+          if (d.user.role === 'STAFF') {
+            window.location.href = '/pos'
           }
         }
       } catch (e) { }
@@ -663,6 +663,29 @@ export default function ReportsPage() {
                 </CardContent>
               </Card>
             </div>
+
+            {/* Staff Sales Performance */}
+            <div className="grid grid-cols-1 gap-6">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <TrendingUp className="w-5 h-5 text-indigo-600" />
+                    Staff Sales Performance
+                  </CardTitle>
+                  <CardDescription>Revenue generated per staff member</CardDescription>
+                </CardHeader>
+                <CardContent className="h-[350px]">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={data?.staffSales || []}>
+                      <XAxis dataKey="name" />
+                      <YAxis fontSize={11} tickFormatter={(v) => `${(v / 1000)}k`} />
+                      <Tooltip formatter={(v) => formatLAK(v as number)} />
+                      <Bar dataKey="revenue" fill="#4f46e5" radius={[4, 4, 0, 0]} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </CardContent>
+              </Card>
+            </div>
           </TabsContent>
 
           <TabsContent value="inventory" className="space-y-6">
@@ -810,6 +833,7 @@ export default function ReportsPage() {
                         <th className="py-2 px-3 text-right">Qty</th>
                         <th className="py-2 px-3 text-left">From</th>
                         <th className="py-2 px-3 text-left">To</th>
+                        <th className="py-2 px-3 text-left">Staff</th>
                         <th className="py-2 px-3 text-left">Reason</th>
                         <th className="py-2 px-3 text-left">Notes</th>
                       </tr>
@@ -827,13 +851,14 @@ export default function ReportsPage() {
                           <td className="py-2 px-3 text-right font-bold">{tx.quantity} {tx.unit}</td>
                           <td className="py-2 px-3 text-xs text-muted-foreground">{tx.fromStore || '-'}</td>
                           <td className="py-2 px-3 text-xs text-muted-foreground">{tx.toStore || '-'}</td>
+                          <td className="py-2 px-3 text-xs font-semibold">{tx.user || '-'}</td>
                           <td className="py-2 px-3 text-xs italic text-muted-foreground">{tx.reason || '-'}</td>
                           <td className="py-2 px-3 text-xs text-muted-foreground">{tx.notes || '-'}</td>
                         </tr>
                       ))}
                       {(!data?.inventoryStats?.recentTransactions || data.inventoryStats.recentTransactions.length === 0) && (
                         <tr>
-                          <td colSpan={8} className="py-10 text-center text-muted-foreground italic">No transactions found.</td>
+                          <td colSpan={9} className="py-10 text-center text-muted-foreground italic">No transactions found.</td>
                         </tr>
                       )}
                     </tbody>
@@ -977,22 +1002,22 @@ export default function ReportsPage() {
                       <thead>
                         <tr className="border-b bg-muted/30 text-slate-500 font-bold">
                           <th className="py-2 px-3 text-left">Item</th>
-                          <th className="py-2 px-3 text-right">Theo.</th>
-                          <th className="py-2 px-3 text-right">Actual</th>
-                          <th className="py-2 px-3 text-right">Diff.</th>
+                          <th className="py-2 px-3 text-right">Qty Diff</th>
+                          <th className="py-2 px-3 text-left">Reason</th>
+                          <th className="py-2 px-3 text-left">Notes</th>
                           <th className="py-2 px-3 text-right">Loss Value</th>
                         </tr>
                       </thead>
                       <tbody>
                         {data?.advanced?.shrinkageDetails?.length === 0 ? (
-                          <tr><td colSpan={5} className="py-10 text-center italic text-muted-foreground">No stock audit discrepancies recorded</td></tr>
+                          <tr><td colSpan={5} className="py-10 text-center italic text-muted-foreground">No stock shrinkage recorded</td></tr>
                         ) : (
                           data?.advanced?.shrinkageDetails?.map((s: any, i: number) => (
                             <tr key={i} className="border-b hover:bg-muted/10">
                               <td className="py-2 px-3 font-medium text-slate-700">{s.ingredientName}</td>
-                              <td className="py-2 px-3 text-right text-slate-500">{s.theoretical}</td>
-                              <td className="py-2 px-3 text-right text-slate-500">{s.actual}</td>
                               <td className="py-2 px-3 text-right font-bold text-rose-600">{s.difference}</td>
+                              <td className="py-2 px-3 text-left whitespace-nowrap overflow-hidden text-ellipsis max-w-[150px]">{s.reason}</td>
+                              <td className="py-2 px-3 text-left text-xs italic text-slate-500 max-w-[200px] truncate">{s.notes}</td>
                               <td className="py-2 px-3 text-right font-bold text-rose-700">{formatLAK(s.lossValue)}</td>
                             </tr>
                           ))

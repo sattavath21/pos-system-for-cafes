@@ -50,7 +50,7 @@ export function Sidebar() {
 
     const handleLogout = async () => {
         await fetch('/api/auth/logout', { method: 'POST' })
-        router.push('/role-select')
+        router.push('/pin-login')
     }
 
     const toggleLanguage = async () => {
@@ -75,7 +75,7 @@ export function Sidebar() {
         { name: t.orders, href: "/orders", icon: Receipt },
         { name: t.menu, href: "/menu", icon: List },
         { name: t.inventory, href: "/inventory", icon: Package },
-        { name: t.customers, href: "/customers", icon: Users },
+        { name: t.user_management, href: "/users", icon: Users },
         { name: t.promotions, href: "/promotions", icon: Tag },
         { name: t.reports, href: "/reports", icon: ChartLine, managerAllowed: true },
     ]
@@ -86,13 +86,13 @@ export function Sidebar() {
 
     // Filter items based on user role
     const isSpecialRole = user?.role === 'ADMIN' || user?.role === 'MANAGER'
-    const isCashier = user?.role === 'CASHIER'
+    const isStaff = user?.role === 'STAFF'
 
     const filteredNavItems = mainNavItems.filter(item => {
-        // Cashier restrictions
-        if (isCashier) {
-            const cashierAllowed = ['/pos', '/orders', '/customers']
-            return cashierAllowed.includes(item.href)
+        // Staff restrictions
+        if (isStaff) {
+            const staffAllowed = ['/pos', '/orders', '/users', '/inventory']
+            return staffAllowed.includes(item.href)
         }
 
         if ((item as any).adminOnly) return user?.role === 'ADMIN'
@@ -101,7 +101,7 @@ export function Sidebar() {
     })
 
     const filteredSystemItems = systemActions.filter(item => {
-        if (isCashier) return false // Hide settings for cashier
+        if (isStaff) return false // Hide settings for staff
         if ((item as any).adminOnly) return user?.role === 'ADMIN'
         if ((item as any).managerAllowed) return isSpecialRole
         return true
@@ -173,7 +173,7 @@ export function Sidebar() {
                             </span>
                         </div>
                         {status === 'CLOSED' && (
-                            <span className="text-[10px] text-rose-500 font-bold mt-1 leading-none">● {t.shift_closed || "Shift Closed"}</span>
+                            <button onClick={() => router.push('/dashboard')} className="text-[10px] hover:underline text-rose-500 font-bold mt-1 leading-none text-left focus:outline-none">● {t.shift_closed || "Shift Closed"} (Click to open)</button>
                         )}
                         {status === 'OPEN' && (
                             <span className="text-[10px] text-emerald-600 font-bold mt-1 leading-none">● {t.shift_open || "Shift Open"}</span>
@@ -184,7 +184,7 @@ export function Sidebar() {
 
             {/* Main Navigation */}
             <nav className={cn(
-                "flex-1 py-2 space-y-1.5 overflow-y-auto no-scrollbar px-3",
+                "flex-1 py-2 space-y-1.45 overflow-y-auto no-scrollbar px-3",
                 isCollapsed && "px-2"
             )}>
                 {filteredNavItems.map((item) => {

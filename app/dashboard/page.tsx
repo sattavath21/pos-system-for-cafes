@@ -49,9 +49,9 @@ export default function DashboardPage() {
           const userData = await userRes.json()
           setUser(userData.user)
 
-          // Role-based routing: Cashier goes to POS
-          if (userData.user.role === 'CASHIER') {
-            router.push('/pos')
+          // If staff, dashboard is not for them
+          if (userData.user.role === 'STAFF') {
+            window.location.href = '/pos'
             return
           }
         }
@@ -202,7 +202,9 @@ export default function DashboardPage() {
                   <div className="flex items-center gap-1.5">
                     <span className={cn(
                       "text-xs font-bold px-1.5 py-0.5 rounded",
-                      stat.change.startsWith('-') ? 'text-red-600 bg-red-50' : 'text-emerald-600 bg-emerald-50'
+                      stat.change.startsWith('-') ? 'text-red-600 bg-red-50' :
+                        stat.title == "Low Stock Items" ? 'text-red-600 bg-red-50'
+                          : 'text-emerald-600 bg-emerald-50'
                     )}>
                       {stat.change}
                     </span>

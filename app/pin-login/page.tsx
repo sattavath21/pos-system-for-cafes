@@ -1,24 +1,50 @@
 "use client"
 
-import { useState } from "react"
-import { useRouter, useSearchParams } from "next/navigation"
+import { useState, useEffect } from "react"
+import { useRouter } from "next/navigation"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { Coffee, Delete } from "lucide-react"
-import { Suspense } from "react"
+import { Coffee, Delete, UserCircle } from "lucide-react"
 import { useTranslation } from "@/hooks/use-translation"
 
-function PinLoginContent() {
+interface User {
+    id: string;
+    username: string;
+    name: string;
+    role: string;
+}
+
+export default function PinLoginPage() {
     const [pin, setPin] = useState("")
     const [error, setError] = useState("")
     const [isLoading, setIsLoading] = useState(false)
     const [isNavigating, setIsNavigating] = useState(false)
+    const [users, setUsers] = useState<User[]>([])
+    const [selectedUsername, setSelectedUsername] = useState<string>("")
     const router = useRouter()
-    const searchParams = useSearchParams()
-    const role = searchParams.get('role') // Get role from URL
     const { t } = useTranslation()
 
+    // Fetch users on mount
+    useEffect(() => {
+        const fetchUsers = async () => {
+            try {
+                const res = await fetch("/api/auth/users")
+                const data = await res.json()
+                if (data.users) {
+                    setUsers(data.users)
+                }
+            } catch (err) {
+                console.error("Failed to fetch users", err)
+            }
+        }
+        fetchUsers()
+    }, [])
+
     const handleNumberClick = (num: string) => {
+        if (!selectedUsername) {
+            setError("Please select a user first")
+            return
+        }
         if (pin.length < 4 && !isNavigating) {
             const newPin = pin + num
             setPin(newPin)
@@ -40,13 +66,13 @@ function PinLoginContent() {
     }
 
     const handleSubmit = async () => {
-        if (pin.length < 4) {
-            setError("PIN must be at least 4 digits")
+        if (!selectedUsername) {
+            setError("Please select a user first")
             return
         }
 
-        if (!role) {
-            setError("Please select a role first")
+        if (pin.length < 4) {
+            setError("PIN must be at least 4 digits")
             return
         }
 
@@ -58,42 +84,32 @@ function PinLoginContent() {
             const res = await fetch('/api/auth/pin-login', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ pin, role })
+                body: JSON.stringify({ pin, username: selectedUsername })
             })
 
             const data = await res.json()
 
             if (res.ok) {
-                // Verify the user's role matches the selected role
-                if (data.user.role !== role) {
-                    setError(`Invalid PIN for ${role} role`)
-                    setPin("")
-                    setIsNavigating(false)
-                    return
-                }
-
                 // Store user data
                 localStorage.setItem('user', JSON.stringify(data.user))
 
                 // Redirect based on role - keep isNavigating true until navigation completes
-                if (role === 'ADMIN') {
+                if (data.user.role === 'ADMIN') {
                     router.push('/dashboard')
-                } else if (role === 'CASHIER') {
+                } else {
                     router.push('/pos')
-                } else if (role === 'KITCHEN') {
-                    router.push('/kitchen')
                 }
-                // Don't reset isNavigating here - let it stay true during navigation
+                // Don't reset isNavigating or isLoading here
             } else {
                 setError(data.error || 'Invalid PIN')
                 setPin("")
                 setIsNavigating(false)
+                setIsLoading(false)
             }
         } catch (err) {
             setError('Login failed. Please try again.')
             setPin("")
             setIsNavigating(false)
-        } finally {
             setIsLoading(false)
         }
     }
@@ -104,15 +120,6 @@ function PinLoginContent() {
         ['7', '8', '9']
     ]
 
-    const getRoleTitle = () => {
-        switch (role) {
-            case 'ADMIN': return 'Admin'
-            case 'CASHIER': return 'Cashier'
-            case 'KITCHEN': return 'Barista'
-            default: return 'Staff'
-        }
-    }
-
     return (
         <div className="min-h-screen bg-gradient-to-br from-amber-50 to-orange-100 flex items-center justify-center p-4">
             <Card className="w-full max-w-md p-8">
@@ -121,7 +128,27 @@ function PinLoginContent() {
                         <Coffee className="w-8 h-8 text-white" />
                     </div>
                     <h1 className="text-3xl font-bold text-amber-900 mb-2">Cafe POS</h1>
-                    <p className="text-muted-foreground">{t.enter_pin_for} {getRoleTitle()}</p>
+                    <p className="text-muted-foreground">Select user and enter PIN to login</p>
+                </div>
+
+                {/* User Selection */}
+                <div className="mb-6 relative">
+                    <UserCircle className="absolute left-3 top-1/2 -translate-y-1/2 w-6 h-6 text-amber-600 pointer-events-none" />
+                    <select
+                        className="w-full p-4 pl-12 rounded-xl border-2 border-amber-200 bg-white text-lg font-bold text-slate-800 focus:outline-none focus:border-amber-500 appearance-none shadow-sm cursor-pointer"
+                        value={selectedUsername}
+                        onChange={(e) => {
+                            setSelectedUsername(e.target.value)
+                            setPin("")
+                            setError("")
+                        }}
+                        disabled={isLoading || isNavigating}
+                    >
+                        <option value="" disabled>Select User</option>
+                        {users.map(u => (
+                            <option key={u.id} value={u.username}>{u.name} ({u.role})</option>
+                        ))}
+                    </select>
                 </div>
 
                 {/* PIN Display */}
@@ -140,7 +167,7 @@ function PinLoginContent() {
                         ))}
                     </div>
                     {error && (
-                        <p className="text-center text-red-600 text-sm mt-2">{error}</p>
+                        <p className="text-center text-red-600 text-sm mt-2 font-medium">{error}</p>
                     )}
                 </div>
 
@@ -152,9 +179,9 @@ function PinLoginContent() {
                                 <Button
                                     key={num}
                                     variant="outline"
-                                    className="h-16 text-2xl font-semibold hover:bg-amber-100"
+                                    className="h-16 text-2xl font-semibold hover:bg-amber-100 disabled:opacity-50"
                                     onClick={() => handleNumberClick(num)}
-                                    disabled={isLoading}
+                                    disabled={isLoading || isNavigating || !selectedUsername}
                                 >
                                     {num}
                                 </Button>
@@ -166,9 +193,9 @@ function PinLoginContent() {
                         <div></div>
                         <Button
                             variant="outline"
-                            className="h-16 text-2xl font-semibold hover:bg-amber-100"
+                            className="h-16 text-2xl font-semibold hover:bg-amber-100 disabled:opacity-50"
                             onClick={() => handleNumberClick('0')}
-                            disabled={isLoading}
+                            disabled={isLoading || isNavigating || !selectedUsername}
                         >
                             0
                         </Button>
@@ -180,41 +207,23 @@ function PinLoginContent() {
                 <div className="grid grid-cols-2 gap-3">
                     <Button
                         variant="outline"
-                        className="h-12"
+                        className="h-12 border-amber-200 text-amber-700 hover:bg-amber-50 hover:text-amber-800"
                         onClick={handleDelete}
-                        disabled={isLoading || pin.length === 0}
+                        disabled={isLoading || isNavigating || pin.length === 0}
                     >
                         <Delete className="w-5 h-5 mr-2" />
                         {t.delete}
                     </Button>
                     <Button
                         id="pin-submit-btn"
-                        className="h-12 bg-amber-600 hover:bg-amber-700"
+                        className="h-12 bg-amber-600 hover:bg-amber-700 text-white shadow-md relative"
                         onClick={handleSubmit}
-                        disabled={isLoading || pin.length < 4}
+                        disabled={isLoading || isNavigating || pin.length < 4}
                     >
-                        {isLoading ? t.logging_in : t.enter_login}
-                    </Button>
-                </div>
-
-                <div className="mt-4 text-center">
-                    <Button
-                        variant="link"
-                        className="text-sm text-muted-foreground"
-                        onClick={() => router.push('/role-select')}
-                    >
-                        {t.back_to_role_selection}
+                        {isLoading || isNavigating ? t.logging_in : t.enter_login}
                     </Button>
                 </div>
             </Card>
         </div>
-    )
-}
-
-export default function PinLoginPage() {
-    return (
-        <Suspense fallback={<div>Loading...</div>}>
-            <PinLoginContent />
-        </Suspense>
     )
 }

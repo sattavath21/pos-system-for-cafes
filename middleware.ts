@@ -15,9 +15,9 @@ export function middleware(request: NextRequest) {
         const hasSession = request.cookies.has('pos_session')
 
         if (!hasSession) {
-            // Redirect to login/role-select if not authenticated
+            // Redirect to pin-login if not authenticated
             const url = request.nextUrl.clone()
-            url.pathname = '/role-select'
+            url.pathname = '/pin-login'
             return NextResponse.redirect(url)
         }
 
@@ -28,11 +28,11 @@ export function middleware(request: NextRequest) {
                 const user = JSON.parse(session.value)
                 const role = user.role
 
-                // Define restricted routes for CASHIER
-                const cashierRestrictedRoutes = ['/inventory', '/promotions', '/reports', '/menu', '/settings', '/dashboard']
+                // Define restricted routes for STAFF
+                const staffRestrictedRoutes = ['/promotions', '/reports', '/menu', '/settings', '/dashboard']
 
-                if (role === 'CASHIER') {
-                    const isRestricted = cashierRestrictedRoutes.some(route => path.startsWith(route))
+                if (role === 'STAFF') {
+                    const isRestricted = staffRestrictedRoutes.some(route => path.startsWith(route))
                     if (isRestricted) {
                         const url = request.nextUrl.clone()
                         url.pathname = '/pos'
@@ -70,6 +70,6 @@ export const config = {
          * - role-select (login page)
          * - pin-login (login page)
          */
-        '/((?!api|_next/static|_next/image|favicon.ico|role-select|pin-login).*)',
+        '/((?!api|_next/static|_next/image|favicon.ico|pin-login).*)',
     ],
 }
