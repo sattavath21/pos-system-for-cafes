@@ -457,6 +457,7 @@ async function main() {
                 quantity: qty,
                 total: itemTotal,
                 sugarLevel: getRandomItem(["Normal", "Less Sweet", "No Sweet", "Extra Sweet"]),
+                isTakeaway: Math.random() > 0.7 // 30% takeaway
             })
         }
 
@@ -493,7 +494,12 @@ async function main() {
                 createdAt: order.finalDate,
                 updatedAt: order.finalDate,
                 isReportable: true,
-                paymentMethod: getRandomItem(['CASH', 'TRANSFER']),
+                paymentMethod: (function () {
+                    const r = Math.random();
+                    if (r < 0.6) return 'ONEPAY';
+                    if (r < 0.95) return 'CASH';
+                    return 'TRANSFER';
+                })(),
                 userId: getRandomItem(allUsers).id,
                 items: {
                     create: order.itemsToCreate

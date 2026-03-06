@@ -19,40 +19,41 @@ const notoLaos = Noto_Sans_Lao({
 });
 
 export const metadata: Metadata = {
-  title: 'v0 App',
-  description: 'Created with v0',
+  title: 'Memories Lane Cafe',
+  description: 'Memories Lane Cafe POS System',
   generator: 'v0.app',
   icons: {
     icon: [
       {
-        url: '/icon-light-32x32.png',
-        media: '(prefers-color-scheme: light)',
-      },
-      {
-        url: '/icon-dark-32x32.png',
-        media: '(prefers-color-scheme: dark)',
-      },
-      {
-        url: '/icon.svg',
-        type: 'image/svg+xml',
+        url: '/CAFE LOGO 32x32.png',
       },
     ],
     apple: '/apple-icon.png',
   },
 }
 
-export default function RootLayout({
+import { headers } from 'next/headers'
+
+// ... existing code ...
+
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode
 }>) {
+  const headerList = await headers()
+  const host = headerList.get('host') || ''
+
+  // Robust check: can be the specific domain or a local debug flag
+  const isMonitor = host.toLowerCase().includes('monitor.sattavath.store') || host.toLowerCase().includes('monitor.localhost')
+
   return (
     <html lang="en">
       <body className={notoLaos.className}>
         <LanguageProvider>
           <ShiftProvider>
             <SidebarProvider>
-              <ClientLayout>
+              <ClientLayout isMonitor={isMonitor}>
                 {children}
               </ClientLayout>
             </SidebarProvider>

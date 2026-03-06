@@ -10,7 +10,7 @@ import {
 } from "recharts"
 import {
   Calendar as CalendarIcon, Download, TrendingUp, DollarSign, ShoppingBag,
-  CreditCard, TrendingDown, Clock, Tag, Package, AlertTriangle, Search, Filter, Target, ArrowRightLeft, ShoppingCart, History
+  CreditCard, TrendingDown, Clock, Tag, Package, AlertTriangle, Search, Filter, Target, ArrowRightLeft, ShoppingCart, History, Droplets, Coffee
 } from "lucide-react"
 import Link from "next/link"
 import { formatLAK } from "@/lib/currency"
@@ -337,8 +337,36 @@ export default function ReportsPage() {
               </Card>
             </div>
 
-            {/* Complimentary Orders Section */}
+            {/* Takeaway vs Dine-in */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Takeaway vs Dine-in</CardTitle>
+                  <CardDescription>Revenue distribution by order type</CardDescription>
+                </CardHeader>
+                <CardContent className="h-[350px]">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie
+                        data={data?.takeawayStats || []}
+                        dataKey="revenue"
+                        nameKey="name"
+                        innerRadius={60}
+                        outerRadius={100}
+                        paddingAngle={5}
+                        label={(e) => `${e.name}: ${formatLAK(e.revenue)}`}
+                      >
+                        {(data?.takeawayStats || []).map((entry: any, index: number) => (
+                          <Cell key={`cell-${index}`} fill={index === 0 ? '#d97706' : '#2563eb'} />
+                        ))}
+                      </Pie>
+                      <Tooltip formatter={(v) => formatLAK(v as number)} />
+                      <Legend />
+                    </PieChart>
+                  </ResponsiveContainer>
+                </CardContent>
+              </Card>
+
               <Card className="border-l-4 border-l-rose-500">
                 <CardHeader>
                   <CardTitle>Complimentary Orders</CardTitle>
@@ -504,7 +532,47 @@ export default function ReportsPage() {
                   </div>
                 </CardContent>
               </Card>
+            </div>
 
+            {/* Customization Stats */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-indigo-800 flex items-center gap-2">
+                    <Droplets className="w-5 h-5 text-blue-500" />
+                    Sugar Levels Usage
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-3">
+                    {data?.sugarStats?.map((s: any, i: number) => (
+                      <div key={i} className="flex justify-between items-center p-3 rounded-xl border bg-white shadow-sm">
+                        <span className="font-bold text-slate-700">{s.name}</span>
+                        <Badge variant="secondary" className="font-black text-blue-700 bg-blue-50">{s.count} orders</Badge>
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-purple-800 flex items-center gap-2">
+                    <Coffee className="w-5 h-5 text-purple-500" />
+                    Extra Shot Usage
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-3">
+                    {data?.shotStats?.map((s: any, i: number) => (
+                      <div key={i} className="flex justify-between items-center p-3 rounded-xl border bg-white shadow-sm">
+                        <span className="font-bold text-slate-700">{s.name}</span>
+                        <Badge variant="secondary" className="font-black text-purple-700 bg-purple-50">{s.count} orders</Badge>
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
             </div>
           </TabsContent>
 

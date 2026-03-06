@@ -1,0 +1,9 @@
+tunnel: 7f11f839-3761-49e2-a77d-8f49bb20acef
+credentials-file: C:\Users\sattavath\.cloudflared\7f11f839-3761-49e2-a77d-8f49bb20acef.json
+
+ingress:
+  - hostname: webhook.sattavath.store
+    service: http://localhost:3000
+  - hostname: monitor.sattavath.store
+    service: http://localhost:3000
+  - service: http_status:404

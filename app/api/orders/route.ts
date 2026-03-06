@@ -31,6 +31,7 @@ export async function POST(request: Request) {
 
         // 1. Validate Items & VariationSizes
         if (!items || !Array.isArray(items) || items.length === 0) {
+            console.error("Order Validation Failed: Items list is invalid or empty", items)
             return NextResponse.json({ error: 'Order must have items' }, { status: 400 })
         }
 
@@ -39,6 +40,7 @@ export async function POST(request: Request) {
             .filter(id => id !== undefined && id !== null) as string[]
 
         if (variationSizeIds.length === 0) {
+            console.error("Order Validation Failed: No VariationSize IDs found", items)
             return NextResponse.json({ error: 'Items must have variationSizeId' }, { status: 400 })
         }
 
@@ -64,6 +66,7 @@ export async function POST(request: Request) {
         if (customerId) {
             const customer = await prisma.customer.findUnique({ where: { id: customerId } })
             if (!customer) {
+                console.error("Order Validation Failed: Customer missing", customerId)
                 return NextResponse.json({
                     error: `Customer ${customerId} not found. They may have been deleted or the database was re-seeded.`,
                     code: 'STALE_CUSTOMER_VIOLATION'
@@ -75,6 +78,7 @@ export async function POST(request: Request) {
         if (promoId) {
             const promo = await prisma.promotion.findUnique({ where: { id: promoId } })
             if (!promo) {
+                console.error("Order Validation Failed: Promo missing", promoId)
                 return NextResponse.json({ error: `Promotion ${promoId} not found` }, { status: 400 })
             }
         }
@@ -167,7 +171,8 @@ export async function POST(request: Request) {
                     total: parseFloat((item.price * item.quantity).toString()),
                     sugarLevel: item.sugarLevel || null,
                     shotType: item.shotType || null,
-                    cupSize: finalSize || null
+                    cupSize: finalSize || null,
+                    isTakeaway: item.isTakeaway || false
                 }
             })
 

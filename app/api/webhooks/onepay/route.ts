@@ -6,16 +6,12 @@ export async function POST(request: Request) {
         const body = await request.json();
         console.log('Onepay Webhook Received:', JSON.stringify(body, null, 2));
 
-        /**
-         * Expected BCEL Onepay Webhook Payload (Typical Structure)
-         * {
-         *   "bill_id": "ORDER-0001",
-         *   "transaction_id": "BCEL-123456",
-         *   "amount": 25000,
-         *   "currency": "LAK",
-         *   "status": "SUCCESS"
-         * }
-         */
+        // SECURITY: Verify token from BCEL
+        const token = request.headers.get('X-Webhook-Token');
+        if (process.env.WEBHOOK_SECRET && token !== process.env.WEBHOOK_SECRET) {
+            console.warn('Unauthorized webhook attempt: invalid token');
+            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+        }
 
         const { bill_id, transaction_id, status } = body;
 
@@ -30,6 +26,7 @@ export async function POST(request: Request) {
 
         if (!order) {
             console.warn(`Webhook received for unknown order: ${bill_id}`);
+            // Acknowledge anyway to stop retries if appropriate, or return 404
             return NextResponse.json({ error: 'Order not found' }, { status: 404 });
         }
 
@@ -47,7 +44,7 @@ export async function POST(request: Request) {
             console.log(`Payment status for order ${bill_id} is not success: ${status}`);
         }
 
-        // BCEL usually expects a specific JSON response to acknowledge receipt
+        // BCEL One expects specific response codes
         return NextResponse.json({
             res_code: '00',
             res_desc: 'Success'

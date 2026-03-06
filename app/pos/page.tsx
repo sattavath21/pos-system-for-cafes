@@ -6,7 +6,12 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogTrigger } from "@/components/ui/dialog"
 import { Label } from "@/components/ui/label"
-import { Search, Plus, List, Package, Tag, Clock, X, Minus, Trash2, Pause, User, ArrowLeft, Check, ChevronRight, Printer, CheckCircle, Star, ShoppingCart, CandyOff, Droplet, Droplets, Candy, Coffee } from "lucide-react"
+import {
+  Search, Plus, Minus, CreditCard, Clock, Printer, HandCoins, CheckCircle,
+  AlertCircle, Smartphone, MapPin, MonitorPlay, WifiOff, RefreshCw, Smartphone as TabletIcon, PhoneIcon,
+  ShoppingBag, Package, ShoppingCart, CandyOff, Droplet, Candy, Coffee,
+  X, Tag, Star, User, Trash2, Pause, Check
+} from "lucide-react"
 import Link from "next/link"
 import { Badge } from "@/components/ui/badge"
 import { formatLAK, calculateChange, LAK_DENOMINATIONS, calculateTax, calculateInclusiveTax } from "@/lib/currency"
@@ -16,6 +21,7 @@ import Image from "next/image"
 import { useTranslation } from "@/hooks/use-translation"
 import { Header } from "@/components/header"
 import { CustomizationDialog } from "@/app/pos/components/CustomizationDialog"
+import { Receipt } from "@/components/receipt"
 import { useShift } from "@/components/shift-provider"
 import { Switch } from "@/components/ui/switch"
 
@@ -50,6 +56,7 @@ type CartItem = {
   size?: string
   category?: string
   image?: string
+  isTakeaway?: boolean
 }
 
 type Customer = {
@@ -345,7 +352,8 @@ export default function POSPage() {
             quantity: i.quantity,
             sugar: i.sugarLevel,
             shot: i.shotType,
-            cupSize: i.cupSize
+            cupSize: i.cupSize,
+            isTakeaway: i.isTakeaway
           })))
           setOrderNumber(found.orderNumber)
           setResumedOrderId(found.id)
@@ -390,7 +398,17 @@ export default function POSPage() {
             method: 'POST',
             body: JSON.stringify({
               id: existingResumedId,
-              items: existingCart,
+              items: existingCart.map((i: any) => ({
+                variationSizeId: i.variationSizeId,
+                name: i.name,
+                price: i.price,
+                quantity: i.quantity,
+                sugarLevel: i.sugar,
+                shotType: i.shot,
+                variation: i.variation,
+                size: i.size,
+                isTakeaway: i.isTakeaway
+              })),
               total, subtotal, tax,
               customerId: existingCust?.id,
               status: 'HOLD'
@@ -521,13 +539,14 @@ export default function POSPage() {
     shot: string
     variation: string
     size: string
+    isTakeaway: boolean
   }) => {
     // Double Shot = +10% price markup
     const finalPrice = selection.shot === "Double" ? Math.round(selection.price * 1.1) : selection.price
 
     setCart((prev) => {
       // Unique ID based on variationSizeId + customizations
-      const uniqueId = `${selection.variationSizeId}-${selection.sugar}-${selection.shot}-${selection.variation}`
+      const uniqueId = `${selection.variationSizeId}-${selection.sugar}-${selection.shot}-${selection.variation}-${selection.isTakeaway}`
 
       // Check existing similar item
       const existing = prev.find((item) => item.id === uniqueId)
@@ -550,7 +569,8 @@ export default function POSPage() {
         variation: selection.variation,
         size: selection.size,
         category: productToCustomize?.category || "Other",
-        image: productToCustomize?.image
+        image: productToCustomize?.image,
+        isTakeaway: selection.isTakeaway
       }]
     })
     setProductToCustomize(null)
@@ -585,13 +605,14 @@ export default function POSPage() {
           taxAmount: tax,
           items: cart.map(i => ({
             variationSizeId: i.variationSizeId,
-            name: `${i.localName || i.name} (${i.name})`, // Snapshot both names
+            name: i.localName ? `${i.localName} (${i.name})` : i.name, // Snapshot both names
             price: i.price,
             quantity: i.quantity,
             sugarLevel: i.sugar,
             shotType: i.shot,
             variation: i.variation,
-            size: i.size
+            size: i.size,
+            isTakeaway: i.isTakeaway
           })),
           total,
           subtotal,
@@ -678,7 +699,8 @@ export default function POSPage() {
             sugarLevel: i.sugar,
             shotType: i.shot,
             variation: i.variation,
-            size: i.size
+            size: i.size,
+            isTakeaway: i.isTakeaway
           })),
           total,
           subtotal,
@@ -726,7 +748,13 @@ export default function POSPage() {
         method: 'POST',
         body: JSON.stringify({
           id: resumedOrderId,
-          items: cart.map(i => ({ id: i.id, name: i.name, price: i.price, quantity: i.quantity })),
+          items: cart.map(i => ({
+            id: i.id,
+            variationSizeId: i.variationSizeId,
+            name: i.name,
+            price: i.price,
+            quantity: i.quantity
+          })),
           total, subtotal, tax, discount,
           promoId: appliedPromo?.id,
           customerId: selectedCustomer?.id,
@@ -897,6 +925,11 @@ export default function POSPage() {
                             <span>{item.shot}</span>
                           </div>
                         )}
+                        {item.isTakeaway && (
+                          <div className="flex items-center gap-1 text-[10px] bg-blue-50 px-1.5 py-0.5 rounded text-blue-700 border border-blue-100 font-bold">
+                            <ShoppingBag className="w-3 h-3" /> {t.takeaway}
+                          </div>
+                        )}
                       </div>
                     </div>
                     <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => removeItem(item.id)}>
@@ -1058,6 +1091,7 @@ export default function POSPage() {
                       <div className="text-[10px] text-slate-500 pl-2">
                         {item.sugar && <span>{t.sugar}: {item.sugar} </span>}
                         {item.shot && <span>{t.shot}: {item.shot} </span>}
+                        {item.isTakeaway && <span className="font-bold text-blue-600">({t.takeaway})</span>}
                       </div>
                     </div>
                   ))}
@@ -1091,7 +1125,7 @@ export default function POSPage() {
                       </div>
                       <div className="flex justify-between font-black text-xl text-green-700">
                         <span>{t.change}</span>
-                        <span>{formatLAK(Math.max(0, lastOrderInfo.cashReceived - lastOrderInfo.total))}</span>
+                        <span>{formatLAK(Math.abs(calculateChange(total, Number(cashReceived)).totalChange))}</span>
                       </div>
                     </div>
                   )}
@@ -1111,25 +1145,54 @@ export default function POSPage() {
             )}
 
             <div className="flex flex-col gap-2 mt-6">
-              <Button className="w-full bg-blue-600 hover:bg-blue-700 py-6 text-lg font-bold" onClick={() => {
-                if (lastOrderInfo?.id) window.open(`/receipt?id=${lastOrderInfo.id}`, '_blank', 'width=450,height=600')
-              }}>
-                <Printer className="w-5 h-5 mr-2" />
-                {t.print_receipt}
-              </Button>
-              <Button
-                variant="outline"
-                className="w-full py-6 text-lg font-semibold border-amber-200 text-amber-900 bg-amber-50 hover:bg-amber-100"
-                onClick={() => {
-                  handleNewOrder()
-                  setIsSuccessOpen(false)
-                }}
-              >
-                {t.new_order}
-              </Button>
+              <div className="grid grid-cols-2 gap-3">
+                <Button
+                  variant="outline"
+                  className="h-12 rounded-xl"
+                  onClick={() => {
+                    setIsSuccessOpen(false)
+                    setTimeout(() => {
+                      const printBtn = document.getElementById('print-receipt-btn')
+                      if (printBtn) printBtn.click()
+                    }, 100)
+                  }}
+                >
+                  <Printer className="w-4 h-4 mr-2" />
+                  Receipt
+                </Button>
+                <Button
+                  className="h-12 rounded-xl bg-slate-900 text-white"
+                  onClick={() => {
+                    setIsSuccessOpen(false)
+                    handleNewOrder()
+                  }}
+                >
+                  New Order
+                </Button>
+              </div>
             </div>
           </DialogContent>
         </Dialog>
+
+        {/* Hidden printer component */}
+        <div className="hidden">
+          {lastOrderInfo && (
+            <div id="receipt-to-print">
+              <Receipt order={lastOrderInfo} />
+            </div>
+          )}
+          <Button id="print-receipt-btn" onClick={() => {
+            const content = document.getElementById('receipt-to-print')?.innerHTML
+            if (content) {
+              const win = window.open('', '', 'width=300,height=600')
+              win?.document.write(`<html><body style="margin:0;padding:0;">${content}</body></html>`)
+              win?.document.close()
+              win?.focus()
+              win?.print()
+              win?.close()
+            }
+          }}>Print</Button>
+        </div>
 
         {/* Actions */}
         <div className="p-2 border-t space-y-2">
