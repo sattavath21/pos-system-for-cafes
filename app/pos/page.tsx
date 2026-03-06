@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogTrigger } from "@/components/ui/dialog"
 import { Label } from "@/components/ui/label"
-import { Search, Plus, List, Package, Tag, Clock, X, Minus, Trash2, Pause, User, ArrowLeft, Check, ChevronRight, ChevronUp, ChevronDown, Printer, CheckCircle, Star, ShoppingCart, CandyOff, Droplet, Droplets, Candy, Coffee, Loader2 } from "lucide-react"
+import { Search, Plus, List, Package, Tag, Clock, X, Minus, Trash2, Pause, User, ArrowLeft, Check, ChevronRight, Printer, CheckCircle, Star, ShoppingCart, CandyOff, Droplet, Droplets, Candy, Coffee } from "lucide-react"
 import Link from "next/link"
 import { Badge } from "@/components/ui/badge"
 import { formatLAK, calculateChange, LAK_DENOMINATIONS, calculateTax, calculateInclusiveTax } from "@/lib/currency"
@@ -24,8 +24,6 @@ type MenuItem = {
   name: string
   localName?: string
   category: string
-  hasSugarLevel: boolean
-  hasShotType: boolean
   isAvailable: boolean
   image?: string
   variations: Array<{
@@ -110,47 +108,28 @@ export default function POSPage() {
   const [customizationOpen, setCustomizationOpen] = useState(false)
   const [productToCustomize, setProductToCustomize] = useState<MenuItem | null>(null)
   const [manualPoints, setManualPoints] = useState("")
-  const [isSummaryExpanded, setIsSummaryExpanded] = useState(false)
-
-  // Fly-to-cart animation state
-  const [flyAnims, setFlyAnims] = useState<{ id: string; image?: string; x: number; y: number }[]>([])
-  const [pendingDialogFly, setPendingDialogFly] = useState<{ image?: string; x: number; y: number } | null>(null)
 
   const calculateTotal = () => {
-    // Gross subtotal: sum of all items before any reductions (VAT inclusive)
-    const grossTotal = Math.round(cart.reduce((sum, item) => sum + item.price * item.quantity, 0))
+    // Gross subtotal: sum of all items before any reductions
+    const subtotal = Math.round(cart.reduce((sum, item) => sum + item.price * item.quantity, 0))
 
     let promoDiscount = 0
     if (appliedPromo) {
       if (appliedPromo.discountType === 'percentage') {
-        promoDiscount = Math.round(grossTotal * (appliedPromo.discountValue / 100))
+        promoDiscount = Math.round(subtotal * (appliedPromo.discountValue / 100))
       } else {
         promoDiscount = appliedPromo.discountValue
       }
     }
 
     // Final total customer pays (after discounts, tax is inclusive)
-    const finalTotal = grossTotal - promoDiscount - loyaltyDiscount
+    const finalTotal = subtotal - promoDiscount - loyaltyDiscount
+    const tax = calculateInclusiveTax(finalTotal, Number(sysSettings.taxRate) || 0)
 
-    // Tax is calculated from the discounted total
-    const tax = calculateInclusiveTax(finalTotal, Number(sysSettings.taxRate) || 10)
-
-    // Net Subtotal (Total without Tax)
-    const netSubtotal = finalTotal - tax
-
-    return {
-      grossTotal,
-      subtotal: netSubtotal, // Return net amount as subtotal for display
-      tax,
-      total: finalTotal,
-      promoDiscount,
-      loyaltyDiscount,
-      discount: promoDiscount + loyaltyDiscount
-    }
+    return { subtotal, tax, total: finalTotal, promoDiscount, loyaltyDiscount, discount: promoDiscount + loyaltyDiscount }
   }
 
-  const { grossTotal, subtotal, tax, total, promoDiscount, discount } = calculateTotal()
-
+  const { subtotal, tax, total, promoDiscount, discount } = calculateTotal()
 
   // Broadcast cart update to customer view
   useEffect(() => {
@@ -165,11 +144,10 @@ export default function POSPage() {
       promoDiscount,
       loyaltyPoints: loyaltyDiscount,
       promoName: appliedPromo?.name,
-      customer: selectedCustomer,
-      isComplimentary
+      customer: selectedCustomer
     })
     return () => channel.close()
-  }, [cart, appliedPromo, loyaltyDiscount, total, selectedCustomer, isComplimentary])
+  }, [cart, appliedPromo, loyaltyDiscount, total, selectedCustomer])
 
   // Sync payment state with customer view
   useEffect(() => {
@@ -522,8 +500,6 @@ export default function POSPage() {
     setShowBeeperError(false)
     setCashReceived("")
     setIsNewOrderConfirmOpen(false)
-    setPointsRedeemed(0)
-    setLoyaltyDiscount(0)
 
     // Also broadcast to customer view to reset success screen
     const channel = new BroadcastChannel("pos_channel")
@@ -531,64 +507,7 @@ export default function POSPage() {
     channel.close()
   }
 
-  const triggerFlyAnim = (item: MenuItem, e: React.MouseEvent) => {
-    const rect = (e.currentTarget as HTMLElement).getBoundingClientRect()
-    // Add slight random offset for spread
-    const offsetX = (Math.random() - 0.5) * 40
-    const offsetY = (Math.random() - 0.5) * 40
-    const newAnim = {
-      id: Math.random().toString(),
-      image: item.image,
-      x: rect.left + rect.width / 2 + offsetX,
-      y: rect.top + rect.height / 2 + offsetY
-    }
-    setFlyAnims(prev => [...prev, newAnim])
-    setTimeout(() => setFlyAnims(prev => prev.filter(a => a.id !== newAnim.id)), 750)
-  }
-
-  const handleClickProduct = (item: MenuItem, e: React.MouseEvent) => {
-    const rect = (e.currentTarget as HTMLElement).getBoundingClientRect()
-    const cx = rect.left + rect.width / 2
-    const cy = rect.top + rect.height / 2
-
-    // Check if this item is "simple" – just 1 variation with 1 size and no sugar/shot
-    const enabled = item.variations?.filter(v => (v as any).isEnabled !== false) || []
-    const isSimple =
-      !item.hasSugarLevel &&
-      !item.hasShotType &&
-      enabled.length === 1 &&
-      enabled[0].sizes.length === 1
-
-    if (isSimple) {
-      const variation = enabled[0]
-      const size = variation.sizes[0]
-      const uniqueId = `${size.id}-Normal-Normal-${variation.type}`
-      triggerFlyAnim(item, e)
-      setCart(prev => {
-        const existing = prev.find(ci => ci.id === uniqueId)
-        if (existing) {
-          return prev.map(ci => ci.id === uniqueId ? { ...ci, quantity: ci.quantity + 1 } : ci)
-        }
-        return [...prev, {
-          id: uniqueId,
-          variationSizeId: size.id,
-          name: item.name,
-          localName: item.localName,
-          price: size.price,
-          quantity: 1,
-          sugar: 'Normal',
-          shot: 'Normal',
-          variation: variation.type,
-          size: size.size,
-          category: item.category,
-          image: item.image
-        }]
-      })
-      return
-    }
-
-    // Otherwise show customization dialog — save click position for later
-    setPendingDialogFly({ image: item.image, x: cx, y: cy })
+  const handleClickProduct = (item: MenuItem) => {
     setProductToCustomize(item)
     setCustomizationOpen(true)
   }
@@ -634,16 +553,6 @@ export default function POSPage() {
         image: productToCustomize?.image
       }]
     })
-    // Trigger fly animation now that user confirmed
-    if (pendingDialogFly) {
-      const offsetX = (Math.random() - 0.5) * 40
-      const offsetY = (Math.random() - 0.5) * 40
-      const animId = Math.random().toString()
-      const newAnim = { id: animId, image: pendingDialogFly.image, x: pendingDialogFly.x + offsetX, y: pendingDialogFly.y + offsetY }
-      setFlyAnims(prev => [...prev, newAnim])
-      setTimeout(() => setFlyAnims(prev => prev.filter(a => a.id !== animId)), 750)
-      setPendingDialogFly(null)
-    }
     setProductToCustomize(null)
   }
 
@@ -685,11 +594,10 @@ export default function POSPage() {
             size: i.size
           })),
           total,
-          subtotal: grossTotal, // Backend expects gross before discount in subtotal
+          subtotal,
           tax,
           discount,
           promoId: appliedPromo?.id,
-
           customerId: selectedCustomer?.id,
           paymentMethod,
           status: 'COMPLETED',
@@ -707,8 +615,9 @@ export default function POSPage() {
         setLastOrderInfo({
           id: data.id,
           orderNumber,
+          beeperNumber,
           total,
-          subtotal: grossTotal,
+          subtotal,
           tax,
           discount,
           cashReceived: Number(cashReceived) || 0,
@@ -772,7 +681,7 @@ export default function POSPage() {
             size: i.size
           })),
           total,
-          subtotal: grossTotal,
+          subtotal,
           tax,
           discount,
           promoId: appliedPromo?.id,
@@ -800,54 +709,6 @@ export default function POSPage() {
     }
   }
 
-  const handleInitiateOnepay = async () => {
-    if (resumedOrderId && paymentMethod === 'QR_CODE') return;
-
-    setIsProcessing(true)
-    try {
-      const res = await fetch('/api/orders', {
-        method: 'POST',
-        body: JSON.stringify({
-          id: resumedOrderId,
-          items: cart.map(i => ({
-            variationSizeId: i.variationSizeId,
-            name: i.name,
-            price: i.price,
-            quantity: i.quantity,
-            sugarLevel: i.sugar,
-            shotType: i.shot,
-            variation: i.variation,
-            size: i.size
-          })),
-          total, subtotal: grossTotal, tax, discount,
-          promoId: appliedPromo?.id,
-          customerId: selectedCustomer?.id,
-          paymentMethod: 'QR_CODE',
-          status: 'HOLD',
-          beeperNumber: beeperNumber || null,
-          pointsRedeemed,
-          taxAmount: tax
-        }),
-        headers: { 'Content-Type': 'application/json' }
-      })
-
-      if (res.ok) {
-        const data = await res.json()
-        setResumedOrderId(data.id)
-        setOrderNumber(data.orderNumber)
-        setPaymentMethod('QR_CODE')
-      } else {
-        const errorData = await res.json()
-        alert(errorData.error || "Failed to initiate payment")
-      }
-    } catch (e) {
-      console.error(e)
-      alert("Error initiating Onepay")
-    } finally {
-      setIsProcessing(false)
-    }
-  }
-
   const handleCancelOrderClick = () => {
     if (!resumedOrderId) {
       setCart([]) // Just clear the cart if it's a fresh order
@@ -866,7 +727,7 @@ export default function POSPage() {
         body: JSON.stringify({
           id: resumedOrderId,
           items: cart.map(i => ({ id: i.id, name: i.name, price: i.price, quantity: i.quantity })),
-          total, subtotal: grossTotal, tax, discount,
+          total, subtotal, tax, discount,
           promoId: appliedPromo?.id,
           customerId: selectedCustomer?.id,
           status: 'CANCELLED',
@@ -941,7 +802,7 @@ export default function POSPage() {
               <Card
                 key={item.id}
                 className={`p-4 cursor-pointer hover:shadow-lg transition-all bg-amber-50 hover:bg-amber-100 border-amber-200 shadow-sm ${!item.isAvailable ? 'opacity-50 pointer-events-none' : ''}`}
-                onClick={(e) => handleClickProduct(item, e)}
+                onClick={() => handleClickProduct(item)}
               >
                 <div className="flex flex-col h-full justify-between">
                   <div className="relative w-full aspect-square mb-3 rounded-md overflow-hidden bg-white shadow-inner">
@@ -972,30 +833,9 @@ export default function POSPage() {
 
       </div>
 
-      {/* Fly-to-cart overlay animations */}
-      {flyAnims.map((anim) => (
-        <div
-          key={anim.id}
-          className="pointer-events-none fixed z-50"
-          style={{
-            left: anim.x - 36,
-            top: anim.y - 36,
-            '--target-x': `${1650 - anim.x}px`,
-            '--target-y': `${300 - anim.y}px`,
-            animation: 'flyToCart 0.75s cubic-bezier(0.4,0,0.2,1) forwards'
-          } as React.CSSProperties}
-        >
-          {anim.image && anim.image !== '/placeholder.svg' ? (
-            <img src={anim.image} className="w-[72px] h-[72px] rounded-full object-cover shadow-xl border-4 border-amber-300" />
-          ) : (
-            <div className="w-[72px] h-[72px] rounded-full bg-amber-400 flex items-center justify-center shadow-xl border-4 border-amber-300 text-white text-3xl">☕</div>
-          )}
-        </div>
-      ))}
-
       {/* Right Side - Cart */}
-      <div className="w-[490px] flex flex-col bg-white shadow-2xl z-10 border-l shrink-0">
-        <div className="p-3 border-b bg-slate-50 flex items-center justify-between">
+      <div className="w-[450px] flex flex-col bg-white shadow-2xl z-10 border-l">
+        <div className="p-4 border-b bg-slate-50 flex items-center justify-between">
           <h3 className="font-bold text-slate-800 flex items-center gap-2">
             <ShoppingCart className="w-5 h-5" /> {t.cart}
           </h3>
@@ -1012,89 +852,80 @@ export default function POSPage() {
           </div> */}
 
         {/* Cart Items */}
-        <div className="flex-1 overflow-y-auto p-2 space-y-1.5">
+        <div className="flex-1 overflow-y-auto p-4 space-y-4">
           {cart.length === 0 ? (
             <div className="h-full flex flex-col items-center justify-center text-muted-foreground">
-              <Clock className="w-12 h-12 mb-2 opacity-50" />
+              <Clock className="w-12 h-12 mb-2" />
               <p>{t.no_items_found} in {t.cart}</p>
             </div>
           ) : (
-            <div className="space-y-1.5">
+            <div className="space-y-2">
               {cart.map((item) => (
-                <Card key={item.id} className="p-2 border-slate-200 shadow-sm relative overflow-hidden group">
-                  <div className="flex items-center gap-2">
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-start gap-1.5 pr-4">
-                        <h4 className="font-bold text-slate-800 text-[15px] whitespace-normal break-words leading-tight">
-                          {item.localName || item.name}
-                        </h4>
-                        <div className="flex flex-wrap items-start gap-1 shrink-0 mt-0.5">
-                          {item.variation && (
-                            <span className="text-[10px] bg-amber-50 px-1.5 py-0.5 rounded-full text-amber-700 font-bold uppercase whitespace-nowrap">
-                              {item.variation}
-                            </span>
-                          )}
-                          {item.size && item.size.toLowerCase() !== 'standard' && (
-                            <span className="text-[10px] bg-slate-100 px-1.5 py-0.5 rounded-full text-slate-600 font-bold whitespace-nowrap">
-                              {item.size}
-                            </span>
-                          )}
-                        </div>
+                <Card key={item.id} className="p-3">
+                  <div className="flex items-start justify-between mb-2">
+                    <div className="flex-1">
+                      <h4 className="font-semibold text-slate-800 leading-tight">
+                        {item.localName || item.name}
+                        {item.localName && <span className="text-xs text-slate-500 font-medium ml-1">({item.name})</span>}
+                      </h4>
+                      <div className="flex flex-wrap gap-1 mt-0.5 mb-1">
+                        {item.variation && (
+                          <span className="text-[10px] bg-amber-50 px-1.5 py-0.5 rounded-full text-amber-700 border border-amber-100 font-bold uppercase">
+                            {item.variation}
+                          </span>
+                        )}
+                        {item.size && (
+                          <span className="text-[10px] bg-slate-100 px-1.5 py-0.5 rounded-full text-slate-600 border border-slate-200 font-bold">
+                            {t.choice}: {item.size}
+                          </span>
+                        )}
                       </div>
-                      <div className="flex flex-wrap gap-x-2 mt-0.5 flex-col">
-                        <span className="text-xs text-slate-500 font-medium">{formatLAK(item.price)}</span>
-                        {(item.sugar && item.sugar !== "Normal Sweet" && item.sugar !== "100%") || (item.shot && item.shot !== "Normal Shot") ? (
-                          <div className="flex flex-wrap gap-1 mt-0.5">
-                            {item.sugar && item.sugar !== "Normal Sweet" && item.sugar !== "100%" && (
-                              <span className="text-[10px] text-slate-500 font-semibold bg-slate-50 px-1 rounded border border-slate-100">{item.sugar}</span>
-                            )}
-                            {item.shot && item.shot !== "Normal Shot" && (
-                              <span className="text-[10px] text-slate-500 font-semibold bg-slate-50 px-1 rounded border border-slate-100">{item.shot}</span>
-                            )}
+                      <p className="text-sm text-muted-foreground">{formatLAK(item.price)} {t.each}</p>
+                      <div className="flex flex-wrap gap-1 mt-1">
+                        {item.sugar && item.sugar !== "Normal Sweet" && (
+                          <div className="flex items-center gap-1 text-[10px] bg-slate-50 px-1.5 py-0.5 rounded text-slate-500 border border-slate-100">
+                            {item.sugar === "No Sweet" && <CandyOff className="w-3 h-3" />}
+                            {item.sugar === "Less Sweet" && <Droplet className="w-3 h-3" />}
+                            {item.sugar === "Extra Sweet" && <Candy className="w-3 h-3" />}
+                            <span>{item.sugar}</span>
                           </div>
-                        ) : null}
+                        )}
+                        {item.shot && item.shot !== "Normal Shot" && (
+                          <div className="flex items-center gap-1 text-[10px] bg-slate-50 px-1.5 py-0.5 rounded text-slate-500 border border-slate-100">
+                            {item.shot === "Reduced Shot" && <div className="flex"><Minus className="w-3 h-3" /><Coffee className="w-3 h-3" /></div>}
+                            {item.shot === "Double Shot" && <div className="flex"><Coffee className="w-3 h-3" /><Coffee className="w-3 h-3" /></div>}
+                            <span>{item.shot}</span>
+                          </div>
+                        )}
                       </div>
                     </div>
+                    <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => removeItem(item.id)}>
+                      <X className="w-4 h-4" />
+                    </Button>
+                  </div>
 
-                    <div className="flex items-center gap-1.5 shrink-0 px-2">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
                       <Button
-                        variant="ghost"
+                        variant="outline"
                         size="icon"
-                        className="h-10 w-10 sm:h-9 sm:w-9 rounded-full bg-slate-50 border border-slate-200 text-slate-600 shadow-sm"
+                        className="h-8 w-8 bg-transparent"
                         onClick={() => updateQuantity(item.id, -1)}
                       >
                         <Minus className="w-4 h-4" />
                       </Button>
-                      <span className="w-5 text-center font-bold text-[15px] shrink-0">{item.quantity}</span>
+                      <span className="w-8 text-center font-semibold">{item.quantity}</span>
                       <Button
-                        variant="ghost"
+                        variant="outline"
                         size="icon"
-                        className="h-10 w-10 sm:h-9 sm:w-9 rounded-full bg-amber-50 border border-amber-200 text-amber-700 shadow-sm"
+                        className="h-8 w-8 bg-transparent"
                         onClick={() => updateQuantity(item.id, 1)}
                       >
                         <Plus className="w-4 h-4" />
                       </Button>
                     </div>
-
-                    <div className="text-right w-[80px] shrink-0">
-                      <p className="font-black text-[15px] text-slate-800 tracking-tight">
-                        {formatLAK(item.price * item.quantity)}
-                      </p>
-                    </div>
-
-                    <div className="w-[30px]">
-
-                    </div>
-
-
+                    <p className="font-bold">{formatLAK(item.price * item.quantity)}</p>
                   </div>
-
-                  <button
-                    onClick={() => removeItem(item.id)}
-                    className="absolute top-0 right-0 p-3 bg-red-50 text-red-500 rounded-bl-xl hover:bg-red-100 transition-colors z-10"
-                  >
-                    <X className="w-4 h-4" />
-                  </button>
                 </Card>
               ))}
             </div>
@@ -1102,43 +933,40 @@ export default function POSPage() {
         </div>
 
         {/* Totals */}
-        <div
-          className="p-3 border-t bg-slate-50/50 shadow-[0_-4px_10px_rgba(0,0,0,0.03)] cursor-pointer select-none"
-          onClick={() => setIsSummaryExpanded(!isSummaryExpanded)}
-        >
-          <div className="flex items-center justify-between text-slate-400 mb-2">
-            <span className="text-[10px] font-bold uppercase tracking-wider">Order Summary</span>
-            {isSummaryExpanded ? <ChevronDown className="w-4 h-4" /> : <ChevronUp className="w-4 h-4" />}
-          </div>
-
-          {isSummaryExpanded && (
-            <div className="space-y-2 mb-3 px-1">
-              {selectedCustomer && (
-                <div className="flex justify-between text-xs text-amber-600 font-medium">
-                  <span>{t.loyalty_points_earning}</span>
-                  <span>+{Math.floor(total / 1000)} {t.pts}</span>
-                </div>
-              )}
-              {discount > 0 && (
-                <div className="flex justify-between py-1 text-xs bg-rose-50/50 -mx-4 px-4 relative">
-                  <span className="text-slate-500 line-through">{formatLAK(grossTotal)}</span>
-                  <span className="text-rose-600 font-medium">-{formatLAK(discount)} {t.discount || "Discount"}</span>
-                </div>
-              )}
-              <div className="flex justify-between text-xs">
-                <span className="text-muted-foreground">{t.subtotal} (Net)</span>
-                <span className="font-semibold">{formatLAK(subtotal)}</span>
-              </div>
-              <div className="flex justify-between text-xs">
-                <span className="text-muted-foreground">VAT ({sysSettings.taxRate || 10}%)</span>
-                <span className="font-semibold">{formatLAK(tax)}</span>
-              </div>
+        <div className="p-6 border-t bg-slate-50/50 space-y-4 shadow-[0_-4px_10px_rgba(0,0,0,0.03)]">
+          {selectedCustomer && (
+            <div className="flex justify-between text-sm text-amber-600 font-medium">
+              <span>{t.loyalty_points_earning}</span>
+              <span>+{Math.floor(total / 1000)} {t.pts}</span>
             </div>
           )}
-
-          <div className="flex justify-between text-xl font-black items-end pt-1">
+          <div className="flex justify-between text-sm">
+            <span className="text-muted-foreground">{t.subtotal}</span>
+            <span className="font-semibold">{formatLAK(subtotal)}</span>
+          </div>
+          {appliedPromo && (
+            <div className="flex justify-between text-sm text-rose-600 font-medium">
+              <span className="flex items-center gap-1">
+                <Tag className="w-3 h-3" /> {appliedPromo.name}
+              </span>
+              <span>-{formatLAK(promoDiscount)}</span>
+            </div>
+          )}
+          {loyaltyDiscount > 0 && (
+            <div className="flex justify-between text-sm text-amber-600 font-medium">
+              <span className="flex items-center gap-1">
+                <Star className="w-3 h-3" /> {t.loyalty_points_redeemed || "Points Redeemed"}
+              </span>
+              <span>-{formatLAK(loyaltyDiscount)}</span>
+            </div>
+          )}
+          <div className="flex justify-between text-sm">
+            <span className="text-muted-foreground">{t.tax} ({sysSettings.tax_rate}%)</span>
+            <span className="font-semibold">{formatLAK(tax)}</span>
+          </div>
+          <div className="flex justify-between text-md font-bold pt-2 border-t">
             <span>{t.total}</span>
-            <span className="text-amber-600 text-[26px]">{formatLAK(total)}</span>
+            <span className="text-amber-600">{formatLAK(total)}</span>
           </div>
         </div>
 
@@ -1161,16 +989,16 @@ export default function POSPage() {
               <AlertDialogAction onClick={async () => {
                 if (pendingResumeId) {
                   // Auto-hold current first
-                  const existingSubtotal = Math.round(cart.reduce((sum, item) => sum + item.price * item.quantity, 0))
-                  const existingTax = calculateInclusiveTax(existingSubtotal - discount, Number(sysSettings.taxRate) || 10)
-                  const existingTotal = existingSubtotal - discount
+                  const subtotal = Math.round(cart.reduce((sum, item) => sum + item.price * item.quantity, 0))
+                  const tax = calculateTax(subtotal)
+                  const total = subtotal + tax
 
                   await fetch('/api/orders', {
                     method: 'POST',
                     body: JSON.stringify({
                       id: resumedOrderId,
                       items: cart,
-                      total: existingTotal, subtotal: existingSubtotal, tax: existingTax,
+                      total, subtotal, tax,
                       customerId: selectedCustomer?.id,
                       status: 'HOLD'
                     }),
@@ -1190,132 +1018,97 @@ export default function POSPage() {
 
         <Dialog open={isSuccessOpen} onOpenChange={setIsSuccessOpen}>
           <DialogContent
-            className="max-w-[400px] max-h-[90vh] overflow-y-auto !transform-none data-[state=open]:animate-none p-4"
+            className="max-w-[400px] max-h-[90vh] overflow-y-auto !transform-none data-[state=open]:animate-none"
             size="sm"
             showCloseButton={false}
             onInteractOutside={(e) => e.preventDefault()}
             onEscapeKeyDown={(e) => e.preventDefault()}
           >
-            <div className="text-center space-y-2 mb-4 pt-2">
+            <div className="text-center space-y-2 mb-4 pt-4">
               <div className="flex justify-center mb-4">
-                <CheckCircle className="w-12 h-12 text-green-600" strokeWidth={2.5} />
+                <CheckCircle className="w-10 h-10 text-green-600" strokeWidth={2.5} />
+
               </div>
-              <DialogTitle className="text-2xl font-black uppercase tracking-tight text-emerald-700">{t.payment_successful}</DialogTitle>
-              <p className="text-sm font-medium text-slate-500">{t.order_completed_successfully}</p>
+              <DialogTitle className="text-2xl font-bold">{t.payment_successful}</DialogTitle>
+              <p className="text-muted-foreground">{t.order_completed_successfully}</p>
             </div>
 
             {lastOrderInfo && (
-              <div className={`p-4 rounded-xl border-dashed border-2 border-slate-200 bg-white font-mono text-[10px] leading-tight shadow-sm ${sysSettings?.boldReceipt === 'true' ? 'font-bold' : ''}`}>
-                <div className="text-center space-y-1 mb-4">
-                  <div className="flex justify-center mb-2">
-                    <img src={sysSettings?.shopLogo || "/placeholder-logo.png"} alt="Logo" className="h-10 w-auto object-contain" />
-                  </div>
-                  <h1 className="text-sm font-black uppercase tracking-tight">{sysSettings?.shopName || 'Cafe POS'}</h1>
-                  {sysSettings?.shopAddress && <p className="text-[8px] text-muted-foreground">{sysSettings.shopAddress}</p>}
-                  {sysSettings?.shopPhone && <p className="text-[8px] text-muted-foreground">Tel: {sysSettings.shopPhone}</p>}
+              <div className="border border-dashed border-slate-200 p-4 rounded-lg bg-slate-50 font-mono text-sm leading-relaxed">
+                <div className="text-center border-b border-dashed border-slate-300 pb-3 mb-3">
+                  <p className="text-[10px] uppercase tracking-wider text-slate-500">{t.order_no}</p>
+                  <p className="text-3xl font-bold">{lastOrderInfo.orderNumber}</p>
+                  <p className="text-lg font-bold uppercase mt-1">{sysSettings?.shopName || t.cafe_pos}</p>
+                  <p className="text-[10px] mt-1">{lastOrderInfo.date}</p>
                 </div>
 
-                <div className="border border-dashed border-slate-200 p-2 rounded-lg bg-slate-50 relative overflow-hidden mb-3">
-                  <div className="text-center border-b border-dashed border-slate-300 pb-2 mb-2">
-                    <p className="text-[8px] uppercase tracking-wider text-slate-400">Order Number</p>
-                    <p className="text-lg font-black">{lastOrderInfo.orderNumber}</p>
-                    <p className="text-[8px] text-slate-400">{lastOrderInfo.date}</p>
-                  </div>
-
-                  {lastOrderInfo.beeperNumber && (
-                    <div className="mb-2 p-1 border-2 border-dashed border-slate-400 text-center font-black text-sm text-slate-700">
-                      BEEPER: {lastOrderInfo.beeperNumber}
-                    </div>
-                  )}
-
-                  <div className="space-y-2 mb-2">
-                    {lastOrderInfo.items?.map((item: any, i: number) => {
-                      const taxRate = Number(sysSettings?.taxRate) || 10;
-                      const netPrice = (item.price * item.quantity) - calculateInclusiveTax(item.price * item.quantity, taxRate);
-
-                      return (
-                        <div key={i} className="flex flex-col mb-1 capitalize">
-                          <div className="flex justify-between font-bold">
-                            <span className="mr-2">{item.name} x{item.quantity}</span>
-                            <span>{formatLAK(item.price * item.quantity)}</span>
-                          </div>
-
-                          {(item.variation || item.size) && (
-                            <div className="text-[8px] text-slate-500 pl-1 font-bold">
-                              {item.variation}{item.variation && item.size ? ' - ' : ''}{item.size}
-                            </div>
-                          )}
-
-                          <div className="text-[8px] text-slate-500 pl-1">
-                            <span className="italic">Net: {formatLAK(netPrice)} </span>
-                          </div>
-
-                          {((item.sugar && item.sugar !== "100%") || (item.shot && item.shot !== "Normal")) && (
-                            <div className="text-[8px] text-slate-500 pl-1">
-                              {item.sugar && item.sugar !== "100%" && `${t.sugar}: ${item.sugar}, `}
-                              {item.shot && item.shot !== "Normal" && `${t.shot}: ${item.shot}`}
-                            </div>
-                          )}
-                        </div>
-                      );
-                    })}
-                  </div>
-
-                  <div className="border-t border-dashed border-slate-300 pt-2 space-y-0.5">
-                    {lastOrderInfo.discount > 0 && (
-                      <>
-                        <div className="flex justify-between text-[9px] text-slate-400">
-                          <span>Gross Total</span>
-                          <span className="line-through">{formatLAK(lastOrderInfo.total + lastOrderInfo.discount)}</span>
-                        </div>
-                        <div className="flex justify-between text-[9px] text-rose-500 font-bold">
-                          <span>Discount</span>
-                          <span>-{formatLAK(lastOrderInfo.discount)}</span>
-                        </div>
-                      </>
-                    )}
-                    <div className="flex justify-between text-[9px] text-slate-500">
-                      <span>Subtotal (Net)</span>
-                      <span>{formatLAK(lastOrderInfo.total - lastOrderInfo.tax)}</span>
-                    </div>
-                    <div className="flex justify-between text-[9px] text-slate-500">
-                      <span>VAT ({sysSettings?.taxRate || '10'}%)</span>
-                      <span>{formatLAK(lastOrderInfo.tax)}</span>
-                    </div>
-                    <div className="flex justify-between font-black text-sm mt-1.5 pt-1.5 border-t border-solid border-slate-300">
-                      <span>GRAND TOTAL</span>
-                      <span>{formatLAK(lastOrderInfo.total)}</span>
-                    </div>
-
-                    {lastOrderInfo.paymentMethod === 'BANK_NOTE' && (
-                      <div className="mt-2 pt-2 border-t border-dashed border-slate-300 space-y-1">
-                        <div className="flex justify-between text-slate-500 text-[9px]">
-                          <span>{t.cash_received}</span>
-                          <span>{formatLAK(lastOrderInfo.cashReceived)}</span>
-                        </div>
-                        <div className="flex justify-between font-black text-base text-emerald-600">
-                          <span>{t.change}</span>
-                          <span>{formatLAK(Math.max(0, lastOrderInfo.cashReceived - lastOrderInfo.total))}</span>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                </div>
-
-                {lastOrderInfo.customer && (
-                  <div className="mt-2 pt-2 border-t border-dashed border-slate-300 text-[8px] text-slate-500">
-                    <p>Customer: {lastOrderInfo.customer.name}</p>
-                    <p>Points Earned: +{Math.floor(lastOrderInfo.total / 1000)}</p>
+                {lastOrderInfo.beeperNumber && (
+                  <div className="mb-3 p-2 border-2 border-dashed border-slate-400 text-center font-bold text-xl">
+                    {t.beeper.toUpperCase()}: {lastOrderInfo.beeperNumber}
                   </div>
                 )}
 
-                <div className="text-center mt-3 pt-2 text-[7px] text-slate-400 border-t border-dashed border-slate-200">
-                  <p>Payment: {lastOrderInfo.paymentMethod === 'BANK_NOTE' ? 'Cash' : 'Transfer'}</p>
-                  <p className="font-bold mt-1 uppercase text-slate-500">{sysSettings?.receiptFooter || 'Thank you for your visit!'}</p>
+                <div className="space-y-1 mb-3">
+                  {lastOrderInfo?.items.map((item: any, i: number) => (
+                    <div key={i} className="flex flex-col mb-1 capitalize">
+                      <div className="flex justify-between">
+                        <span className="truncate mr-2 font-bold">{item.name} x{item.quantity}</span>
+                        <span>{formatLAK(item.price * item.quantity)}</span>
+                      </div>
+                      <div className="text-[10px] text-slate-500 pl-2">
+                        {item.sugar && <span>{t.sugar}: {item.sugar} </span>}
+                        {item.shot && <span>{t.shot}: {item.shot} </span>}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="border-t border-dashed border-slate-300 pt-3 space-y-1">
+                  <div className="flex justify-between text-xs">
+                    <span>{t.subtotal}</span>
+                    <span>{formatLAK(lastOrderInfo.subtotal)}</span>
+                  </div>
+                  {lastOrderInfo.discount > 0 && (
+                    <div className="flex justify-between text-xs text-rose-600">
+                      <span>{t.promotions}</span>
+                      <span>-{formatLAK(lastOrderInfo.discount)}</span>
+                    </div>
+                  )}
+                  <div className="flex justify-between text-xs">
+                    <span>{t.tax} ({sysSettings.taxRate}%)</span>
+                    <span>{formatLAK(lastOrderInfo.tax)}</span>
+                  </div>
+                  <div className="flex justify-between font-bold text-lg mt-2 pt-2 border-t border-dashed border-slate-300">
+                    <span>{t.total.toUpperCase()}</span>
+                    <span>{formatLAK(lastOrderInfo.total)}</span>
+                  </div>
+
+                  {lastOrderInfo.paymentMethod === 'BANK_NOTE' && (
+                    <div className="mt-4 pt-4 border-t border-dashed border-slate-300 space-y-2">
+                      <div className="flex justify-between text-slate-600">
+                        <span>{t.cash_received}</span>
+                        <span>{formatLAK(lastOrderInfo.cashReceived)}</span>
+                      </div>
+                      <div className="flex justify-between font-black text-xl text-green-700">
+                        <span>{t.change}</span>
+                        <span>{formatLAK(Math.max(0, lastOrderInfo.cashReceived - lastOrderInfo.total))}</span>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {lastOrderInfo.customer && (
+                  <div className="mt-3 pt-3 border-t border-dashed border-slate-300 text-[10px] text-slate-600">
+                    <p>{t.customer}: {lastOrderInfo.customer.name}</p>
+                    <p>{t.points_earned}: +{Math.floor(lastOrderInfo.total / 1000)}</p>
+                  </div>
+                )}
+                <div className="text-center mt-3 pt-2 text-[8px] opacity-70">
+                  <p>{t.payment_method}: {lastOrderInfo?.paymentMethod === 'BANK_NOTE' ? t.cash : t.bank_transfer}</p>
+                  <p className="font-bold mt-1 uppercase">{t.thank_you}</p>
                 </div>
               </div>
             )}
-
 
             <div className="flex flex-col gap-2 mt-6">
               <Button className="w-full bg-blue-600 hover:bg-blue-700 py-6 text-lg font-bold" onClick={() => {
@@ -1365,7 +1158,7 @@ export default function POSPage() {
                   <X className="w-5 h-5" />
                 </Button>
               </div>
-              {pointsRedeemed === 0 && ((selectedCustomer as any).loyaltyPoints || 0) > 0 && !isComplimentary && (
+              {pointsRedeemed === 0 && ((selectedCustomer as any).loyaltyPoints || 0) > 0 && (
                 <div className="flex gap-2">
                   <Input
                     placeholder={t.pts.toUpperCase()}
@@ -1403,7 +1196,7 @@ export default function POSPage() {
           )}
 
           {!appliedPromo ? (
-            <Button variant="outline" className="w-full border-dashed" onClick={() => setIsPromoOpen(true)} disabled={isComplimentary}>
+            <Button variant="outline" className="w-full border-dashed" onClick={() => setIsPromoOpen(true)}>
               <Tag className="w-4 h-4 mr-2" />
               {t.apply_promo}
             </Button>
@@ -1420,14 +1213,7 @@ export default function POSPage() {
             </div>
             <Switch
               checked={isComplimentary}
-              onCheckedChange={(val) => {
-                setIsComplimentary(val)
-                if (val) {
-                  setAppliedPromo(null)
-                  setPointsRedeemed(0)
-                  setLoyaltyDiscount(0)
-                }
-              }}
+              onCheckedChange={setIsComplimentary}
             />
           </div>
 
@@ -1524,11 +1310,11 @@ export default function POSPage() {
                         </Button>
                         <Button
                           variant={paymentMethod === 'QR_CODE' ? "default" : "outline"}
-                          onClick={handleInitiateOnepay}
-                          disabled={isComplimentary || isProcessing}
+                          onClick={() => setPaymentMethod('QR_CODE')}
+                          disabled={isComplimentary}
                           className={`h-12 justify-start px-4 text-lg ${isComplimentary ? 'opacity-50 cursor-not-allowed' : paymentMethod === 'QR_CODE' ? 'bg-blue-600 hover:bg-blue-700 shadow-md transform scale-[1.02]' : 'hover:bg-blue-50'}`}
                         >
-                          {isProcessing && paymentMethod !== 'QR_CODE' ? <Loader2 className="mr-3 h-5 w-5 animate-spin" /> : <span className="mr-3 text-xl">📱</span>} {t.qr_code}
+                          <span className="mr-3 text-xl">📱</span> {t.qr_code}
                         </Button>
                       </div>
                     </div>
@@ -1708,7 +1494,6 @@ export default function POSPage() {
                       <PaymentQR
                         amount={total}
                         orderNumber={orderNumber || `ORD-${Date.now().toString().slice(-6)}`}
-                        orderId={resumedOrderId || undefined}
                         onComplete={handleCheckout}
                       />
                     </div>
@@ -1858,8 +1643,6 @@ export default function POSPage() {
             menuName={productToCustomize.name}
             localName={productToCustomize.localName}
             variations={productToCustomize.variations || []}
-            hasSugarLevel={productToCustomize.hasSugarLevel}
-            hasShotType={productToCustomize.hasShotType}
           />
         )}
       </div>
