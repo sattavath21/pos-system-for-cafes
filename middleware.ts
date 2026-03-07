@@ -3,11 +3,29 @@ import type { NextRequest } from 'next/server'
 
 export function middleware(request: NextRequest) {
     const path = request.nextUrl.pathname
+    const host = request.headers.get('host') || ''
+
+    // 1. Subdomain Lockdown: monitor.sattavath.store
+    if (host.includes('monitor.sattavath.store')) {
+        // Allow API, static assets, and only the /monitor page
+        const isAllowedPath = path === '/monitor' ||
+            path.startsWith('/api/') ||
+            path.startsWith('/_next/') ||
+            path.includes('favicon.ico') ||
+            path.includes('.png') ||
+            path.includes('.svg')
+
+        if (!isAllowedPath) {
+            const url = request.nextUrl.clone()
+            url.pathname = '/monitor'
+            return NextResponse.redirect(url)
+        }
+    }
 
     // Define protected routes
     const protectedRoutes = ['/dashboard', '/pos', '/orders', '/inventory', '/customers', '/promotions', '/reports', '/menu', '/settings']
 
-    // Check if the current path is a protected route
+    // ... rest of the existing protected route logic ...
     const isProtectedRoute = protectedRoutes.some(route => path.startsWith(route))
 
     if (isProtectedRoute) {

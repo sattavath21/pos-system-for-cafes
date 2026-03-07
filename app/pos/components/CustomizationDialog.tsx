@@ -10,8 +10,11 @@ import {
     CandyOff,
     Candy,
     Coffee,
-    Minus
+    Minus,
+    Trash2,
+    ShoppingBag
 } from "lucide-react"
+import { Switch } from "@/components/ui/switch"
 
 interface MenuVariation {
     id: string
@@ -37,6 +40,7 @@ interface CustomizationDialogProps {
         shot: string
         variation: string
         size: string
+        isTakeaway: boolean
     }) => void
     menuName: string
     localName?: string
@@ -61,6 +65,7 @@ export function CustomizationDialog({
     const [shot, setShot] = useState("Normal")
     const [selectedVariation, setSelectedVariation] = useState<string>("")
     const [selectedSize, setSelectedSize] = useState<string>("")
+    const [isTakeaway, setIsTakeaway] = useState(false)
 
     // Reset defaults when opening
     useEffect(() => {
@@ -75,6 +80,7 @@ export function CustomizationDialog({
             // Set default size (M if available, otherwise first)
             const mSize = defaultVar.sizes.find(s => s.size === "M")
             setSelectedSize(mSize ? mSize.id : defaultVar.sizes[0]?.id || "")
+            setIsTakeaway(false)
         }
     }, [isOpen, variations])
 
@@ -116,13 +122,6 @@ export function CustomizationDialog({
         }
     }
 
-    const handleSizeChange = (sizeLabel: string) => {
-        const sizeObj = currentVariation?.sizes.find(s => s.size === sizeLabel)
-        if (sizeObj) {
-            setSelectedSize(sizeObj.id)
-        }
-    }
-
     const handleConfirm = () => {
         if (!selectedSize || !selectedSizeObj) {
             alert("Please select a customization")
@@ -137,7 +136,8 @@ export function CustomizationDialog({
             sugar: effectiveSugar,
             shot: effectiveShot,
             variation: selectedVariation,
-            size: selectedSizeObj.size
+            size: selectedSizeObj.size,
+            isTakeaway: isTakeaway
         })
         onClose()
     }
@@ -242,6 +242,22 @@ export function CustomizationDialog({
                         </div>
                     )}
 
+                    {/* Take Away Toggle */}
+                    <div className="flex items-center justify-between p-4 bg-slate-50 rounded-xl border border-slate-100">
+                        <div className="flex items-center gap-3">
+                            <div className="bg-amber-100 p-2 rounded-lg">
+                                <ShoppingBag className="h-5 w-5 text-amber-600" />
+                            </div>
+                            <div>
+                                <p className="font-bold">Take Away</p>
+                                <p className="text-xs text-muted-foreground">Check this if customer wants to take home</p>
+                            </div>
+                        </div>
+                        <Switch
+                            checked={isTakeaway}
+                            onCheckedChange={setIsTakeaway}
+                        />
+                    </div>
 
                 </div>
                 <DialogFooter>

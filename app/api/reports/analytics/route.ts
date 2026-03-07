@@ -220,6 +220,36 @@ export async function GET(request: Request) {
         const sizeStats = Array.from(sizeMap.values()).sort((a, b) => b.sold - a.sold)
         const variationStats = Array.from(varTypeMap.values()).sort((a, b) => b.sold - a.sold)
 
+        // 7. Takeaway vs Dine-in
+        const takeawayMap = new Map()
+        takeawayMap.set("Take Away", { name: "Take Away", sold: 0, revenue: 0 })
+        takeawayMap.set("Dine In", { name: "Dine In", sold: 0, revenue: 0 })
+
+        orderItems.forEach(item => {
+            const key = (item as any).isTakeaway ? "Take Away" : "Dine In"
+            const entry = takeawayMap.get(key)
+            entry.sold += item.quantity
+            entry.revenue += item.total
+        })
+        const takeawayStats = Array.from(takeawayMap.values())
+
+        // 8. Sugar & Shot Stats
+        const sugarMap = new Map()
+        const shotMap = new Map()
+
+        orderItems.forEach(item => {
+            if (item.sugarLevel) {
+                if (!sugarMap.has(item.sugarLevel)) sugarMap.set(item.sugarLevel, { name: item.sugarLevel, count: 0 })
+                sugarMap.get(item.sugarLevel).count += item.quantity
+            }
+            if (item.shotType) {
+                if (!shotMap.has(item.shotType)) shotMap.set(item.shotType, { name: item.shotType, count: 0 })
+                shotMap.get(item.shotType).count += item.quantity
+            }
+        })
+        const sugarStats = Array.from(sugarMap.values()).sort((a, b) => b.count - a.count)
+        const shotStats = Array.from(shotMap.values()).sort((a, b) => b.count - a.count)
+
         // --- NEW: Advanced Analytics (Margin, COGS, Shrinkage) ---
 
         // 1. Margin Analysis
@@ -510,6 +540,9 @@ export async function GET(request: Request) {
             zeroSales: trashItems,
             sizeStats,
             variationStats,
+            takeawayStats,
+            sugarStats,
+            shotStats,
             promoImpact,
             staffSales,
             complimentaryDetails,

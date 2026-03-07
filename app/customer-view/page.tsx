@@ -1,6 +1,6 @@
 "use client"
 
-import { ShoppingCart, CheckCircle, Clock, Utensils, Coffee, Candy, CandyOff, Droplet, Droplets, Minus } from "lucide-react"
+import { ShoppingCart, CheckCircle, Clock, Utensils, Coffee, Candy, CandyOff, Droplet, Droplets, Minus, ShoppingBag } from "lucide-react"
 import { useState, useEffect } from "react"
 import { Card } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -22,6 +22,7 @@ type CartItem = {
     variation?: string
     size?: string
     localName?: string
+    isTakeaway?: boolean
 }
 
 export default function CustomerViewPage() {
@@ -71,7 +72,6 @@ export default function CustomerViewPage() {
                 setIsIdle(true)
             }
         }
-        // ... (rest of the effect)
 
         paymentChannel.onmessage = (event) => {
             if (event.data.type === "QR_PAYMENT") {
@@ -83,9 +83,6 @@ export default function CustomerViewPage() {
                 }
             } else if (event.data.type === "PAYMENT_COMPLETE") {
                 setQrPayment(null)
-                // Don't set isIdle true here if cart still has items,
-                // but usually PAYMENT_COMPLETE means order finished.
-                // If generic clear signal, just clear QR.
                 setQrPayment(null)
             }
         }
@@ -103,8 +100,6 @@ export default function CustomerViewPage() {
     }, [])
 
     const { status: shiftStatus } = useShift()
-
-    // ... rest of useEffects
 
     if (shiftStatus === 'CLOSED') {
         return (
@@ -126,7 +121,6 @@ export default function CustomerViewPage() {
         return (
             <div className="h-screen bg-slate-50 flex flex-col items-center justify-center overflow-hidden animate-in fade-in duration-700">
                 <div className="max-w-lg w-full px-6 relative">
-                    {/* Decorative Background Elements */}
                     <div className="absolute -top-16 -left-16 w-48 h-48 bg-emerald-200 rounded-full mix-blend-multiply filter blur-3xl opacity-30 animate-blob"></div>
                     <div className="absolute -bottom-16 -right-16 w-48 h-48 bg-amber-200 rounded-full mix-blend-multiply filter blur-3xl opacity-30 animate-blob animation-delay-2000"></div>
 
@@ -134,14 +128,12 @@ export default function CustomerViewPage() {
                         <div className="absolute top-0 left-0 w-full h-1.5 bg-gradient-to-r from-emerald-400 via-teal-500 to-emerald-500"></div>
 
                         <div className="p-8 flex flex-col items-center gap-5">
-                            {/* Icon */}
                             <div className="w-24 h-24 bg-emerald-50 rounded-full flex items-center justify-center relative">
                                 <div className="absolute inset-0 rounded-full border-4 border-emerald-100 animate-ping opacity-20"></div>
                                 <div className="absolute inset-3 rounded-full border-2 border-emerald-200 animate-pulse"></div>
                                 <CheckCircle className="w-14 h-14 text-emerald-500 relative z-10" />
                             </div>
 
-                            {/* Title */}
                             <div className="text-center space-y-1">
                                 <h1 className="text-4xl font-black text-slate-800 tracking-tight leading-none">
                                     {t.order_complete_msg || "Payment Confirmed!"}
@@ -149,7 +141,6 @@ export default function CustomerViewPage() {
                                 <p className="text-base text-slate-400 font-medium italic">Your order is now being prepared</p>
                             </div>
 
-                            {/* Payment Details */}
                             <div className="w-full bg-slate-50/80 rounded-2xl px-6 py-4 space-y-3 border border-slate-100">
                                 <div className="flex justify-between items-center">
                                     <span className="text-sm font-bold uppercase tracking-widest text-slate-400">Amount Paid</span>
@@ -169,7 +160,6 @@ export default function CustomerViewPage() {
                                 </div>
                             </div>
 
-                            {/* Thank you */}
                             <div className="space-y-1 text-center">
                                 <div className="flex items-center justify-center gap-3 text-emerald-600 font-black text-base uppercase tracking-widest">
                                     <div className="h-px w-6 bg-emerald-200"></div>
@@ -189,17 +179,14 @@ export default function CustomerViewPage() {
         const shopName = settings?.shopName || 'Cafe'
         return (
             <div className="min-h-screen bg-gradient-to-br from-amber-50 via-orange-50 to-yellow-50 flex flex-col items-center justify-center p-8 text-center animate-in fade-in duration-700 relative overflow-hidden">
-                {/* Decorative blobs */}
                 <div className="absolute top-0 left-0 w-96 h-96 bg-amber-200 rounded-full mix-blend-multiply filter blur-3xl opacity-20 -translate-x-1/2 -translate-y-1/2" />
                 <div className="absolute bottom-0 right-0 w-96 h-96 bg-orange-200 rounded-full mix-blend-multiply filter blur-3xl opacity-20 translate-x-1/2 translate-y-1/2" />
 
                 <div className="relative max-w-xl space-y-8 z-10">
-                    {/* Logo icon */}
                     <div className="w-28 h-28 bg-white/80 backdrop-blur rounded-3xl flex items-center justify-center mx-auto shadow-lg shadow-amber-200/50 border border-amber-100">
                         <span className="text-5xl">☕</span>
                     </div>
 
-                    {/* Title — split into two lines to avoid ugly wrapping */}
                     <div className="space-y-2">
                         <p className="text-xl font-semibold text-amber-600 uppercase tracking-[0.2em]">Welcome to</p>
                         <h1 className="text-5xl font-black text-amber-900 leading-tight">{shopName}</h1>
@@ -208,14 +195,12 @@ export default function CustomerViewPage() {
                         </p>
                     </div>
 
-                    {/* Divider */}
                     <div className="flex items-center gap-3 opacity-40">
                         <div className="flex-1 h-px bg-amber-400" />
                         <span className="text-amber-600 text-lg">✦</span>
                         <div className="flex-1 h-px bg-amber-400" />
                     </div>
 
-                    {/* Feature highlights */}
                     <div className="grid grid-cols-3 gap-6">
                         <div className="bg-white/60 backdrop-blur rounded-2xl p-4 space-y-2 shadow-sm border border-amber-100/50">
                             <div className="text-3xl">🥐</div>
@@ -237,7 +222,6 @@ export default function CustomerViewPage() {
 
     return (
         <div className="min-h-screen bg-slate-50 flex">
-            {/* Left Panel: Order Details */}
             <div className="flex-1 p-4 flex flex-col h-screen">
                 <header className="mb-4">
                     <h1 className="text-2xl font-bold text-slate-800">Your Order</h1>
@@ -245,7 +229,6 @@ export default function CustomerViewPage() {
                 </header>
 
                 <div className="flex-1 overflow-y-auto pr-2">
-                    {/* Grouping Logic */}
                     {Object.entries(
                         cart.reduce((acc: any, item) => {
                             const cat = item.category || "Other";
@@ -288,25 +271,29 @@ export default function CustomerViewPage() {
                                                         </Badge>
                                                     )}
                                                 </div>
-                                                {(item.sugar || item.shot) && (
-                                                    <div className="flex flex-wrap gap-1 mt-1">
-                                                        {item.sugar && item.sugar !== 'Normal Sweet' && (
-                                                            <Badge variant="outline" className="text-[10px] bg-amber-50/50 text-amber-800 border-amber-100 px-1 py-0 flex items-center gap-1">
-                                                                {item.sugar === "No Sweet" && <CandyOff className="w-3 h-3" />}
-                                                                {item.sugar === "Less Sweet" && <Droplet className="w-3 h-3" />}
-                                                                {item.sugar === "Extra Sweet" && <Candy className="w-3 h-3" />}
-                                                                {item.sugar}
-                                                            </Badge>
-                                                        )}
-                                                        {item.shot && item.shot !== 'Normal Shot' && (
-                                                            <Badge variant="outline" className="text-[10px] bg-gray-50/50 text-stone-800 border-stone-100 px-1 py-0 flex items-center gap-1">
-                                                                {item.shot === "Reduced Shot" && <div className="flex"><Minus className="w-3 h-3" /><Coffee className="w-3 h-3" /></div>}
-                                                                {item.shot === "Double Shot" && <div className="flex"><Coffee className="w-3 h-3" /><Coffee className="w-3 h-3" /></div>}
-                                                                {item.shot}
-                                                            </Badge>
-                                                        )}
-                                                    </div>
-                                                )}
+                                                <div className="flex flex-wrap gap-1 mt-1">
+                                                    {item.isTakeaway && (
+                                                        <Badge variant="secondary" className="bg-emerald-100 text-emerald-800 border-emerald-200 text-[10px] font-bold uppercase px-1.5 py-0 flex items-center gap-1">
+                                                            <ShoppingBag className="w-3 h-3" />
+                                                            TAKE AWAY
+                                                        </Badge>
+                                                    )}
+                                                    {item.sugar && item.sugar !== 'Normal Sweet' && (
+                                                        <Badge variant="outline" className="text-[10px] bg-amber-50/50 text-amber-800 border-amber-100 px-1 py-0 flex items-center gap-1">
+                                                            {item.sugar === "No Sweet" && <CandyOff className="w-3 h-3" />}
+                                                            {item.sugar === "Less Sweet" && <Droplet className="w-3 h-3" />}
+                                                            {item.sugar === "Extra Sweet" && <Candy className="w-3 h-3" />}
+                                                            {item.sugar}
+                                                        </Badge>
+                                                    )}
+                                                    {item.shot && item.shot !== 'Normal Shot' && (
+                                                        <Badge variant="outline" className="text-[10px] bg-gray-50/50 text-stone-800 border-stone-100 px-1 py-0 flex items-center gap-1">
+                                                            {item.shot === "Reduced Shot" && <div className="flex"><Minus className="w-3 h-3" /><Coffee className="w-3 h-3" /></div>}
+                                                            {item.shot === "Double Shot" && <div className="flex"><Coffee className="w-3 h-3" /><Coffee className="w-3 h-3" /></div>}
+                                                            {item.shot}
+                                                        </Badge>
+                                                    )}
+                                                </div>
                                                 <div className="flex items-center gap-1.5 mt-1.5">
                                                     <Badge variant="secondary" className="bg-slate-100 text-slate-600 px-1.5 py-0 text-sm font-bold">x{item.quantity}</Badge>
                                                     <span className="text-sm text-slate-400 font-medium">@ {formatLAK(item.price)}</span>
@@ -322,7 +309,6 @@ export default function CustomerViewPage() {
                 </div>
             </div>
 
-            {/* Right Panel: Totals or QR Payment */}
             <div className="w-[350px] bg-white border-l p-4 flex flex-col shadow-2xl z-10">
                 {customer && (
                     <div className="mb-4 p-3 bg-amber-50 rounded-lg border border-amber-100 animate-in slide-in-from-right duration-500">

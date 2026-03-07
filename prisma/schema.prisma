@@ -238,6 +238,7 @@ model OrderItem {
   sugarLevel String?
   shotType   String?
   cupSize    String?
+  isTakeaway Boolean @default(false)
 
   variationSize VariationSize @relation(fields: [variationSizeId], references: [id])
   order         Order         @relation(fields: [orderId], references: [id])

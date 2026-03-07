@@ -162,12 +162,26 @@ export default function SettingsPage() {
                 />
               </div>
               <div className="space-y-2">
-                <Label>Logo URL / Path</Label>
-                <Input
-                  placeholder="/CAFE LOGO.jpg"
-                  value={settings.shopLogo || ""}
-                  onChange={(e) => setSettings({ ...settings, shopLogo: e.target.value })}
-                />
+                <Label>Logo Upload</Label>
+                <div className="flex gap-3 items-center">
+                  <Input
+                    type="file"
+                    accept="image/*"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0]
+                      if (file) {
+                        const reader = new FileReader()
+                        reader.onloadend = () => {
+                          setSettings({ ...settings, shopLogo: reader.result as string })
+                        }
+                        reader.readAsDataURL(file)
+                      }
+                    }}
+                  />
+                  {settings.shopLogo && (
+                    <img src={settings.shopLogo} alt="Logo" className="h-10 w-10 object-contain border rounded" />
+                  )}
+                </div>
               </div>
             </div>
             <div className="grid md:grid-cols-2 gap-4">
