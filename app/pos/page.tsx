@@ -1154,6 +1154,7 @@ export default function POSPage() {
                     setTimeout(() => {
                       const printBtn = document.getElementById('print-receipt-btn')
                       if (printBtn) printBtn.click()
+                      handleNewOrder()
                     }, 100)
                   }}
                 >

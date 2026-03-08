@@ -60,8 +60,8 @@ export function Receipt({ order }: ReceiptProps) {
                                 <td className="py-1">
                                     <div>{item.localName || item.name}</div>
                                     <div className="text-[10px] opacity-70">
-                                        {item.variation} - {item.size}
-                                        {item.isTakeaway && " (TAKE AWAY)"}
+                                        {item.variation ? `${item.variation} - ` : ''} {item.size}
+                                        {item.isTakeaway && <span className="text-blue-600 font-bold ml-1">(TAKE AWAY)</span>}
                                     </div>
                                 </td>
                                 <td className="text-right py-1">{item.quantity}</td>

@@ -137,6 +137,12 @@ function ReceiptContent() {
                       {item.shotType && item.shotType !== "Normal" && `${item.shotType}`}
                     </div>
                   )}
+
+                  {item.isTakeaway && (
+                    <div className="text-[8px] text-blue-600 pl-1.5 font-bold">
+                      (TAKE AWAY)
+                    </div>
+                  )}
                 </div>
               );
             })}
